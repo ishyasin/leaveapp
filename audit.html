@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audit Trail — Leave Management</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="wrap">
+  <div class="card">
+    <h1>Audit Trail</h1>
+    <p class="small">Every create, approve, reject, edit, unapprove, delete, and admin action is logged here permanently.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+      <select id="actionFilter" style="width:200px;">
+        <option value="">All actions</option>
+        <option value="create_leave">Create leave</option>
+        <option value="approve">Approve</option>
+        <option value="reject">Reject</option>
+        <option value="edit">Edit</option>
+        <option value="unapprove">Unapprove</option>
+        <option value="delete">Delete</option>
+        <option value="create_user">Create user</option>
+        <option value="deactivate_user">Deactivate user</option>
+        <option value="reactivate_user">Reactivate user</option>
+        <option value="reset_password">Reset password</option>
+        <option value="set_bank_holiday">Set bank holiday</option>
+        <option value="remove_bank_holiday">Remove bank holiday</option>
+      </select>
+      <button class="secondary" onclick="load()">Filter</button>
+    </div>
+    <div id="msg"></div>
+    <table>
+      <thead><tr><th>When</th><th>Action</th><th>Actor</th><th>Note</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+let PROFILE = null;
+let PROFILES = [];
+
+(async () => {
+  PROFILE = await requireAuth(["superuser","developer"]);
+  if (!PROFILE) return;
+  const { data } = await sb.from("profiles").select("id, full_name, initials");
+  PROFILES = data || [];
+  await load();
+})();
+
+function nameFor(id) {
+  const p = PROFILES.find(x => x.id === id);
+  return p ? `${p.full_name} (${p.initials})` : (id ? id.slice(0, 8) : "system");
+}
+
+async function load() {
+  let q = sb.from("audit_log").select("*").order("created_at", { ascending: false }).limit(500);
+  const filter = document.getElementById("actionFilter").value;
+  if (filter) q = q.eq("action", filter);
+  const { data, error } = await q;
+  const tbody = document.getElementById("rows");
+  if (error) { showMsg(document.getElementById("msg"), error.message, "error"); return; }
+
+  tbody.innerHTML = (data || []).map(a => `
+    <tr>
+      <td class="small">${fmtDateTime(a.created_at)}</td>
+      <td><span class="badge study">${a.action}</span></td>
+      <td>${escapeHtml(nameFor(a.actor_id))}</td>
+      <td class="small">${escapeHtml(a.note || "")}</td>
+      <td><button class="secondary" onclick='toggleDetail(this)' data-before='${escapeHtml(JSON.stringify(a.before_state || null))}' data-after='${escapeHtml(JSON.stringify(a.after_state || null))}'>View</button></td>
+    </tr>
+    <tr class="detailRow" style="display:none;"><td colspan="5"><pre class="small" style="white-space:pre-wrap;"></pre></td></tr>
+  `).join("");
+}
+
+function toggleDetail(btn) {
+  const tr = btn.closest("tr").nextElementSibling;
+  const pre = tr.querySelector("pre");
+  if (tr.style.display === "none") {
+    const before = JSON.parse(btn.dataset.before || "null");
+    const after = JSON.parse(btn.dataset.after || "null");
+    pre.textContent = "BEFORE:\n" + JSON.stringify(before, null, 2) + "\n\nAFTER:\n" + JSON.stringify(after, null, 2);
+    tr.style.display = "";
+  } else {
+    tr.style.display = "none";
+  }
+}
+</script>
+</body>
+</html>

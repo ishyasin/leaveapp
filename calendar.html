@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendar — Leave Management</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="wrap">
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div class="year-nav">
+        <button onclick="changeYear(-1)">&larr;</button>
+        <strong id="yearLabel"></strong>
+        <button onclick="changeYear(1)">&rarr;</button>
+      </div>
+      <button class="primary" onclick="openRequestModal()">+ Request Leave</button>
+    </div>
+    <div class="tabs" id="monthTabs"></div>
+    <div class="legend">
+      <span><i style="background:#e6a900"></i> Pending</span>
+      <span><i style="background:#1f9d55"></i> Approved</span>
+      <span><i style="background:#c0392b"></i> Rejected</span>
+      <span><i style="background:#2563eb"></i> Study leave</span>
+      <span><i style="background:#e7e7e7;border:1px solid #ccc"></i> Weekend</span>
+      <span><i style="background:#d7f4d7;border:1px solid #ccc"></i> Bank holiday</span>
+    </div>
+    <div class="cal-scroll">
+      <table class="cal-grid" id="calGrid"></table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Request Leave modal -->
+<div class="overlay" id="reqOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Request Leave</h3>
+    <div id="reqMsg"></div>
+    <form id="reqForm">
+      <div id="userPickerWrap" style="display:none;">
+        <label>For</label>
+        <select id="reqUser"></select>
+      </div>
+      <label>Date</label>
+      <input type="date" id="reqDate" required>
+      <label>Leave type</label>
+      <select id="reqType">
+        <option value="full_day">Full Day</option>
+        <option value="half_day">Half Day</option>
+        <option value="study_leave" id="studyOption">Study Leave</option>
+      </select>
+      <div id="halfWrap" style="display:none;">
+        <label>Half day</label>
+        <select id="reqHalf">
+          <option value="half_day_am">AM</option>
+          <option value="half_day_pm">PM</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeRequestModal()">Cancel</button>
+        <button type="submit" class="primary" id="reqSubmitBtn">Submit request</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Detail modal -->
+<div class="overlay" id="detOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Leave details</h3>
+    <div id="detMsg"></div>
+    <div id="detBody"></div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" onclick="closeDetailModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+let PROFILE = null;
+let PROFILES = [];
+let VIEW_YEAR = new Date().getFullYear();
+let VIEW_MONTH = new Date().getMonth(); // 0-indexed
+let HOLIDAYS = {}; // 'YYYY-MM-DD' -> name
+let REQUESTS = []; // this month's leave_requests, with joined names
+
+(async () => {
+  PROFILE = await requireAuth(["pharmacist","lead_pharmacist","superuser","developer"]);
+  if (!PROFILE) return;
+  await loadProfiles();
+  buildMonthTabs();
+  document.getElementById("studyOption").style.display = isLeadPlus(PROFILE) ? "" : "none";
+  await refreshCalendar();
+})();
+
+async function loadProfiles() {
+  const { data } = await sb.from("profiles").select("id, initials, full_name, role, active").order("full_name");
+  PROFILES = data || [];
+  const sel = document.getElementById("reqUser");
+  sel.innerHTML = PROFILES.filter(p => p.active).map(p =>
+    `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})</option>`).join("");
+}
+
+function profileById(id) { return PROFILES.find(p => p.id === id); }
+
+function buildMonthTabs() {
+  document.getElementById("yearLabel").textContent = VIEW_YEAR;
+  const tabs = document.getElementById("monthTabs");
+  tabs.innerHTML = MONTH_NAMES.map((m, idx) =>
+    `<button class="${idx===VIEW_MONTH?'active':''}" onclick="selectMonth(${idx})">${m}</button>`).join("");
+}
+
+function changeYear(delta) { VIEW_YEAR += delta; buildMonthTabs(); refreshCalendar(); }
+function selectMonth(idx) { VIEW_MONTH = idx; buildMonthTabs(); refreshCalendar(); }
+
+async function refreshCalendar() {
+  const start = isoDate(VIEW_YEAR, VIEW_MONTH, 1);
+  const end = isoDate(VIEW_YEAR, VIEW_MONTH, daysInMonth(VIEW_YEAR, VIEW_MONTH));
+
+  const [{ data: reqs }, { data: hols }] = await Promise.all([
+    sb.from("leave_requests").select("*").eq("deleted", false).gte("leave_date", start).lte("leave_date", end),
+    sb.from("bank_holidays").select("*").gte("holiday_date", start).lte("holiday_date", end),
+  ]);
+
+  REQUESTS = (reqs || []).sort((a, b) => new Date(a.requested_at) - new Date(b.requested_at));
+  HOLIDAYS = {};
+  (hols || []).forEach(h => HOLIDAYS[h.holiday_date] = h.name);
+
+  renderGrid();
+}
+
+function renderGrid() {
+  const nDays = daysInMonth(VIEW_YEAR, VIEW_MONTH);
+  const grid = document.getElementById("calGrid");
+
+  let headHtml = "<tr><td class='lanehead'></td>";
+  for (let d = 1; d <= nDays; d++) {
+    const iso = isoDate(VIEW_YEAR, VIEW_MONTH, d);
+    let cls = "daynum";
+    if (isWeekend(VIEW_YEAR, VIEW_MONTH, d)) cls += " weekend";
+    if (HOLIDAYS[iso]) cls += " holiday";
+    const title = HOLIDAYS[iso] ? ` title="${escapeHtml(HOLIDAYS[iso])}"` : "";
+    headHtml += `<td class="${cls}"${title}>${d}</td>`;
+  }
+  headHtml += "</tr>";
+
+  function laneRow(label, matchFn) {
+    let row = `<tr><td class="lanehead">${label}</td>`;
+    for (let d = 1; d <= nDays; d++) {
+      const iso = isoDate(VIEW_YEAR, VIEW_MONTH, d);
+      let cls = "cell";
+      if (isWeekend(VIEW_YEAR, VIEW_MONTH, d)) cls += " weekend";
+      if (HOLIDAYS[iso]) cls += " holiday";
+      const dayReqs = REQUESTS.filter(r => r.leave_date === iso && matchFn(r));
+      const chips = dayReqs.map(r => {
+        const p = profileById(r.user_id);
+        const initials = p ? p.initials : "?";
+        const suffix = r.leave_type === "half_day_am" ? " AM" : r.leave_type === "half_day_pm" ? " PM" : "";
+        const statusClass = r.leave_type === "study_leave" && r.status === "approved" ? "study" : r.status;
+        return `<span class="chip ${statusClass}" onclick="openDetail('${r.id}')">${escapeHtml(initials)}${suffix}</span>`;
+      }).join("");
+      row += `<td class="${cls}">${chips}</td>`;
+    }
+    row += "</tr>";
+    return row;
+  }
+
+  grid.innerHTML = headHtml
+    + laneRow("Annual Leave", r => r.leave_type !== "study_leave")
+    + laneRow("Study Leave", r => r.leave_type === "study_leave");
+}
+
+/* ---------------- Request modal ---------------- */
+function openRequestModal() {
+  document.getElementById("reqMsg").innerHTML = "";
+  document.getElementById("userPickerWrap").style.display = isLeadPlus(PROFILE) ? "" : "none";
+  document.getElementById("reqDate").value = isoDate(VIEW_YEAR, VIEW_MONTH, 1);
+  document.getElementById("reqType").value = "full_day";
+  document.getElementById("halfWrap").style.display = "none";
+  document.getElementById("reqOverlay").style.display = "flex";
+}
+function closeRequestModal() { document.getElementById("reqOverlay").style.display = "none"; }
+
+document.getElementById("reqType").addEventListener("change", (e) => {
+  document.getElementById("halfWrap").style.display = e.target.value === "half_day" ? "" : "none";
+  const wrap = document.getElementById("userPickerWrap");
+  if (e.target.value === "study_leave") {
+    wrap.style.display = isLeadPlus(PROFILE) ? "" : "none";
+  } else if (!isLeadPlus(PROFILE)) {
+    wrap.style.display = "none";
+  }
+});
+
+document.getElementById("reqForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("reqMsg");
+  const btn = document.getElementById("reqSubmitBtn");
+  const date = document.getElementById("reqDate").value;
+  const typeSel = document.getElementById("reqType").value;
+  const leaveType = typeSel === "half_day" ? document.getElementById("reqHalf").value : typeSel;
+  const targetUser = (isLeadPlus(PROFILE) && document.getElementById("userPickerWrap").style.display !== "none")
+    ? document.getElementById("reqUser").value
+    : PROFILE.id;
+
+  btn.disabled = true; btn.textContent = "Submitting…";
+  try {
+    const { error } = await sb.rpc("request_leave", {
+      p_user_id: targetUser, p_leave_date: date, p_leave_type: leaveType,
+    });
+    if (error) throw error;
+    closeRequestModal();
+    await refreshCalendar();
+  } catch (err) {
+    showMsg(msg, err.message || "Could not submit request.", "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Submit request";
+  }
+});
+
+/* ---------------- Detail modal ---------------- */
+async function openDetail(id) {
+  const r = REQUESTS.find(x => x.id === id);
+  if (!r) return;
+  const owner = profileById(r.user_id);
+  const requester = profileById(r.requested_by);
+  const approver = r.approved_by ? profileById(r.approved_by) : null;
+
+  const showRequestAudit = PROFILE.role !== "pharmacist"; // pharmacists don't see who/when it was requested — that's audit-trail detail
+  document.getElementById("detMsg").innerHTML = "";
+  document.getElementById("detBody").innerHTML = `
+    <p><strong>${escapeHtml(owner?.full_name || "?")}</strong> (${escapeHtml(owner?.initials || "?")})</p>
+    <p>${LEAVE_TYPE_LABEL[r.leave_type]} &middot; ${fmtDate(r.leave_date)}</p>
+    <p>Status: <span class="badge ${r.status}">${r.status}</span></p>
+    ${showRequestAudit ? `<p class="small">Requested by ${escapeHtml(requester?.full_name || "?")} on ${fmtDateTime(r.requested_at)}</p>` : ""}
+    ${approver && r.status !== "pending" ? `<p class="small">${r.status === 'rejected' ? 'Rejected' : 'Approved'} by ${escapeHtml(approver.full_name)} on ${fmtDateTime(r.approved_at)}</p>` : ""}
+    ${r.status === "rejected" && r.rejected_reason ? `<p class="small">Reason: ${escapeHtml(r.rejected_reason)}</p>` : ""}
+    <div id="detActions" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;"></div>
+  `;
+
+  const actions = document.getElementById("detActions");
+  const canProcess = isLeadPlus(PROFILE) && r.status === "pending" && r.user_id !== PROFILE.id;
+  const isOwnPending = r.status === "pending" && (r.requested_by === PROFILE.id || r.user_id === PROFILE.id);
+  const canSuperAdmin = isSuperuserPlus(PROFILE);
+  const canDelete = isLeadPlus(PROFILE); // lead_pharmacist and above — a note is required
+
+  if (canProcess) {
+    actions.innerHTML += `<button class="primary" onclick="doApprove('${r.id}')">Approve</button>
+                           <button class="danger" onclick="doReject('${r.id}')">Reject</button>`;
+  }
+  if (isOwnPending && !canSuperAdmin) {
+    actions.innerHTML += `<button class="secondary" onclick="doCancelOwn('${r.id}')">Cancel request</button>`;
+  }
+  if (canSuperAdmin) {
+    actions.innerHTML += `<button class="secondary" onclick="doEdit('${r.id}')">Edit</button>`;
+    if (r.status !== "pending") {
+      actions.innerHTML += `<button class="secondary" onclick="doUnapprove('${r.id}')">Unapprove</button>`;
+    }
+  }
+  if (canDelete) {
+    actions.innerHTML += `<button class="danger" onclick="doDelete('${r.id}')">Delete</button>`;
+  }
+
+  document.getElementById("detOverlay").style.display = "flex";
+}
+function closeDetailModal() { document.getElementById("detOverlay").style.display = "none"; }
+
+async function doApprove(id) {
+  const msg = document.getElementById("detMsg");
+  try {
+    const { error } = await sb.rpc("approve_leave", { p_leave_id: id });
+    if (error) throw error;
+    closeDetailModal(); await refreshCalendar();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+async function doReject(id) {
+  const reason = prompt("Reason for rejecting this leave request:");
+  if (reason === null) return;
+  const msg = document.getElementById("detMsg");
+  try {
+    const { error } = await sb.rpc("reject_leave", { p_leave_id: id, p_reason: reason });
+    if (error) throw error;
+    closeDetailModal(); await refreshCalendar();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+async function doCancelOwn(id) {
+  if (!confirm("Cancel this pending leave request?")) return;
+  const msg = document.getElementById("detMsg");
+  try {
+    const { error } = await sb.rpc("cancel_own_pending_leave", { p_leave_id: id });
+    if (error) throw error;
+    closeDetailModal(); await refreshCalendar();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+async function doUnapprove(id) {
+  const note = prompt("Optional note for the audit trail:") || null;
+  const msg = document.getElementById("detMsg");
+  try {
+    const { error } = await sb.rpc("unapprove_leave", { p_leave_id: id, p_note: note });
+    if (error) throw error;
+    closeDetailModal(); await refreshCalendar();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+async function doEdit(id) {
+  const r = REQUESTS.find(x => x.id === id);
+  const newDate = prompt("New date (YYYY-MM-DD):", r.leave_date);
+  if (!newDate) return;
+  const newType = prompt("New leave type (full_day / half_day_am / half_day_pm / study_leave):", r.leave_type);
+  if (!newType) return;
+  const note = prompt("Note for the audit trail (optional):") || null;
+  const msg = document.getElementById("detMsg");
+  try {
+    const { error } = await sb.rpc("edit_leave", { p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note });
+    if (error) throw error;
+    closeDetailModal(); await refreshCalendar();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+async function doDelete(id) {
+  const note = prompt("A note is required to delete this leave request. Why is it being removed?");
+  if (!note || !note.trim()) { alert("A note is required — deletion cancelled."); return; }
+  const msg = document.getElementById("detMsg");
+  try {
+    const { error } = await sb.rpc("delete_leave", { p_leave_id: id, p_note: note });
+    if (error) throw error;
+    closeDetailModal(); await refreshCalendar();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+</script>
+</body>
+</html>

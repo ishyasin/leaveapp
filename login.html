@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in — Leave Management</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="logo-row">
+      <div style="background:#1a2744;border-radius:50%;padding:8px;" id="logoHolder"></div>
+      <h2 style="margin:6px 0 0;">Leave Management</h2>
+      <div class="small">GD&amp;G Special Projects</div>
+    </div>
+    <div id="msg"></div>
+    <form id="loginForm">
+      <label>User ID</label>
+      <input type="text" id="userId" autocomplete="username" required>
+      <label>Password</label>
+      <input type="password" id="password" autocomplete="current-password" required>
+      <div style="margin-top:18px;">
+        <button type="submit" class="primary" style="width:100%;" id="submitBtn">Sign in</button>
+      </div>
+    </form>
+    <p class="small center" style="margin-top:14px;">
+      <a href="#" id="forgotLink">Forgot your password?</a>
+    </p>
+  </div>
+</div>
+
+<!-- Forgot password modal -->
+<div class="overlay" id="forgotOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Reset your password</h3>
+    <p class="small">Enter your User ID and we'll email a reset link to the address on file for that account.</p>
+    <div id="forgotMsg"></div>
+    <form id="forgotForm">
+      <label>User ID</label>
+      <input type="text" id="forgotUserId" required>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeForgot()">Cancel</button>
+        <button type="submit" class="primary" id="forgotBtn">Send reset link</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+document.getElementById("logoHolder").innerHTML = gdgLogoSvg(40);
+
+const params = new URLSearchParams(window.location.search);
+if (params.get("err") === "inactive") {
+  showMsg(document.getElementById("msg"), "Your account is not active. Contact a Clinical Team Lead.", "error");
+}
+
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("msg");
+  const btn = document.getElementById("submitBtn");
+  const userId = document.getElementById("userId").value.trim().toLowerCase();
+  const password = document.getElementById("password").value;
+  btn.disabled = true; btn.textContent = "Signing in…";
+  msg.innerHTML = "";
+
+  try {
+    // Resolve User ID -> the real auth email via RPC (avoids exposing emails directly).
+    const { data: email, error: lookupErr } = await sb.rpc("email_for_user_id", { p_user_id: userId });
+    if (lookupErr || !email) throw new Error("invalid");
+
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+
+    window.location.href = "calendar.html";
+  } catch (err) {
+    showMsg(msg, "Sign in failed — check your User ID and password.", "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Sign in";
+  }
+});
+
+/* ---------------- forgot password (self-service) ---------------- */
+document.getElementById("forgotLink").addEventListener("click", (e) => {
+  e.preventDefault();
+  document.getElementById("forgotMsg").innerHTML = "";
+  document.getElementById("forgotUserId").value = "";
+  document.getElementById("forgotOverlay").style.display = "flex";
+});
+function closeForgot() { document.getElementById("forgotOverlay").style.display = "none"; }
+
+document.getElementById("forgotForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("forgotMsg");
+  const btn = document.getElementById("forgotBtn");
+  const userId = document.getElementById("forgotUserId").value.trim().toLowerCase();
+  btn.disabled = true; btn.textContent = "Sending…";
+
+  // Generic wording regardless of outcome, so the form can't be used to
+  // probe which User IDs exist.
+  const genericMsg = "If that User ID exists, a password reset link has been sent to the email address on file.";
+
+  try {
+    const { data: email } = await sb.rpc("email_for_user_id", { p_user_id: userId });
+    if (email) {
+      const redirectTo = new URL("reset-password.html", window.location.href).href;
+      await sb.auth.resetPasswordForEmail(email, { redirectTo });
+    }
+  } catch (err) {
+    // fall through to the same generic message either way
+  } finally {
+    showMsg(msg, genericMsg, "ok");
+    btn.disabled = false; btn.textContent = "Send reset link";
+  }
+});
+
+(async () => {
+  const session = await getSession();
+  if (session) window.location.href = "calendar.html";
+})();
+</script>
+</body>
+</html>

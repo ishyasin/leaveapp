@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Leave Management</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="wrap">
+
+  <div class="tabs">
+    <button class="active" id="tabBtn-users" onclick="showTab('users')">Users</button>
+    <button id="tabBtn-holidays" onclick="showTab('holidays')">Bank Holidays</button>
+    <button id="tabBtn-leave" onclick="showTab('leave')">Leave Records</button>
+  </div>
+
+  <!-- USERS -->
+  <div id="tab-users">
+    <div class="card">
+      <h2>Create login</h2>
+      <p class="small" id="roleHint"></p>
+      <div id="createMsg"></div>
+      <form id="createForm">
+        <label>User ID (login)</label>
+        <input type="text" id="newUserId" required>
+        <label>Email address</label>
+        <input type="text" id="newEmail" placeholder="name@nhs.net" required>
+        <p class="small" style="margin:2px 0 0;">Used only to deliver password-reset links — sign-in is still by User ID.</p>
+        <label>Initials (shown on the calendar)</label>
+        <input type="text" id="newInitials" required maxlength="4">
+        <label>Full name</label>
+        <input type="text" id="newFullName" required>
+        <label>Role</label>
+        <select id="newRole"></select>
+        <label>Temporary password (min. 8 characters)</label>
+        <input type="text" id="newTempPw" required minlength="8">
+        <div style="margin-top:14px;">
+          <button type="submit" class="primary" id="createBtn">Create login</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Existing users</h2>
+      <div id="usersMsg"></div>
+      <table>
+        <thead><tr><th>Name</th><th>Initials</th><th>User ID</th><th>Role</th><th>Status</th><th></th></tr></thead>
+        <tbody id="usersRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- BANK HOLIDAYS -->
+  <div id="tab-holidays" style="display:none;">
+    <div class="card">
+      <h2>Add bank holiday / closure day</h2>
+      <div id="holMsg"></div>
+      <form id="holForm">
+        <label>Date</label>
+        <input type="date" id="holDate" required>
+        <label>Name</label>
+        <input type="text" id="holName" placeholder="e.g. Christmas Day" required>
+        <div style="margin-top:14px;">
+          <button type="submit" class="primary">Add</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Upcoming bank holidays</h2>
+      <table>
+        <thead><tr><th>Date</th><th>Name</th><th></th></tr></thead>
+        <tbody id="holRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- LEAVE RECORDS -->
+  <div id="tab-leave" style="display:none;">
+    <div class="card">
+      <h2>All leave requests</h2>
+      <p class="small">Editing, unapproving, and deleting are all recorded in the Audit Trail. A note is required to delete.</p>
+      <div id="leaveMsg"></div>
+      <table>
+        <thead><tr><th>Date</th><th>Person</th><th>Type</th><th>Status</th><th>Requested</th><th></th></tr></thead>
+        <tbody id="leaveRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="shared.js"></script>
+<script>
+let PROFILE = null;
+let PROFILES = [];
+
+(async () => {
+  PROFILE = await requireAuth(["superuser","developer"]);
+  if (!PROFILE) return;
+  setupRoleOptions();
+  await loadUsers();
+  await loadHolidays();
+  await loadLeave();
+})();
+
+function showTab(name) {
+  ["users","holidays","leave"].forEach(t => {
+    document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
+    document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);
+  });
+}
+
+function setupRoleOptions() {
+  const sel = document.getElementById("newRole");
+  const options = isDeveloper(PROFILE)
+    ? ["pharmacist","lead_pharmacist","superuser","developer"]
+    : ["pharmacist","lead_pharmacist"];
+  sel.innerHTML = options.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join("");
+  document.getElementById("roleHint").textContent = isDeveloper(PROFILE)
+    ? "As Developer you may create any account type."
+    : "As Clinical Team Lead you may only create Pharmacist or Lead Pharmacist accounts.";
+}
+
+document.getElementById("createForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("createMsg");
+  const btn = document.getElementById("createBtn");
+  btn.disabled = true; btn.textContent = "Creating…";
+  try {
+    await callEdgeFunction("admin-create-user", {
+      user_id: document.getElementById("newUserId").value.trim(),
+      email: document.getElementById("newEmail").value.trim(),
+      initials: document.getElementById("newInitials").value.trim(),
+      full_name: document.getElementById("newFullName").value.trim(),
+      role: document.getElementById("newRole").value,
+      temp_password: document.getElementById("newTempPw").value,
+    });
+    showMsg(msg, "Login created. Share the temporary password with the user — they'll be asked to change it on first sign-in.", "ok");
+    document.getElementById("createForm").reset();
+    await loadUsers();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Create login";
+  }
+});
+
+async function loadUsers() {
+  const { data, error } = await sb.from("profiles").select("*").order("full_name");
+  const tbody = document.getElementById("usersRows");
+  tbody.innerHTML = "";
+  if (error) { showMsg(document.getElementById("usersMsg"), error.message, "error"); return; }
+  PROFILES = data || [];
+
+  PROFILES.forEach(p => {
+    const lockedForSuperuser = !isDeveloper(PROFILE) && ["superuser","developer"].includes(p.role);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(p.full_name)}</td>
+      <td>${escapeHtml(p.initials)}</td>
+      <td>${escapeHtml(p.user_id)}</td>
+      <td>${ROLE_LABEL[p.role]}</td>
+      <td>${p.active ? '<span class="badge approved">active</span>' : '<span class="badge rejected">inactive</span>'}</td>
+      <td style="white-space:nowrap;">
+        ${lockedForSuperuser ? '<span class="small">locked</span>' : `
+          <button class="secondary" onclick="toggleActive('${p.id}', ${!p.active})">${p.active ? "Deactivate" : "Reactivate"}</button>
+          <button class="secondary" onclick="resetPw('${p.id}')">Reset password</button>
+        `}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function toggleActive(id, makeActive) {
+  const msg = document.getElementById("usersMsg");
+  try {
+    const { error } = await sb.rpc("set_user_active", { p_user_id: id, p_active: makeActive });
+    if (error) throw error;
+    await loadUsers();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+async function resetPw(id) {
+  const pw = prompt("Enter a new temporary password (min. 8 characters):");
+  if (!pw) return;
+  const msg = document.getElementById("usersMsg");
+  try {
+    await callEdgeFunction("admin-reset-password", { target_user_id: id, temp_password: pw });
+    showMsg(msg, "Password reset. The user will be asked to set their own on next sign-in.", "ok");
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+/* ---------------- bank holidays ---------------- */
+document.getElementById("holForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("holMsg");
+  try {
+    const { error } = await sb.rpc("set_bank_holiday", {
+      p_date: document.getElementById("holDate").value,
+      p_name: document.getElementById("holName").value.trim(),
+    });
+    if (error) throw error;
+    document.getElementById("holForm").reset();
+    await loadHolidays();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+});
+
+async function loadHolidays() {
+  const { data } = await sb.from("bank_holidays").select("*").order("holiday_date");
+  const tbody = document.getElementById("holRows");
+  tbody.innerHTML = (data || []).map(h => `
+    <tr>
+      <td>${fmtDate(h.holiday_date)}</td>
+      <td>${escapeHtml(h.name)}</td>
+      <td><button class="danger" onclick="removeHoliday('${h.holiday_date}')">Remove</button></td>
+    </tr>`).join("");
+}
+
+async function removeHoliday(date) {
+  if (!confirm("Remove this bank holiday?")) return;
+  const { error } = await sb.rpc("remove_bank_holiday", { p_date: date });
+  if (error) alert(error.message); else loadHolidays();
+}
+
+/* ---------------- leave records ---------------- */
+async function loadLeave() {
+  const { data, error } = await sb.from("leave_requests").select("*").eq("deleted", false)
+    .order("leave_date", { ascending: false }).limit(300);
+  const tbody = document.getElementById("leaveRows");
+  if (error) { showMsg(document.getElementById("leaveMsg"), error.message, "error"); return; }
+
+  tbody.innerHTML = (data || []).map(r => {
+    const p = PROFILES.find(x => x.id === r.user_id);
+    return `<tr>
+      <td>${fmtDate(r.leave_date)}</td>
+      <td>${escapeHtml(p ? `${p.full_name} (${p.initials})` : "?")}</td>
+      <td>${LEAVE_TYPE_LABEL[r.leave_type]}</td>
+      <td><span class="badge ${r.status}">${r.status}</span></td>
+      <td class="small">${fmtDateTime(r.requested_at)}</td>
+      <td style="white-space:nowrap;">
+        <button class="secondary" onclick="editLeave('${r.id}','${r.leave_date}','${r.leave_type}')">Edit</button>
+        ${r.status !== "pending" ? `<button class="secondary" onclick="unapproveLeave('${r.id}')">Unapprove</button>` : ""}
+        <button class="danger" onclick="deleteLeave('${r.id}')">Delete</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+async function editLeave(id, currentDate, currentType) {
+  const newDate = prompt("New date (YYYY-MM-DD):", currentDate);
+  if (!newDate) return;
+  const newType = prompt("New leave type (full_day / half_day_am / half_day_pm / study_leave):", currentType);
+  if (!newType) return;
+  const note = prompt("Note for the audit trail (optional):") || null;
+  const { error } = await sb.rpc("edit_leave", { p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note });
+  if (error) { alert(error.message); return; }
+  await loadLeave();
+}
+async function unapproveLeave(id) {
+  const note = prompt("Optional note for the audit trail:") || null;
+  const { error } = await sb.rpc("unapprove_leave", { p_leave_id: id, p_note: note });
+  if (error) { alert(error.message); return; }
+  await loadLeave();
+}
+async function deleteLeave(id) {
+  const note = prompt("A note is required to delete this leave request. Why is it being removed?");
+  if (!note || !note.trim()) { alert("A note is required — deletion cancelled."); return; }
+  const { error } = await sb.rpc("delete_leave", { p_leave_id: id, p_note: note });
+  if (error) { alert(error.message); return; }
+  await loadLeave();
+}
+</script>
+</body>
+</html>

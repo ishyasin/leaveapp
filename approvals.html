@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Approvals — Leave Management</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="wrap">
+  <div class="card">
+    <h1>Pending Approvals</h1>
+    <p class="small">First requested, first listed. You cannot approve or reject your own leave.</p>
+    <div id="msg"></div>
+    <table>
+      <thead>
+        <tr><th>Requested</th><th>Person</th><th>Date</th><th>Type</th><th>Requested by</th><th></th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p id="empty" class="small" style="display:none;">No pending requests.</p>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+let PROFILE = null;
+let PROFILES = [];
+
+(async () => {
+  PROFILE = await requireAuth(["lead_pharmacist","superuser","developer"]);
+  if (!PROFILE) return;
+  const { data } = await sb.from("profiles").select("id, full_name, initials");
+  PROFILES = data || [];
+  await load();
+})();
+
+function nameFor(id) {
+  const p = PROFILES.find(x => x.id === id);
+  return p ? `${p.full_name} (${p.initials})` : "?";
+}
+
+async function load() {
+  const { data, error } = await sb
+    .from("leave_requests")
+    .select("*")
+    .eq("status", "pending")
+    .eq("deleted", false)
+    .order("requested_at", { ascending: true });
+
+  const tbody = document.getElementById("rows");
+  const empty = document.getElementById("empty");
+  tbody.innerHTML = "";
+
+  if (error) { showMsg(document.getElementById("msg"), error.message, "error"); return; }
+  if (!data || data.length === 0) { empty.style.display = ""; return; }
+  empty.style.display = "none";
+
+  data.forEach(r => {
+    const isOwn = r.user_id === PROFILE.id;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${fmtDateTime(r.requested_at)}</td>
+      <td>${escapeHtml(nameFor(r.user_id))}</td>
+      <td>${fmtDate(r.leave_date)}</td>
+      <td>${LEAVE_TYPE_LABEL[r.leave_type]}</td>
+      <td>${escapeHtml(nameFor(r.requested_by))}</td>
+      <td style="white-space:nowrap;">
+        ${isOwn
+          ? '<span class="small">Awaiting another approver</span>'
+          : `<button class="primary" onclick="approve('${r.id}')">Approve</button>
+             <button class="danger" onclick="reject('${r.id}')">Reject</button>`}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function approve(id) {
+  const msg = document.getElementById("msg");
+  try {
+    const { error } = await sb.rpc("approve_leave", { p_leave_id: id });
+    if (error) throw error;
+    await load();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+async function reject(id) {
+  const reason = prompt("Reason for rejecting this leave request:");
+  if (reason === null) return;
+  const msg = document.getElementById("msg");
+  try {
+    const { error } = await sb.rpc("reject_leave", { p_leave_id: id, p_reason: reason });
+    if (error) throw error;
+    await load();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+</script>
+</body>
+</html>
