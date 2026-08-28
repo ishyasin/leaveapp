@@ -201,6 +201,24 @@
   </div>
 </div>
 
+<!-- Edit role modal -->
+<div class="overlay" id="roleOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Edit role</h3>
+    <p class="small" id="roleModalName"></p>
+    <p class="small">Takes effect immediately — every permission check in the app reads their current role live, so a promotion (or demotion) applies the moment it's saved.</p>
+    <div id="roleMsg"></div>
+    <form id="roleForm">
+      <label>Role</label>
+      <select id="roleSelect"></select>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeRoleModal()">Cancel</button>
+        <button type="submit" class="primary" id="roleSaveBtn">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script src="shared.js"></script>
 <script>
 let PROFILE = null;
@@ -281,11 +299,16 @@ async function loadUsers() {
     //    Lead acting on a Clinical Team Lead/Developer target — a
     //    Developer can still do these to another Developer account.
     //  - permanent delete: Developer only, never on another developer.
+    //  - role change: same blocked-target rule as edit site/reset
+    //    password — a Clinical Team Lead just additionally can't set
+    //    the role TO Clinical Team Lead (only a Developer can promote
+    //    that far); enforced again server-side either way.
     const superuserBlocked = !isDeveloper(PROFILE) && ["superuser","developer"].includes(p.role);
     const canSuspendHide = p.role !== "developer" && !superuserBlocked;
     const canResetPw = !superuserBlocked;
     const canEditSite = !superuserBlocked;
     const canDelete = isDeveloper(PROFILE) && p.role !== "developer" && !p.deleted_by_developer;
+    const canEditRole = !superuserBlocked && p.role !== "developer";
     const siteText = p.cross_site
       ? `${SITE_LABEL[p.primary_site]} + cross-site`
       : SITE_LABEL[p.primary_site] || p.primary_site;
@@ -304,9 +327,10 @@ async function loadUsers() {
         ${canSuspendHide ? `<button class="secondary" onclick="toggleActive('${p.id}', ${!p.active})">${p.active ? "Deactivate" : "Reactivate"}</button>` : ""}
         ${canResetPw ? `<button class="secondary" onclick="resetPw('${p.id}')">Reset password</button>` : ""}
         ${canEditSite ? `<button class="secondary" onclick="openSiteModal('${p.id}')">Edit site</button>` : ""}
+        ${canEditRole ? `<button class="secondary" onclick="openRoleModal('${p.id}')">Edit role</button>` : ""}
         ${canSuspendHide ? `<button class="danger" onclick="toggleHidden('${p.id}', ${!p.hidden_by_superuser})">${p.hidden_by_superuser ? "Unhide account" : "Hide account"}</button>` : ""}
         ${canDelete ? `<button class="danger" onclick="deleteUser('${p.id}', '${escapeHtml(p.full_name)}')">Delete account</button>` : ""}
-        ${!canSuspendHide && !canResetPw && !canEditSite && !canDelete ? '<span class="small">locked</span>' : ""}
+        ${!canSuspendHide && !canResetPw && !canEditSite && !canEditRole && !canDelete ? '<span class="small">locked</span>' : ""}
       </td>`;
     tbody.appendChild(tr);
   });
@@ -322,7 +346,7 @@ function randomLockoutPassword() {
 
 async function toggleHidden(id, makeHidden) {
   const msg = document.getElementById("usersMsg");
-  if (makeHidden && !confirm("Hide this account? This also revokes their access immediately (their password is invalidated) — the record itself is not deleted, and a Developer can still see and unhide it.")) return;
+  if (makeHidden && !await uiConfirm("Hide this account? This also revokes their access immediately (their password is invalidated) — the record itself is not deleted, and a Developer can still see and unhide it.")) return;
   try {
     const { error } = await sb.rpc("set_user_hidden", { p_user_id: id, p_hidden: makeHidden });
     if (error) throw error;
@@ -335,7 +359,7 @@ async function toggleHidden(id, makeHidden) {
 
 async function deleteUser(id, fullName) {
   const msg = document.getElementById("usersMsg");
-  if (!confirm(`Permanently delete ${fullName}'s access? They will never be able to log in again. Their leave history is kept for records — this is not reversible from the app.`)) return;
+  if (!await uiConfirm(`Permanently delete ${fullName}'s access? They will never be able to log in again. Their leave history is kept for records — this is not reversible from the app.`)) return;
   try {
     const { error } = await sb.rpc("delete_user_account", { p_user_id: id });
     if (error) throw error;
@@ -354,7 +378,7 @@ async function toggleActive(id, makeActive) {
 }
 
 async function resetPw(id) {
-  const pw = prompt("Enter a new temporary password (min. 8 characters):");
+  const pw = await uiPrompt("Enter a new temporary password (min. 8 characters):", "", { required: true, title: "Reset password" });
   if (!pw) return;
   const msg = document.getElementById("usersMsg");
   try {
@@ -398,6 +422,51 @@ document.getElementById("siteForm").addEventListener("submit", async (e) => {
   }
 });
 
+/* ---------------- edit role ---------------- */
+let ROLE_MODAL_USER_ID = null;
+function openRoleModal(id) {
+  const p = PROFILES.find(x => x.id === id);
+  if (!p) return;
+  ROLE_MODAL_USER_ID = id;
+  document.getElementById("roleMsg").innerHTML = "";
+  document.getElementById("roleModalName").textContent = `${p.full_name} (${p.initials}) — currently ${ROLE_LABEL[p.role]}`;
+  // A Clinical Team Lead can promote/demote between Pharmacist and Lead
+  // Pharmacist only; a Developer can additionally promote up to
+  // Clinical Team Lead. 'developer' is never offered — that stays the
+  // dashboard-only bootstrap path.
+  const options = isDeveloper(PROFILE)
+    ? ["pharmacist", "lead_pharmacist", "superuser"]
+    : ["pharmacist", "lead_pharmacist"];
+  const sel = document.getElementById("roleSelect");
+  sel.innerHTML = options.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join("");
+  sel.value = options.includes(p.role) ? p.role : options[0];
+  document.getElementById("roleOverlay").style.display = "flex";
+}
+function closeRoleModal() { document.getElementById("roleOverlay").style.display = "none"; }
+
+document.getElementById("roleForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("roleMsg");
+  const btn = document.getElementById("roleSaveBtn");
+  const newRole = document.getElementById("roleSelect").value;
+  const p = PROFILES.find(x => x.id === ROLE_MODAL_USER_ID);
+  if (p && p.role === newRole) { showMsg(msg, "That is already their role.", "error"); return; }
+  if (!await uiConfirm(`Change ${p ? p.full_name : "this user"}'s role to ${ROLE_LABEL[newRole]}? This takes effect immediately.`)) return;
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const { error } = await sb.rpc("set_user_role", {
+      p_user_id: ROLE_MODAL_USER_ID, p_new_role: newRole,
+    });
+    if (error) throw error;
+    closeRoleModal();
+    await loadUsers();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Save";
+  }
+});
+
 /* ---------------- bank holidays ---------------- */
 document.getElementById("holForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -425,9 +494,9 @@ async function loadHolidays() {
 }
 
 async function removeHoliday(date) {
-  if (!confirm("Remove this bank holiday?")) return;
+  if (!await uiConfirm("Remove this bank holiday?")) return;
   const { error } = await sb.rpc("remove_bank_holiday", { p_date: date });
-  if (error) alert(error.message); else loadHolidays();
+  if (error) await uiAlert(error.message); else loadHolidays();
 }
 
 /* ---------------- restricted days ---------------- */
@@ -484,9 +553,9 @@ async function loadRestricted() {
 }
 
 async function removeRestricted(site, date) {
-  if (!confirm("Remove this restricted-day marking?")) return;
+  if (!await uiConfirm("Remove this restricted-day marking?")) return;
   const { error } = await sb.rpc("remove_restricted_day", { p_site: site, p_date: date });
-  if (error) alert(error.message); else loadRestricted();
+  if (error) await uiAlert(error.message); else loadRestricted();
 }
 
 /* ---------------- leave capacity ---------------- */
@@ -547,9 +616,9 @@ async function loadCapacityOverrides() {
 }
 
 async function removeCapacityOverride(site, date) {
-  if (!confirm("Remove this red override?")) return;
+  if (!await uiConfirm("Remove this red override?")) return;
   const { error } = await sb.rpc("remove_capacity_override", { p_site: site, p_date: date });
-  if (error) alert(error.message); else loadCapacityOverrides();
+  if (error) await uiAlert(error.message); else loadCapacityOverrides();
 }
 
 /* ---------------- leave records ---------------- */
@@ -627,33 +696,44 @@ async function exportLeaveExcel() {
 }
 
 async function editLeave(id, currentDate, currentType) {
-  const newDate = prompt("New date (YYYY-MM-DD):", currentDate);
+  const newDate = await uiPrompt("New date:", currentDate, { type: "date", required: true, title: "Edit leave" });
   if (!newDate) return;
-  const newType = prompt("New leave type (full_day / toil_full_day / toil_am / toil_pm / study_leave):", currentType);
+  const newType = await uiPrompt(
+    "New leave type (full_day / toil_full_day / toil_am / toil_pm / study_leave):",
+    currentType, { required: true, title: "Edit leave" }
+  );
   if (!newType) return;
   let newToilTime = null;
   if (newType === "toil_am" || newType === "toil_pm") {
-    newToilTime = prompt(newType === "toil_am" ? "Start time (HH:MM):" : "Leaving time (HH:MM):");
+    newToilTime = await uiPrompt(
+      newType === "toil_am" ? "Start time:" : "Leaving time:", "",
+      { type: "time", required: true, title: "Edit leave" }
+    );
     if (!newToilTime) return;
   }
-  const note = prompt("Note for the audit trail (optional):") || null;
+  const note = await uiPrompt("Note for the audit trail (optional):", "", { title: "Edit leave" });
+  if (note === null) return;
   const { error } = await sb.rpc("edit_leave", {
-    p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note, p_new_toil_time: newToilTime,
+    p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note || null, p_new_toil_time: newToilTime,
   });
-  if (error) { alert(error.message); return; }
+  if (error) { await uiAlert(error.message); return; }
   await loadLeave();
 }
 async function unapproveLeave(id) {
-  const note = prompt("Optional note for the audit trail:") || null;
-  const { error } = await sb.rpc("unapprove_leave", { p_leave_id: id, p_note: note });
-  if (error) { alert(error.message); return; }
+  const note = await uiPrompt("Optional note for the audit trail:", "", { title: "Unapprove leave" });
+  if (note === null) return;
+  const { error } = await sb.rpc("unapprove_leave", { p_leave_id: id, p_note: note || null });
+  if (error) { await uiAlert(error.message); return; }
   await loadLeave();
 }
 async function deleteLeave(id) {
-  const note = prompt("A note is required to delete this leave request. Why is it being removed?");
-  if (!note || !note.trim()) { alert("A note is required — deletion cancelled."); return; }
+  const note = await uiPrompt(
+    "A note is required to delete this leave request. Why is it being removed?", "",
+    { required: true, title: "Delete leave", type: "textarea" }
+  );
+  if (!note || !note.trim()) return;
   const { error } = await sb.rpc("delete_leave", { p_leave_id: id, p_note: note });
-  if (error) { alert(error.message); return; }
+  if (error) { await uiAlert(error.message); return; }
   await loadLeave();
 }
 </script>

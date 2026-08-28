@@ -34,6 +34,108 @@ const SITE_LABEL = {
 
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
+/* =====================================================================
+   UI dialogs — replaces window.confirm/alert/prompt everywhere in the
+   app with a styled modal matching the rest of the UI, since browser-
+   native dialogs look and behave inconsistently across platforms. The
+   markup is injected into every page on first use rather than needing
+   to be added to each HTML file individually.
+   ===================================================================== */
+function ensureDialogRoot() {
+  if (document.getElementById("uiDialogOverlay")) return;
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `
+    <div class="overlay" id="uiDialogOverlay" style="display:none;">
+      <div class="modal">
+        <h3 id="uiDialogTitle">Notice</h3>
+        <p class="small" id="uiDialogMessage" style="white-space:pre-line;"></p>
+        <div id="uiDialogBody"></div>
+        <div id="uiDialogMsg"></div>
+        <div class="modal-actions" id="uiDialogActions"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap.firstElementChild);
+}
+
+/** Styled replacement for window.alert(). Resolves once dismissed. */
+function uiAlert(message, title) {
+  return new Promise((resolve) => {
+    ensureDialogRoot();
+    document.getElementById("uiDialogTitle").textContent = title || "Notice";
+    document.getElementById("uiDialogMessage").textContent = message;
+    document.getElementById("uiDialogBody").innerHTML = "";
+    document.getElementById("uiDialogMsg").innerHTML = "";
+    document.getElementById("uiDialogActions").innerHTML =
+      `<button class="primary" id="uiDialogOk">OK</button>`;
+    document.getElementById("uiDialogOverlay").style.display = "flex";
+    document.getElementById("uiDialogOk").onclick = () => {
+      document.getElementById("uiDialogOverlay").style.display = "none";
+      resolve();
+    };
+  });
+}
+
+/** Styled replacement for window.confirm(). Resolves true/false. */
+function uiConfirm(message, title) {
+  return new Promise((resolve) => {
+    ensureDialogRoot();
+    document.getElementById("uiDialogTitle").textContent = title || "Please confirm";
+    document.getElementById("uiDialogMessage").textContent = message;
+    document.getElementById("uiDialogBody").innerHTML = "";
+    document.getElementById("uiDialogMsg").innerHTML = "";
+    document.getElementById("uiDialogActions").innerHTML = `
+      <button class="secondary" id="uiDialogCancel">Cancel</button>
+      <button class="danger" id="uiDialogConfirm">Confirm</button>`;
+    document.getElementById("uiDialogOverlay").style.display = "flex";
+    const close = (result) => {
+      document.getElementById("uiDialogOverlay").style.display = "none";
+      resolve(result);
+    };
+    document.getElementById("uiDialogCancel").onclick = () => close(false);
+    document.getElementById("uiDialogConfirm").onclick = () => close(true);
+  });
+}
+
+/** Styled replacement for window.prompt(). Resolves the entered string,
+ *  or null if cancelled. opts: {type, required, title, okLabel}. */
+function uiPrompt(message, defaultValue, opts) {
+  opts = opts || {};
+  return new Promise((resolve) => {
+    ensureDialogRoot();
+    document.getElementById("uiDialogTitle").textContent = opts.title || "Input required";
+    document.getElementById("uiDialogMessage").textContent = message;
+    document.getElementById("uiDialogMsg").innerHTML = "";
+    const inputType = opts.type || "text";
+    const val = defaultValue == null ? "" : defaultValue;
+    document.getElementById("uiDialogBody").innerHTML = inputType === "textarea"
+      ? `<textarea id="uiDialogInput" rows="3">${escapeHtml(val)}</textarea>`
+      : `<input type="${inputType}" id="uiDialogInput" value="${escapeHtml(val)}">`;
+    document.getElementById("uiDialogActions").innerHTML = `
+      <button class="secondary" id="uiDialogCancel">Cancel</button>
+      <button class="primary" id="uiDialogConfirm">${opts.okLabel || "OK"}</button>`;
+    document.getElementById("uiDialogOverlay").style.display = "flex";
+    const input = document.getElementById("uiDialogInput");
+    setTimeout(() => input.focus(), 30);
+    const close = (result) => {
+      document.getElementById("uiDialogOverlay").style.display = "none";
+      resolve(result);
+    };
+    document.getElementById("uiDialogCancel").onclick = () => close(null);
+    const submit = () => {
+      const v = input.value;
+      if (opts.required && !v.trim()) {
+        showMsg(document.getElementById("uiDialogMsg"), "This field is required.", "error");
+        return;
+      }
+      close(v);
+    };
+    document.getElementById("uiDialogConfirm").onclick = submit;
+    if (inputType !== "textarea") {
+      input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    }
+  });
+}
+
 /* ---------------- session / auth ---------------- */
 async function getSession() {
   const { data } = await sb.auth.getSession();
@@ -80,6 +182,27 @@ async function requireAuth(allowedRoles) {
 function isLeadPlus(profile) { return ["lead_pharmacist", "superuser", "developer"].includes(profile.role); }
 function isSuperuserPlus(profile) { return ["superuser", "developer"].includes(profile.role); }
 function isDeveloper(profile) { return profile.role === "developer"; }
+
+// Mirrors the database's can_process_leave_for() rule — used purely to
+// show/hide Approve/Reject buttons in the UI; the real enforcement
+// happens server-side in approve_leave()/reject_leave() regardless.
+//  - Developer: anyone, including themselves.
+//  - Clinical Team Lead (superuser): Pharmacist/Lead Pharmacist targets,
+//    or their own leave — never another Clinical Team Lead's.
+//  - Lead Pharmacist: Pharmacist targets only — never their own, never
+//    another Lead Pharmacist's, never a Clinical Team Lead's.
+function canProcessLeaveForRole(actorProfile, targetProfile) {
+  if (!actorProfile || !targetProfile) return false;
+  if (actorProfile.role === "developer") return true;
+  if (actorProfile.role === "superuser") {
+    if (targetProfile.id === actorProfile.id) return true;
+    return targetProfile.role === "pharmacist" || targetProfile.role === "lead_pharmacist";
+  }
+  if (actorProfile.role === "lead_pharmacist") {
+    return targetProfile.role === "pharmacist";
+  }
+  return false;
+}
 
 /* ---------------- topbar ---------------- */
 function renderTopbar(profile) {

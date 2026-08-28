@@ -12,7 +12,7 @@
 <div class="wrap">
   <div class="card">
     <h1>Pending Approvals</h1>
-    <p class="small">Every pending request — Annual Leave, TOIL, or Study Leave — is numbered in the order it was submitted. Lead Pharmacists cannot approve or reject their own leave — a Clinical Team Lead or Developer can. A <span class="badge rejected">&#9888; Restricted day</span> badge means the request falls on a day that's either auto-flagged for leave capacity or explicitly marked restricted for that site.</p>
+    <p class="small">Every pending request — Annual Leave, TOIL, or Study Leave — is numbered in the order it was submitted. A Lead Pharmacist can only approve/reject a Pharmacist's leave (never their own, another Lead Pharmacist's, or a Clinical Team Lead's); a Clinical Team Lead can approve Pharmacist or Lead Pharmacist leave, or their own — a Developer can action anyone's. A <span class="badge rejected">&#9888; Restricted day</span> badge means the request falls on a day that's either auto-flagged for leave capacity or explicitly marked restricted for that site.</p>
     <div id="msg"></div>
     <div id="clashSummary"></div>
     <table>
@@ -34,7 +34,7 @@ let PENDING = [];
 (async () => {
   PROFILE = await requireAuth(["lead_pharmacist","superuser","developer"]);
   if (!PROFILE) return;
-  const { data } = await sb.from("profiles").select("id, full_name, initials");
+  const { data } = await sb.from("profiles").select("id, full_name, initials, role");
   PROFILES = data || [];
   await load();
 })();
@@ -154,8 +154,8 @@ async function load() {
   }
 
   data.forEach((r, index) => {
-    const isOwn = r.user_id === PROFILE.id;
-    const blocked = isOwn && !isSuperuserPlus(PROFILE);
+    const targetProfile = PROFILES.find(p => p.id === r.user_id);
+    const blocked = !canProcessLeaveForRole(PROFILE, targetProfile);
     const clashCount = byDate[r.leave_date].length;
     r._restrictionFlag = restrictionFlagFor(r, ctx);
     const tr = document.createElement("tr");
@@ -205,7 +205,7 @@ async function approve(id) {
       ? `This day is flagged: ${restrictionLabel(r._restrictionFlag)}. `
       : "";
 
-    if (!confirm(`${restrictionNote}There are ${offCount} pharmacists off on this day, please check rota capacity before approving leave.`)) {
+    if (!await uiConfirm(`${restrictionNote}There are ${offCount} pharmacists off on this day, please check rota capacity before approving leave.`)) {
       return;
     }
 
@@ -215,7 +215,7 @@ async function approve(id) {
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
 async function reject(id) {
-  const reason = prompt("Reason for rejecting this leave request:");
+  const reason = await uiPrompt("Reason for rejecting this leave request:", "", { required: true, title: "Reject leave" });
   if (reason === null) return;
   const msg = document.getElementById("msg");
   try {

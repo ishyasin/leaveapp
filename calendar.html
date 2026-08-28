@@ -346,7 +346,7 @@ async function toggleRotaComplete(site, checked) {
   const warn = checked
     ? `Mark the Clinical Rota Completed for ${SITE_LABEL[site]} — ${monthLabel}? A banner will appear on this month telling pharmacists to update the clinical rota for any new leave approvals.`
     : `Un-tick Clinical Rota Completed for ${SITE_LABEL[site]} — ${monthLabel}?`;
-  if (!confirm(warn)) { renderSiteControls(site); return; }
+  if (!await uiConfirm(warn)) { renderSiteControls(site); return; }
   try {
     const { error } = await sb.rpc("set_rota_complete", {
       p_site: site, p_year: VIEW_YEAR, p_month: VIEW_MONTH + 1, p_complete: checked,
@@ -354,7 +354,7 @@ async function toggleRotaComplete(site, checked) {
     if (error) throw error;
     await refreshCalendar();
   } catch (err) {
-    alert(err.message);
+    await uiAlert(err.message);
     await refreshCalendar();
   }
 }
@@ -364,7 +364,7 @@ async function toggleDsrComplete(site, checked) {
   const warn = checked
     ? `Mark DSR complete for ${SITE_LABEL[site]} — ${monthLabel}? A banner will appear on this month telling pharmacists requesting leave to make arrangements for swaps.`
     : `Un-tick DSR complete for ${SITE_LABEL[site]} — ${monthLabel}?`;
-  if (!confirm(warn)) { renderSiteControls(site); return; }
+  if (!await uiConfirm(warn)) { renderSiteControls(site); return; }
   try {
     const { error } = await sb.rpc("set_dsr_complete", {
       p_site: site, p_year: VIEW_YEAR, p_month: VIEW_MONTH + 1, p_complete: checked,
@@ -372,7 +372,7 @@ async function toggleDsrComplete(site, checked) {
     if (error) throw error;
     await refreshCalendar();
   } catch (err) {
-    alert(err.message);
+    await uiAlert(err.message);
     await refreshCalendar();
   }
 }
@@ -669,10 +669,9 @@ async function openDetail(id) {
   `;
 
   const actions = document.getElementById("detActions");
-  // A Clinical Team Lead (superuser) or Developer may approve/reject
-  // their own leave; everyone else must have someone else action it.
-  const canProcess = isLeadPlus(PROFILE) && r.status === "pending"
-    && (r.user_id !== PROFILE.id || isSuperuserPlus(PROFILE));
+  // Role-hierarchy-aware — see canProcessLeaveForRole() in shared.js /
+  // can_process_leave_for() in the database, which is what actually enforces this.
+  const canProcess = r.status === "pending" && canProcessLeaveForRole(PROFILE, owner);
   const isOwnPending = r.status === "pending" && (r.requested_by === PROFILE.id || r.user_id === PROFILE.id);
   const canSuperAdmin = isSuperuserPlus(PROFILE);
   const canDelete = isLeadPlus(PROFILE); // lead_pharmacist and above — a note is required
@@ -711,7 +710,7 @@ async function doApprove(id) {
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
 async function doReject(id) {
-  const reason = prompt("Reason for rejecting this leave request:");
+  const reason = await uiPrompt("Reason for rejecting this leave request:", "", { required: true, title: "Reject leave" });
   if (reason === null) return;
   const msg = document.getElementById("detMsg");
   try {
@@ -721,7 +720,7 @@ async function doReject(id) {
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
 async function doCancelOwn(id) {
-  if (!confirm("Cancel this pending leave request?")) return;
+  if (!await uiConfirm("Cancel this pending leave request?")) return;
   const msg = document.getElementById("detMsg");
   try {
     const { error } = await sb.rpc("cancel_own_pending_leave", { p_leave_id: id });
@@ -730,10 +729,11 @@ async function doCancelOwn(id) {
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
 async function doUnapprove(id) {
-  const note = prompt("Optional note for the audit trail:") || null;
+  const note = await uiPrompt("Optional note for the audit trail:", "", { title: "Unapprove leave" });
+  if (note === null) return;
   const msg = document.getElementById("detMsg");
   try {
-    const { error } = await sb.rpc("unapprove_leave", { p_leave_id: id, p_note: note });
+    const { error } = await sb.rpc("unapprove_leave", { p_leave_id: id, p_note: note || null });
     if (error) throw error;
     closeDetailModal(); await refreshCalendar();
   } catch (err) { showMsg(msg, err.message, "error"); }
@@ -741,44 +741,52 @@ async function doUnapprove(id) {
 async function doAmendToilTime(id) {
   const r = REQUESTS.find(x => x.id === id);
   if (!r) return;
-  const label = r.leave_type === "toil_am" ? "New start time (HH:MM):" : "New leaving time (HH:MM):";
-  const newTime = prompt(label, r.toil_time ? fmtTime(r.toil_time) : "");
+  const label = r.leave_type === "toil_am" ? "New start time:" : "New leaving time:";
+  const newTime = await uiPrompt(label, r.toil_time ? fmtTime(r.toil_time) : "", { type: "time", required: true, title: "Amend TOIL time" });
   if (!newTime) return;
-  const note = prompt("Note for the audit trail (optional):") || null;
+  const note = await uiPrompt("Note for the audit trail (optional):", "", { title: "Amend TOIL time" });
+  if (note === null) return;
   const msg = document.getElementById("detMsg");
   try {
-    const { error } = await sb.rpc("amend_toil_time", { p_leave_id: id, p_new_toil_time: newTime, p_note: note });
+    const { error } = await sb.rpc("amend_toil_time", { p_leave_id: id, p_new_toil_time: newTime, p_note: note || null });
     if (error) throw error;
     closeDetailModal(); await refreshCalendar();
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
 async function doEdit(id) {
   const r = REQUESTS.find(x => x.id === id);
-  const newDate = prompt("New date (YYYY-MM-DD):", r.leave_date);
+  const newDate = await uiPrompt("New date:", r.leave_date, { type: "date", required: true, title: "Edit leave" });
   if (!newDate) return;
-  const newType = prompt("New leave type (full_day / toil_full_day / toil_am / toil_pm / study_leave):", r.leave_type);
+  const newType = await uiPrompt(
+    "New leave type (full_day / toil_full_day / toil_am / toil_pm / study_leave):",
+    r.leave_type, { required: true, title: "Edit leave" }
+  );
   if (!newType) return;
   let newToilTime = null;
   if (newType === "toil_am" || newType === "toil_pm") {
-    newToilTime = prompt(
-      newType === "toil_am" ? "Start time (HH:MM):" : "Leaving time (HH:MM):",
-      r.toil_time ? fmtTime(r.toil_time) : ""
+    newToilTime = await uiPrompt(
+      newType === "toil_am" ? "Start time:" : "Leaving time:",
+      r.toil_time ? fmtTime(r.toil_time) : "", { type: "time", required: true, title: "Edit leave" }
     );
     if (!newToilTime) return;
   }
-  const note = prompt("Note for the audit trail (optional):") || null;
+  const note = await uiPrompt("Note for the audit trail (optional):", "", { title: "Edit leave" });
+  if (note === null) return;
   const msg = document.getElementById("detMsg");
   try {
     const { error } = await sb.rpc("edit_leave", {
-      p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note, p_new_toil_time: newToilTime,
+      p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note || null, p_new_toil_time: newToilTime,
     });
     if (error) throw error;
     closeDetailModal(); await refreshCalendar();
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
 async function doDelete(id) {
-  const note = prompt("A note is required to delete this leave request. Why is it being removed?");
-  if (!note || !note.trim()) { alert("A note is required — deletion cancelled."); return; }
+  const note = await uiPrompt(
+    "A note is required to delete this leave request. Why is it being removed?", "",
+    { required: true, title: "Delete leave", type: "textarea" }
+  );
+  if (!note || !note.trim()) return;
   const msg = document.getElementById("detMsg");
   try {
     const { error } = await sb.rpc("delete_leave", { p_leave_id: id, p_note: note });
