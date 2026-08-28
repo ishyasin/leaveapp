@@ -20,7 +20,6 @@
       </div>
       <button class="primary" onclick="openRequestModal()">+ Request Leave</button>
     </div>
-    <div class="tabs" id="siteTabs"></div>
     <div class="tabs" id="monthTabs"></div>
     <div class="legend">
       <span><i style="background:#e6a900"></i> Pending</span>
@@ -29,10 +28,19 @@
       <span><i style="background:#2563eb"></i> Study leave</span>
       <span><i style="background:#e7e7e7;border:1px solid #ccc"></i> Weekend</span>
       <span><i style="background:#d7f4d7;border:1px solid #ccc"></i> Bank holiday</span>
+      <span><i style="background:#fdf1b8;border:1px solid #ccc"></i> Restricted (yellow)</span>
+      <span><i style="background:#fbdadf;border:1px solid #ccc"></i> Restricted (pink)</span>
     </div>
-    <div class="cal-scroll">
-      <table class="cal-grid" id="calGrid"></table>
-    </div>
+  </div>
+
+  <div class="card">
+    <h3 class="site-heading">Worthing</h3>
+    <table class="cal-grid" id="calGrid-worthing"></table>
+  </div>
+
+  <div class="card">
+    <h3 class="site-heading">St Richard's</h3>
+    <table class="cal-grid" id="calGrid-st_richards"></table>
   </div>
 
 </div>
@@ -91,19 +99,32 @@ let PROFILE = null;
 let PROFILES = [];
 let VIEW_YEAR = new Date().getFullYear();
 let VIEW_MONTH = new Date().getMonth(); // 0-indexed
-let VIEW_SITE = "worthing";
 let HOLIDAYS = {}; // 'YYYY-MM-DD' -> name
+let RESTRICTED = {}; // 'YYYY-MM-DD' -> {label, highlight}
 let REQUESTS = []; // this month's leave_requests, with joined names
 
 (async () => {
   PROFILE = await requireAuth(["pharmacist","lead_pharmacist","superuser","developer"]);
   if (!PROFILE) return;
   await loadProfiles();
-  buildSiteTabs();
   buildMonthTabs();
   document.getElementById("studyOption").style.display = isLeadPlus(PROFILE) ? "" : "none";
   await refreshCalendar();
+  scrollToToday();
 })();
+
+// Brings today's column into view on load, since with two stacked site
+// calendars the page can run tall. Only fires when today actually falls
+// within the month currently shown (always true on first load, since
+// VIEW_YEAR/VIEW_MONTH default to the current date).
+function scrollToToday() {
+  const t = new Date();
+  if (t.getFullYear() !== VIEW_YEAR || t.getMonth() !== VIEW_MONTH) return;
+  requestAnimationFrame(() => {
+    const el = document.querySelector(".cal-grid td.today");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+  });
+}
 
 async function loadProfiles() {
   const { data } = await sb.from("profiles")
@@ -145,13 +166,6 @@ function tileTooltip(r, ownerProfile) {
   return lines.join("\n");
 }
 
-function buildSiteTabs() {
-  const tabs = document.getElementById("siteTabs");
-  tabs.innerHTML = Object.entries(SITE_LABEL).map(([code, label]) =>
-    `<button class="${VIEW_SITE===code?'active':''}" onclick="selectSite('${code}')">${label}</button>`).join("");
-}
-function selectSite(code) { VIEW_SITE = code; buildSiteTabs(); renderGrid(); }
-
 function buildMonthTabs() {
   document.getElementById("yearLabel").textContent = VIEW_YEAR;
   const tabs = document.getElementById("monthTabs");
@@ -166,14 +180,17 @@ async function refreshCalendar() {
   const start = isoDate(VIEW_YEAR, VIEW_MONTH, 1);
   const end = isoDate(VIEW_YEAR, VIEW_MONTH, daysInMonth(VIEW_YEAR, VIEW_MONTH));
 
-  const [{ data: reqs }, { data: hols }] = await Promise.all([
+  const [{ data: reqs }, { data: hols }, { data: rests }] = await Promise.all([
     sb.from("leave_requests").select("*").eq("deleted", false).gte("leave_date", start).lte("leave_date", end),
     sb.from("bank_holidays").select("*").gte("holiday_date", start).lte("holiday_date", end),
+    sb.from("restricted_days").select("*").gte("restricted_date", start).lte("restricted_date", end),
   ]);
 
   REQUESTS = (reqs || []).sort((a, b) => new Date(a.requested_at) - new Date(b.requested_at));
   HOLIDAYS = {};
   (hols || []).forEach(h => HOLIDAYS[h.holiday_date] = h.name);
+  RESTRICTED = {};
+  (rests || []).forEach(r => RESTRICTED[r.restricted_date] = { label: r.label, highlight: r.highlight });
 
   renderGrid();
 }
@@ -181,9 +198,16 @@ async function refreshCalendar() {
 // Each request gets its own full-width line for that day. If more than
 // one person is on leave the same day, the next one stacks in the row
 // underneath — first requested (oldest requested_at) on top.
+// Both site calendars are rendered every refresh so they're visible
+// side by side (stacked) without switching tabs.
 function renderGrid() {
+  Object.keys(SITE_LABEL).forEach(renderSiteGrid);
+}
+
+function renderSiteGrid(site) {
   const nDays = daysInMonth(VIEW_YEAR, VIEW_MONTH);
-  const grid = document.getElementById("calGrid");
+  const grid = document.getElementById(`calGrid-${site}`);
+  if (!grid) return;
 
   let headHtml = "<tr><td class='lanehead'></td>";
   for (let d = 1; d <= nDays; d++) {
@@ -191,7 +215,13 @@ function renderGrid() {
     let cls = "daynum";
     if (isWeekend(VIEW_YEAR, VIEW_MONTH, d)) cls += " weekend";
     if (HOLIDAYS[iso]) cls += " holiday";
-    const title = HOLIDAYS[iso] ? ` title="${escapeHtml(HOLIDAYS[iso])}"` : "";
+    const restricted = RESTRICTED[iso];
+    if (restricted) cls += ` restrict-${restricted.highlight}`;
+    if (isToday(VIEW_YEAR, VIEW_MONTH, d)) cls += " today";
+    const titleParts = [];
+    if (HOLIDAYS[iso]) titleParts.push(HOLIDAYS[iso]);
+    if (restricted) titleParts.push(restricted.label);
+    const title = titleParts.length ? ` title="${escapeHtml(titleParts.join(" — "))}"` : "";
     headHtml += `<td class="${cls}"${title}>${d}</td>`;
   }
   headHtml += "</tr>";
@@ -203,7 +233,7 @@ function renderGrid() {
     for (let d = 1; d <= nDays; d++) {
       const iso = isoDate(VIEW_YEAR, VIEW_MONTH, d);
       const dayReqs = REQUESTS.filter(r =>
-        r.leave_date === iso && matchFn(r) && profileInSite(profileById(r.user_id), VIEW_SITE));
+        r.leave_date === iso && matchFn(r) && profileInSite(profileById(r.user_id), site));
       perDay[d] = dayReqs;
       if (dayReqs.length > maxTrack) maxTrack = dayReqs.length;
     }
@@ -217,14 +247,30 @@ function renderGrid() {
         let cls = "cell";
         if (isWeekend(VIEW_YEAR, VIEW_MONTH, d)) cls += " weekend";
         if (HOLIDAYS[iso]) cls += " holiday";
+        if (RESTRICTED[iso]) cls += ` restrict-${RESTRICTED[iso].highlight}`;
+        if (isToday(VIEW_YEAR, VIEW_MONTH, d)) cls += " today";
         const r = perDay[d][t];
         if (r) {
           const p = profileById(r.user_id);
           const initials = p ? p.initials : "?";
           const suffix = r.leave_type === "half_day_am" ? " AM" : r.leave_type === "half_day_pm" ? " PM" : "";
-          const statusClass = r.leave_type === "study_leave" && r.status === "approved" ? "study" : r.status;
+          // Study leave keeps its blue "study" colour throughout — pending
+          // or approved — rather than only turning blue once approved.
+          // Rejected always overrides to red regardless of type, so an
+          // invalid request is never mistaken for a valid one.
+          let statusClass;
+          if (r.leave_type === "study_leave") {
+            statusClass = r.status === "rejected" ? "rejected" : "study";
+          } else {
+            statusClass = r.status;
+          }
+          const pendingModifier = statusClass === "study" && r.status === "pending" ? " study-pending" : "";
           const tooltip = tileTooltip(r, p);
-          rows += `<td class="${cls}"><span class="chip-bar ${statusClass}" title="${escapeHtml(tooltip)}" onclick="openDetail('${r.id}')">${escapeHtml(initials)}${suffix}</span></td>`;
+          // Colour goes on the cell itself (not a nested span) so the
+          // fill is guaranteed by the table cell's own background rather
+          // than a percentage-height flex child, which some browsers
+          // fail to size correctly inside a table row.
+          rows += `<td class="${cls} tile ${statusClass}${pendingModifier}" title="${escapeHtml(tooltip)}" onclick="openDetail('${r.id}')">${escapeHtml(initials)}${suffix}</td>`;
         } else {
           rows += `<td class="${cls}"></td>`;
         }

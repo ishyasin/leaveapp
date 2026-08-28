@@ -14,6 +14,7 @@
   <div class="tabs">
     <button class="active" id="tabBtn-users" onclick="showTab('users')">Users</button>
     <button id="tabBtn-holidays" onclick="showTab('holidays')">Bank Holidays</button>
+    <button id="tabBtn-restricted" onclick="showTab('restricted')">Restricted Days</button>
     <button id="tabBtn-leave" onclick="showTab('leave')">Leave Records</button>
   </div>
 
@@ -85,6 +86,39 @@
     </div>
   </div>
 
+  <!-- RESTRICTED DAYS -->
+  <div id="tab-restricted" style="display:none;">
+    <div class="card">
+      <h2>Add restricted leave period</h2>
+      <p class="small">Marks a single day or a date range on the calendar with a label and a highlight colour — useful for periods where leave is limited (e.g. a ward CQC visit, Christmas). Independent of bank holidays — a day can be both, either, or neither.</p>
+      <div id="restMsg"></div>
+      <form id="restForm">
+        <label>Start date</label>
+        <input type="date" id="restStartDate" required>
+        <label>End date</label>
+        <input type="date" id="restEndDate" required>
+        <p class="small" style="margin:2px 0 0;">If the end date is after the start date, the whole range is marked (weekends included).</p>
+        <label>Label</label>
+        <input type="text" id="restLabel" placeholder="e.g. Restricted Leave — Christmas" required>
+        <label>Highlight colour</label>
+        <select id="restColour">
+          <option value="yellow">Light yellow</option>
+          <option value="pink">Light red / pink</option>
+        </select>
+        <div style="margin-top:14px;">
+          <button type="submit" class="primary" id="restSubmitBtn">Add</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Current restricted days</h2>
+      <table>
+        <thead><tr><th>Date</th><th>Label</th><th>Colour</th><th></th></tr></thead>
+        <tbody id="restRows"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- LEAVE RECORDS -->
   <div id="tab-leave" style="display:none;">
     <div class="card">
@@ -135,11 +169,12 @@ let PROFILES = [];
   setupRoleOptions();
   await loadUsers();
   await loadHolidays();
+  await loadRestricted();
   await loadLeave();
 })();
 
 function showTab(name) {
-  ["users","holidays","leave"].forEach(t => {
+  ["users","holidays","restricted","leave"].forEach(t => {
     document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
     document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);
   });
@@ -297,6 +332,62 @@ async function removeHoliday(date) {
   if (!confirm("Remove this bank holiday?")) return;
   const { error } = await sb.rpc("remove_bank_holiday", { p_date: date });
   if (error) alert(error.message); else loadHolidays();
+}
+
+/* ---------------- restricted days ---------------- */
+document.getElementById("restForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("restMsg");
+  const btn = document.getElementById("restSubmitBtn");
+  const startDate = document.getElementById("restStartDate").value;
+  const endDate = document.getElementById("restEndDate").value;
+  const label = document.getElementById("restLabel").value.trim();
+  const highlight = document.getElementById("restColour").value;
+
+  if (endDate < startDate) {
+    showMsg(msg, "End date must be on or after the start date.", "error");
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    if (startDate === endDate) {
+      const { error } = await sb.rpc("set_restricted_day", {
+        p_date: startDate, p_label: label, p_highlight: highlight,
+      });
+      if (error) throw error;
+    } else {
+      const { error } = await sb.rpc("set_restricted_range", {
+        p_start_date: startDate, p_end_date: endDate, p_label: label, p_highlight: highlight,
+      });
+      if (error) throw error;
+    }
+    document.getElementById("restForm").reset();
+    await loadRestricted();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Add";
+  }
+});
+
+async function loadRestricted() {
+  const { data } = await sb.from("restricted_days").select("*").order("restricted_date");
+  const tbody = document.getElementById("restRows");
+  const colourLabel = { yellow: "Light yellow", pink: "Light red / pink" };
+  tbody.innerHTML = (data || []).map(r => `
+    <tr>
+      <td>${fmtDate(r.restricted_date)}</td>
+      <td>${escapeHtml(r.label)}</td>
+      <td><span class="swatch swatch-${r.highlight}"></span>${colourLabel[r.highlight] || r.highlight}</td>
+      <td><button class="danger" onclick="removeRestricted('${r.restricted_date}')">Remove</button></td>
+    </tr>`).join("");
+}
+
+async function removeRestricted(date) {
+  if (!confirm("Remove this restricted-day marking?")) return;
+  const { error } = await sb.rpc("remove_restricted_day", { p_date: date });
+  if (error) alert(error.message); else loadRestricted();
 }
 
 /* ---------------- leave records ---------------- */

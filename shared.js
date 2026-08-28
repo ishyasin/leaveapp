@@ -129,6 +129,10 @@ function isWeekend(y, mIdx, d) {
   const dow = new Date(y, mIdx, d).getDay();
   return dow === 0 || dow === 6;
 }
+function isToday(y, mIdx, d) {
+  const t = new Date();
+  return y === t.getFullYear() && mIdx === t.getMonth() && d === t.getDate();
+}
 function fmtDateTime(iso) {
   if (!iso) return "";
   const d = new Date(iso);

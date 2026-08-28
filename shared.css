@@ -9,6 +9,8 @@
   --border:#d9dce3;
   --weekend:#e7e7e7;
   --holiday:#d7f4d7;
+  --restrict-yellow:#fdf1b8;
+  --restrict-pink:#fbdadf;
   --pending:#e6a900;
   --approved:#1f9d55;
   --rejected:#c0392b;
@@ -52,7 +54,7 @@ a{color:var(--teal-light);}
   padding:6px 10px;cursor:pointer;font-size:12px;
 }
 .userbox button:hover{background:var(--teal);border-color:var(--teal);}
-.wrap{max-width:1500px;margin:0 auto;padding:22px;}
+.wrap{max-width:none;width:100%;margin:0;padding:22px;}
 .card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:22px;margin-bottom:16px;}
 h1,h2,h3{color:var(--navy);}
 h1{font-size:24px;}
@@ -96,26 +98,30 @@ th{color:var(--navy);background:#f7f8fb;}
 .year-nav button{background:none;border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:15px;}
 
 /* ---- calendar grid ---- */
-.cal-scroll{overflow-x:auto;}
-.cal-grid{border-collapse:collapse;min-width:1300px;width:100%;}
-.cal-grid th,.cal-grid td{border:1px solid #999;padding:4px;text-align:center;font-size:13px;vertical-align:middle;}
+/* table-layout:fixed + width:100% means the grid always fits the
+   viewport — columns share the available width instead of forcing a
+   horizontal scrollbar, however many days are in the month. */
+.cal-grid{border-collapse:collapse;width:100%;table-layout:fixed;}
+.cal-grid th,.cal-grid td{border:1px solid #999;padding:3px;text-align:center;font-size:12px;vertical-align:middle;overflow:hidden;}
 .cal-grid th{background:#fff;color:var(--navy);font-weight:700;}
-.cal-grid td.daynum{background:#fff;font-weight:700;color:#555;font-size:12px;padding:8px 4px;}
+.cal-grid td.daynum{background:#fff;font-weight:700;color:#555;font-size:11px;padding:7px 2px;}
 .cal-grid td.weekend{background:var(--weekend);}
 .cal-grid td.holiday{background:var(--holiday);}
+.cal-grid td.restrict-yellow{background:var(--restrict-yellow);}
+.cal-grid td.restrict-pink{background:var(--restrict-pink);}
+.cal-grid td.today{box-shadow:inset 0 0 0 2px var(--navy);}
 .cal-grid td.lanehead{
-  background:#fff;font-weight:700;text-align:left;color:var(--navy);white-space:nowrap;
-  padding:10px 10px;min-width:130px;font-size:14px;vertical-align:top;
+  width:100px;background:#fff;font-weight:700;text-align:left;color:var(--navy);
+  padding:10px 8px;font-size:13px;vertical-align:top;
 }
-.cal-grid td.cell{min-width:42px;height:38px;padding:2px;}
-.chip-bar{
-  display:flex;align-items:center;justify-content:center;height:100%;width:100%;
-  border-radius:5px;font-size:12px;font-weight:700;color:#fff;cursor:pointer;line-height:1.2;
-}
-.chip-bar.pending{background:var(--pending);}
-.chip-bar.approved{background:var(--approved);}
-.chip-bar.rejected{background:var(--rejected);text-decoration:line-through;opacity:.7;}
-.chip-bar.study{background:var(--study);}
+.cal-grid td.cell{height:36px;padding:1px;}
+.cal-grid td.tile{cursor:pointer;font-weight:700;font-size:11px;color:#fff;}
+.cal-grid td.tile.pending{background:var(--pending) !important;}
+.cal-grid td.tile.approved{background:var(--approved) !important;}
+.cal-grid td.tile.rejected{background:var(--rejected) !important;text-decoration:line-through;opacity:.85;}
+.cal-grid td.tile.study{background:var(--study) !important;}
+.cal-grid td.tile.study.study-pending{opacity:.65;}
+.site-heading{margin:0 0 10px;padding-bottom:8px;border-bottom:2px solid var(--honey);}
 
 .overlay{
   position:fixed;inset:0;background:rgba(15,20,35,.55);display:flex;
@@ -128,6 +134,9 @@ th{color:var(--navy);background:#f7f8fb;}
 .legend span{display:inline-flex;align-items:center;gap:5px;}
 .legend i{width:12px;height:12px;border-radius:3px;display:inline-block;}
 .small{font-size:12px;color:#666;}
+.swatch{display:inline-block;width:13px;height:13px;border-radius:3px;border:1px solid #999;vertical-align:middle;margin-right:6px;}
+.swatch-yellow{background:var(--restrict-yellow);}
+.swatch-pink{background:var(--restrict-pink);}
 .center{text-align:center;}
 .login-wrap{max-width:360px;margin:60px auto;padding:0 16px;}
 .login-card{background:#fff;border-radius:10px;padding:28px;border:1px solid var(--border);border-top:4px solid var(--honey);}
