@@ -33,6 +33,8 @@ const SITE_LABEL = {
 };
 
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const WEEKDAY_ABBR = ["Sun","Mon","Tue","Wed","Thur","Fri","Sat"];
+function weekdayAbbr(y, mIdx, d) { return WEEKDAY_ABBR[new Date(y, mIdx, d).getDay()]; }
 
 /* =====================================================================
    UI dialogs — replaces window.confirm/alert/prompt everywhere in the

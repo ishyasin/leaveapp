@@ -108,6 +108,8 @@ th{color:var(--navy);background:#f7f8fb;}
 .cal-grid th,.cal-grid td{border:1px solid #999;padding:3px;text-align:center;font-size:12px;vertical-align:middle;overflow:hidden;}
 .cal-grid th{background:#fff;color:var(--navy);font-weight:700;}
 .cal-grid td.daynum{background:#fff;font-weight:700;color:#555;font-size:11px;padding:7px 2px;}
+.cal-grid td.daynum .daynum-weekday{display:block;font-weight:400;font-size:9px;color:#888;margin-top:1px;}
+.cal-grid td.daynum.selected .daynum-weekday{color:#e6f0f1;}
 .cal-grid td.weekend{background:var(--weekend);}
 .cal-grid td.holiday{background:var(--holiday);}
 .cal-grid td.restrict-yellow{background:var(--restrict-yellow);}

@@ -18,6 +18,7 @@
     <button id="tabBtn-restricted" onclick="showTab('restricted')">Restricted Days</button>
     <button id="tabBtn-capacity" onclick="showTab('capacity')">Leave Capacity</button>
     <button id="tabBtn-leave" onclick="showTab('leave')">Leave Records</button>
+    <button id="tabBtn-reset" onclick="showTab('reset')" style="display:none;">Reset Data</button>
   </div>
 
   <!-- USERS -->
@@ -174,6 +175,32 @@
     </div>
   </div>
 
+  <!-- RESET DATA (Developer only) -->
+  <div id="tab-reset" style="display:none;">
+    <div class="card">
+      <h2>Reset app data for go-live</h2>
+      <p class="small">Developer only. Permanently deletes every <strong>leave request</strong>, <strong>bank holiday</strong>, <strong>restricted day</strong>, <strong>capacity override</strong>, and <strong>Clinical Rota Completed / DSR complete</strong> flag, resets each site's leave-capacity threshold back to its default, and clears the audit log — so the app starts completely clean for real use. <strong>User accounts, roles, and site assignments are not touched</strong> — nobody needs to be recreated. This cannot be undone.</p>
+      <button class="danger" onclick="openResetDataModal()">Reset App Data</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Reset-app-data confirmation modal -->
+<div class="overlay" id="resetDataOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Confirm: Reset App Data</h3>
+    <p class="small">This permanently deletes all leave requests, bank holidays, restricted days, capacity overrides, and month-complete flags, and clears the audit log. User accounts are kept exactly as they are. There is no way to undo this. Enter your password to confirm.</p>
+    <div id="resetDataMsg"></div>
+    <form id="resetDataForm">
+      <label>Password</label>
+      <input type="password" id="resetDataPassword" required autocomplete="current-password">
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeResetDataModal()">Cancel</button>
+        <button type="submit" class="danger" id="resetDataSubmitBtn">Permanently reset app data</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- Edit site modal -->
@@ -227,6 +254,7 @@ let PROFILES = [];
 (async () => {
   PROFILE = await requireAuth(["superuser","developer"]);
   if (!PROFILE) return;
+  if (isDeveloper(PROFILE)) document.getElementById("tabBtn-reset").style.display = "";
   setupRoleOptions();
   await loadUsers();
   await loadHolidays();
@@ -237,7 +265,7 @@ let PROFILES = [];
 })();
 
 function showTab(name) {
-  ["users","holidays","restricted","capacity","leave"].forEach(t => {
+  ["users","holidays","restricted","capacity","leave","reset"].forEach(t => {
     document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
     document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);
   });
@@ -367,6 +395,53 @@ async function deleteUser(id, fullName) {
     await loadUsers();
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
+
+/* ---------------- reset app data (Developer only) ---------------- */
+function openResetDataModal() {
+  document.getElementById("resetDataMsg").innerHTML = "";
+  document.getElementById("resetDataPassword").value = "";
+  document.getElementById("resetDataOverlay").style.display = "flex";
+}
+function closeResetDataModal() { document.getElementById("resetDataOverlay").style.display = "none"; }
+
+document.getElementById("resetDataForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("resetDataMsg");
+  const btn = document.getElementById("resetDataSubmitBtn");
+  const password = document.getElementById("resetDataPassword").value;
+
+  btn.disabled = true; btn.textContent = "Verifying password…";
+  try {
+    // Re-authenticate against the CURRENT account's own email as a
+    // second factor beyond just already being signed in, before this
+    // irreversible action is allowed to proceed — same pattern as
+    // Clear All Logs on the Audit Trail page.
+    const session = await getSession();
+    const { error: authErr } = await sb.auth.signInWithPassword({
+      email: session.user.email, password,
+    });
+    if (authErr) {
+      showMsg(msg, "Incorrect password.", "error");
+      return;
+    }
+
+    btn.textContent = "Resetting…";
+    const { error } = await sb.rpc("reset_app_data");
+    if (error) throw error;
+
+    closeResetDataModal();
+    await uiAlert("App data has been reset. User accounts were not affected.", "Reset complete");
+    await loadHolidays();
+    await loadRestricted();
+    await loadCapacity();
+    await loadCapacityOverrides();
+    await loadLeave();
+  } catch (err) {
+    showMsg(msg, err.message || "Could not reset app data.", "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Permanently reset app data";
+  }
+});
 
 async function toggleActive(id, makeActive) {
   const msg = document.getElementById("usersMsg");

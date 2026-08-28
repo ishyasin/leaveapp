@@ -412,7 +412,7 @@ function renderSiteGrid(site) {
     let cls = "daynum" + (bg ? ` ${bg}` : "");
     if (isToday(VIEW_YEAR, VIEW_MONTH, d)) cls += " today";
     if (SELECTED_DAYS.site === site && SELECTED_DAYS.days.has(d)) cls += " selected";
-    headHtml += `<td class="${cls}" data-day="${d}"${dayTitle(d)}>${d}</td>`;
+    headHtml += `<td class="${cls}" data-day="${d}"${dayTitle(d)}>${d}<span class="daynum-weekday">${weekdayAbbr(VIEW_YEAR, VIEW_MONTH, d)}</span></td>`;
   }
   headHtml += "</tr>";
 
