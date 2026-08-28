@@ -127,7 +127,7 @@ let PROFILES = [];
 let VIEW_YEAR = new Date().getFullYear();
 let VIEW_MONTH = new Date().getMonth(); // 0-indexed
 let HOLIDAYS = {};            // 'YYYY-MM-DD' -> name
-let RESTRICTED = {};          // 'YYYY-MM-DD' -> {label, highlight}
+let RESTRICTED = {};          // site -> { 'YYYY-MM-DD' -> {label, highlight} }
 let REQUESTS = [];            // this month's leave_requests
 let SITE_THRESHOLD = {};      // site -> capacity threshold
 let CAPACITY_OVERRIDES = {};  // site -> Set of 'YYYY-MM-DD' forced red
@@ -254,7 +254,10 @@ async function refreshCalendar() {
   HOLIDAYS = {};
   (hols || []).forEach(h => HOLIDAYS[h.holiday_date] = h.name);
   RESTRICTED = {};
-  (rests || []).forEach(r => RESTRICTED[r.restricted_date] = { label: r.label, highlight: r.highlight });
+  (rests || []).forEach(r => {
+    RESTRICTED[r.site] = RESTRICTED[r.site] || {};
+    RESTRICTED[r.site][r.restricted_date] = { label: r.label, highlight: r.highlight };
+  });
   SITE_THRESHOLD = {};
   (settings || []).forEach(s => SITE_THRESHOLD[s.site] = s.leave_capacity_threshold);
   CAPACITY_OVERRIDES = {};
@@ -385,7 +388,8 @@ function renderSiteGrid(site) {
     const iso = isoDate(VIEW_YEAR, VIEW_MONTH, d);
     const cap = capacityColorFor(site, iso);
     if (cap) return cap;
-    if (RESTRICTED[iso]) return `restrict-${RESTRICTED[iso].highlight}`;
+    const restricted = RESTRICTED[site] && RESTRICTED[site][iso];
+    if (restricted) return `restrict-${restricted.highlight}`;
     if (HOLIDAYS[iso]) return "holiday";
     if (isWeekend(VIEW_YEAR, VIEW_MONTH, d)) return "weekend";
     return null;
@@ -394,7 +398,8 @@ function renderSiteGrid(site) {
     const iso = isoDate(VIEW_YEAR, VIEW_MONTH, d);
     const parts = [];
     if (HOLIDAYS[iso]) parts.push(HOLIDAYS[iso]);
-    if (RESTRICTED[iso]) parts.push(RESTRICTED[iso].label);
+    const restricted = RESTRICTED[site] && RESTRICTED[site][iso];
+    if (restricted) parts.push(restricted.label);
     const cap = capacityColorFor(site, iso);
     if (cap === "capacity-red") parts.push("Capacity override — forced red");
     else if (cap === "capacity-yellow") parts.push(`Leave capacity reached (${SITE_THRESHOLD[site]}+ off)`);

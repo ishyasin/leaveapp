@@ -12,7 +12,7 @@
 <div class="wrap">
   <div class="card">
     <h1>Pending Approvals</h1>
-    <p class="small">Every pending request — Annual Leave, TOIL, or Study Leave — is numbered in the order it was submitted. Lead Pharmacists cannot approve or reject their own leave — a Clinical Team Lead or Developer can.</p>
+    <p class="small">Every pending request — Annual Leave, TOIL, or Study Leave — is numbered in the order it was submitted. Lead Pharmacists cannot approve or reject their own leave — a Clinical Team Lead or Developer can. A <span class="badge rejected">&#9888; Restricted day</span> badge means the request falls on a day that's either auto-flagged for leave capacity or explicitly marked restricted for that site.</p>
     <div id="msg"></div>
     <div id="clashSummary"></div>
     <table>
@@ -29,6 +29,7 @@
 <script>
 let PROFILE = null;
 let PROFILES = [];
+let PENDING = [];
 
 (async () => {
   PROFILE = await requireAuth(["lead_pharmacist","superuser","developer"]);
@@ -50,6 +51,44 @@ function ordinalLabel(n) {
   return n + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]);
 }
 
+function sitesFor(r) {
+  return r.snapshot_cross_site ? ["worthing", "st_richards"] : [r.snapshot_primary_site];
+}
+
+// Flags whether a request's date is, at any site it applies to, either
+// (a) a Clinical Team Lead's forced-red capacity override, (b) marked
+// as an explicit Restricted Day, or (c) auto-flagged because that
+// site's leave-capacity threshold has been met that day. Any of these
+// means the approver should be alerted before actioning it.
+function restrictionFlagFor(r, ctx) {
+  const sites = sitesFor(r);
+  for (const site of sites) {
+    if (ctx.overrides[site] && ctx.overrides[site].has(r.leave_date)) return "override";
+  }
+  for (const site of sites) {
+    if (ctx.restricted[site] && ctx.restricted[site][r.leave_date]) return "restricted";
+  }
+  for (const site of sites) {
+    const threshold = ctx.threshold[site];
+    if (!threshold) continue;
+    const ids = new Set();
+    ctx.sameRangeAll.forEach(x => {
+      if (x.leave_date !== r.leave_date) return;
+      const xSites = x.snapshot_cross_site ? ["worthing", "st_richards"] : [x.snapshot_primary_site];
+      if (xSites.includes(site)) ids.add(x.user_id);
+    });
+    if (ids.size >= threshold) return "capacity";
+  }
+  return null;
+}
+
+function restrictionLabel(flag) {
+  if (flag === "override") return "Capacity override — forced critical";
+  if (flag === "restricted") return "Marked as a Restricted Day";
+  if (flag === "capacity") return "Leave capacity threshold reached";
+  return "";
+}
+
 async function load() {
   const { data, error } = await sb
     .from("leave_requests")
@@ -65,8 +104,38 @@ async function load() {
   clashEl.innerHTML = "";
 
   if (error) { showMsg(document.getElementById("msg"), error.message, "error"); return; }
-  if (!data || data.length === 0) { empty.style.display = ""; return; }
+  if (!data || data.length === 0) { PENDING = []; empty.style.display = ""; return; }
   empty.style.display = "none";
+  PENDING = data;
+
+  // Bulk-load everything needed to flag restricted/at-capacity days
+  // across the whole pending list in a few queries, rather than one
+  // per row: site thresholds, red overrides, restricted-day labels,
+  // and every live (pending/approved, any type) request spanning the
+  // date range the pending list covers.
+  const dates = data.map(r => r.leave_date);
+  const minDate = dates.reduce((a, b) => (a < b ? a : b));
+  const maxDate = dates.reduce((a, b) => (a > b ? a : b));
+
+  const [{ data: settings }, { data: overridesRaw }, { data: restrictedRaw }, { data: sameRangeAll }] = await Promise.all([
+    sb.from("site_settings").select("*"),
+    sb.from("capacity_overrides").select("*").gte("override_date", minDate).lte("override_date", maxDate),
+    sb.from("restricted_days").select("*").gte("restricted_date", minDate).lte("restricted_date", maxDate),
+    sb.from("leave_requests").select("user_id, leave_date, snapshot_primary_site, snapshot_cross_site")
+      .eq("deleted", false).in("status", ["pending", "approved"])
+      .gte("leave_date", minDate).lte("leave_date", maxDate),
+  ]);
+
+  const ctx = { threshold: {}, overrides: {}, restricted: {}, sameRangeAll: sameRangeAll || [] };
+  (settings || []).forEach(s => ctx.threshold[s.site] = s.leave_capacity_threshold);
+  (overridesRaw || []).forEach(o => {
+    ctx.overrides[o.site] = ctx.overrides[o.site] || new Set();
+    ctx.overrides[o.site].add(o.override_date);
+  });
+  (restrictedRaw || []).forEach(rd => {
+    ctx.restricted[rd.site] = ctx.restricted[rd.site] || {};
+    ctx.restricted[rd.site][rd.restricted_date] = rd;
+  });
 
   // data is already ordered oldest-requested-first across EVERY leave
   // type — Annual Leave, TOIL, and Study Leave all share one queue —
@@ -88,13 +157,16 @@ async function load() {
     const isOwn = r.user_id === PROFILE.id;
     const blocked = isOwn && !isSuperuserPlus(PROFILE);
     const clashCount = byDate[r.leave_date].length;
+    r._restrictionFlag = restrictionFlagFor(r, ctx);
     const tr = document.createElement("tr");
     if (clashCount > 1) tr.className = "clash-row";
     tr.innerHTML = `
       <td><span class="badge study">${ordinalLabel(index + 1)}</span></td>
       <td>${fmtDateTime(r.requested_at)}</td>
       <td>${escapeHtml(nameFor(r.user_id))}</td>
-      <td>${fmtDate(r.leave_date)}${clashCount > 1 ? ` <span class="badge pending">${clashCount}&times;</span>` : ""}</td>
+      <td>${fmtDate(r.leave_date)}${clashCount > 1 ? ` <span class="badge pending">${clashCount}&times;</span>` : ""}
+        ${r._restrictionFlag ? `<br><span class="badge rejected" title="${escapeHtml(restrictionLabel(r._restrictionFlag))}">&#9888; Restricted day</span>` : ""}
+      </td>
       <td>${LEAVE_TYPE_LABEL[r.leave_type]}${(r.leave_type === "toil_am" || r.leave_type === "toil_pm") && r.toil_time ? ` (${fmtTime(r.toil_time)})` : ""}</td>
       <td>${escapeHtml(nameFor(r.requested_by))}</td>
       <td style="white-space:nowrap;">
@@ -109,7 +181,34 @@ async function load() {
 
 async function approve(id) {
   const msg = document.getElementById("msg");
+  const r = PENDING.find(x => x.id === id);
+  if (!r) return;
   try {
+    // Count everyone (any leave type) with a live pending/approved
+    // request on this date at the same site(s) this request applies
+    // to, so the capacity warning reflects the actual rota impact.
+    const { data: sameDay, error: countErr } = await sb
+      .from("leave_requests")
+      .select("user_id, snapshot_primary_site, snapshot_cross_site")
+      .eq("leave_date", r.leave_date)
+      .eq("deleted", false)
+      .in("status", ["pending", "approved"]);
+    if (countErr) throw countErr;
+
+    const sharesSite = (a, b) =>
+      a.snapshot_cross_site || b.snapshot_cross_site || a.snapshot_primary_site === b.snapshot_primary_site;
+    const offCount = new Set(
+      (sameDay || []).filter(row => sharesSite(row, r)).map(row => row.user_id)
+    ).size;
+
+    const restrictionNote = r._restrictionFlag
+      ? `This day is flagged: ${restrictionLabel(r._restrictionFlag)}. `
+      : "";
+
+    if (!confirm(`${restrictionNote}There are ${offCount} pharmacists off on this day, please check rota capacity before approving leave.`)) {
+      return;
+    }
+
     const { error } = await sb.rpc("approve_leave", { p_leave_id: id });
     if (error) throw error;
     await load();

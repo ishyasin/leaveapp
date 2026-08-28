@@ -32,6 +32,7 @@
         <option value="remove_restricted_day">Remove restricted day</option>
         <option value="hide_user">Hide user</option>
         <option value="unhide_user">Unhide user</option>
+        <option value="delete_user">Delete user</option>
         <option value="set_rota_complete">Set rota complete</option>
         <option value="set_dsr_complete">Set DSR complete</option>
         <option value="set_capacity_threshold">Set capacity threshold</option>
@@ -39,6 +40,7 @@
         <option value="remove_capacity_override">Remove capacity override</option>
         <option value="set_bank_holiday">Set bank holiday</option>
         <option value="remove_bank_holiday">Remove bank holiday</option>
+        <option value="clear_audit_log">Clear audit log</option>
       </select>
       <button class="secondary" onclick="load()">Filter</button>
     </div>
@@ -47,6 +49,29 @@
       <thead><tr><th>When</th><th>Action</th><th>Actor</th><th>Note</th></tr></thead>
       <tbody id="rows"></tbody>
     </table>
+  </div>
+
+  <div class="card" id="clearLogsCard" style="display:none;">
+    <h2>Clear all logs</h2>
+    <p class="small">Developer only. Permanently deletes every entry in the audit trail below. This cannot be undone.</p>
+    <button class="danger" onclick="openClearLogsModal()">Clear All Logs</button>
+  </div>
+</div>
+
+<!-- Clear-all-logs confirmation modal -->
+<div class="overlay" id="clearLogsOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Confirm: Clear All Logs</h3>
+    <p class="small">This permanently deletes every existing audit log entry — there is no way to undo this. Enter your password to confirm.</p>
+    <div id="clearLogsMsg"></div>
+    <form id="clearLogsForm">
+      <label>Password</label>
+      <input type="password" id="clearLogsPassword" required autocomplete="current-password">
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeClearLogsModal()">Cancel</button>
+        <button type="submit" class="danger" id="clearLogsSubmitBtn">Permanently clear logs</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -58,6 +83,7 @@ let PROFILES = [];
 (async () => {
   PROFILE = await requireAuth(["superuser","developer"]);
   if (!PROFILE) return;
+  if (isDeveloper(PROFILE)) document.getElementById("clearLogsCard").style.display = "";
   const { data } = await sb.from("profiles").select("id, full_name, initials");
   PROFILES = data || [];
   await load();
@@ -85,6 +111,48 @@ async function load() {
     </tr>
   `).join("");
 }
+
+/* ---------------- Clear all logs (Developer only) ---------------- */
+function openClearLogsModal() {
+  document.getElementById("clearLogsMsg").innerHTML = "";
+  document.getElementById("clearLogsPassword").value = "";
+  document.getElementById("clearLogsOverlay").style.display = "flex";
+}
+function closeClearLogsModal() { document.getElementById("clearLogsOverlay").style.display = "none"; }
+
+document.getElementById("clearLogsForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("clearLogsMsg");
+  const btn = document.getElementById("clearLogsSubmitBtn");
+  const password = document.getElementById("clearLogsPassword").value;
+
+  btn.disabled = true; btn.textContent = "Verifying password…";
+  try {
+    // Re-authenticate against the CURRENT account's own email as a
+    // second factor beyond just already being signed in, before this
+    // irreversible action is allowed to proceed.
+    const session = await getSession();
+    const { error: authErr } = await sb.auth.signInWithPassword({
+      email: session.user.email, password,
+    });
+    if (authErr) {
+      showMsg(msg, "Incorrect password.", "error");
+      return;
+    }
+
+    btn.textContent = "Clearing…";
+    const { error } = await sb.rpc("clear_audit_log");
+    if (error) throw error;
+
+    closeClearLogsModal();
+    document.getElementById("actionFilter").value = "";
+    await load();
+  } catch (err) {
+    showMsg(msg, err.message || "Could not clear logs.", "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Permanently clear logs";
+  }
+});
 </script>
 </body>
 </html>

@@ -53,7 +53,7 @@
     </div>
     <div class="card">
       <h2>Existing users</h2>
-      <p class="small">Developer accounts can never be suspended or hidden from the app — that's Supabase-dashboard-only, even for another Developer. A Clinical Team Lead additionally can't reset the password or edit the site of another Clinical Team Lead or a Developer.</p>
+      <p class="small">A Clinical Team Lead can only hide an unused account (reversible, list-only — but it does also revoke access immediately). A Developer can additionally delete an account permanently: access is revoked for good and their password invalidated, though leave history stays on record. Developer accounts can never be suspended, hidden, or deleted from the app by anyone — that's Supabase-dashboard-only. A Clinical Team Lead additionally can't reset the password or edit the site of another Clinical Team Lead or a Developer.</p>
       <div id="usersMsg"></div>
       <table>
         <thead><tr><th>Name</th><th>Initials</th><th>User ID</th><th>Role</th><th>Site</th><th>Status</th><th></th></tr></thead>
@@ -90,9 +90,14 @@
   <div id="tab-restricted" style="display:none;">
     <div class="card">
       <h2>Add restricted leave period</h2>
-      <p class="small">Marks a single day or a date range on the calendar with a label and a highlight colour — useful for periods where leave is limited (e.g. a ward CQC visit, Christmas). Independent of bank holidays — a day can be both, either, or neither.</p>
+      <p class="small">Marks a single day or a date range on the calendar, for one site, with a label and a highlight colour — useful for periods where leave is limited (e.g. a ward CQC visit, Christmas). Independent of bank holidays — a day can be both, either, or neither.</p>
       <div id="restMsg"></div>
       <form id="restForm">
+        <label>Site</label>
+        <select id="restSite">
+          <option value="worthing">Worthing Hospital</option>
+          <option value="st_richards">St Richard's Hospital</option>
+        </select>
         <label>Start date</label>
         <input type="date" id="restStartDate" required>
         <label>End date</label>
@@ -113,7 +118,7 @@
     <div class="card">
       <h2>Current restricted days</h2>
       <table>
-        <thead><tr><th>Date</th><th>Label</th><th>Colour</th><th></th></tr></thead>
+        <thead><tr><th>Site</th><th>Date</th><th>Label</th><th>Colour</th><th></th></tr></thead>
         <tbody id="restRows"></tbody>
       </table>
     </div>
@@ -275,16 +280,21 @@ async function loadUsers() {
     //  - reset password / edit site: only blocked for a Clinical Team
     //    Lead acting on a Clinical Team Lead/Developer target — a
     //    Developer can still do these to another Developer account.
+    //  - permanent delete: Developer only, never on another developer.
     const superuserBlocked = !isDeveloper(PROFILE) && ["superuser","developer"].includes(p.role);
     const canSuspendHide = p.role !== "developer" && !superuserBlocked;
     const canResetPw = !superuserBlocked;
     const canEditSite = !superuserBlocked;
+    const canDelete = isDeveloper(PROFILE) && p.role !== "developer" && !p.deleted_by_developer;
     const siteText = p.cross_site
       ? `${SITE_LABEL[p.primary_site]} + cross-site`
       : SITE_LABEL[p.primary_site] || p.primary_site;
+    const statusTag = p.deleted_by_developer
+      ? ' <span class="small">(deleted)</span>'
+      : p.hidden_by_superuser ? ' <span class="small">(hidden)</span>' : "";
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${escapeHtml(p.full_name)}${p.hidden_by_superuser ? ' <span class="small">(hidden)</span>' : ""}</td>
+      <td>${escapeHtml(p.full_name)}${statusTag}</td>
       <td>${escapeHtml(p.initials)}</td>
       <td>${escapeHtml(p.user_id)}</td>
       <td>${ROLE_LABEL[p.role]}</td>
@@ -295,18 +305,41 @@ async function loadUsers() {
         ${canResetPw ? `<button class="secondary" onclick="resetPw('${p.id}')">Reset password</button>` : ""}
         ${canEditSite ? `<button class="secondary" onclick="openSiteModal('${p.id}')">Edit site</button>` : ""}
         ${canSuspendHide ? `<button class="danger" onclick="toggleHidden('${p.id}', ${!p.hidden_by_superuser})">${p.hidden_by_superuser ? "Unhide account" : "Hide account"}</button>` : ""}
-        ${!canSuspendHide && !canResetPw && !canEditSite ? '<span class="small">locked</span>' : ""}
+        ${canDelete ? `<button class="danger" onclick="deleteUser('${p.id}', '${escapeHtml(p.full_name)}')">Delete account</button>` : ""}
+        ${!canSuspendHide && !canResetPw && !canEditSite && !canDelete ? '<span class="small">locked</span>' : ""}
       </td>`;
     tbody.appendChild(tr);
   });
 }
 
+// Generates a password nobody knows or writes down — the point isn't
+// to hand it to anyone, it's purely to invalidate whatever password
+// the account previously had, on top of active=false, as genuine
+// defense in depth rather than just relying on the app-level lockout.
+function randomLockoutPassword() {
+  return crypto.randomUUID() + crypto.randomUUID();
+}
+
 async function toggleHidden(id, makeHidden) {
   const msg = document.getElementById("usersMsg");
-  if (makeHidden && !confirm("Hide this account from the admin user list? The record itself is not deleted — a Developer can still see and unhide it.")) return;
+  if (makeHidden && !confirm("Hide this account? This also revokes their access immediately (their password is invalidated) — the record itself is not deleted, and a Developer can still see and unhide it.")) return;
   try {
     const { error } = await sb.rpc("set_user_hidden", { p_user_id: id, p_hidden: makeHidden });
     if (error) throw error;
+    if (makeHidden) {
+      await callEdgeFunction("admin-reset-password", { target_user_id: id, temp_password: randomLockoutPassword() });
+    }
+    await loadUsers();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+async function deleteUser(id, fullName) {
+  const msg = document.getElementById("usersMsg");
+  if (!confirm(`Permanently delete ${fullName}'s access? They will never be able to log in again. Their leave history is kept for records — this is not reversible from the app.`)) return;
+  try {
+    const { error } = await sb.rpc("delete_user_account", { p_user_id: id });
+    if (error) throw error;
+    await callEdgeFunction("admin-reset-password", { target_user_id: id, temp_password: randomLockoutPassword() });
     await loadUsers();
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
@@ -402,6 +435,7 @@ document.getElementById("restForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const msg = document.getElementById("restMsg");
   const btn = document.getElementById("restSubmitBtn");
+  const site = document.getElementById("restSite").value;
   const startDate = document.getElementById("restStartDate").value;
   const endDate = document.getElementById("restEndDate").value;
   const label = document.getElementById("restLabel").value.trim();
@@ -416,12 +450,12 @@ document.getElementById("restForm").addEventListener("submit", async (e) => {
   try {
     if (startDate === endDate) {
       const { error } = await sb.rpc("set_restricted_day", {
-        p_date: startDate, p_label: label, p_highlight: highlight,
+        p_site: site, p_date: startDate, p_label: label, p_highlight: highlight,
       });
       if (error) throw error;
     } else {
       const { data: count, error } = await sb.rpc("set_restricted_range", {
-        p_start_date: startDate, p_end_date: endDate, p_label: label, p_highlight: highlight,
+        p_site: site, p_start_date: startDate, p_end_date: endDate, p_label: label, p_highlight: highlight,
       });
       if (error) throw error;
       showMsg(msg, `${count} day${count === 1 ? "" : "s"} marked (weekends and bank holidays skipped).`, "ok");
@@ -441,16 +475,17 @@ async function loadRestricted() {
   const colourLabel = { yellow: "Light yellow", pink: "Light red / pink" };
   tbody.innerHTML = (data || []).map(r => `
     <tr>
+      <td>${escapeHtml(SITE_LABEL[r.site] || r.site)}</td>
       <td>${fmtDate(r.restricted_date)}</td>
       <td>${escapeHtml(r.label)}</td>
       <td><span class="swatch swatch-${r.highlight}"></span>${colourLabel[r.highlight] || r.highlight}</td>
-      <td><button class="danger" onclick="removeRestricted('${r.restricted_date}')">Remove</button></td>
+      <td><button class="danger" onclick="removeRestricted('${r.site}','${r.restricted_date}')">Remove</button></td>
     </tr>`).join("");
 }
 
-async function removeRestricted(date) {
+async function removeRestricted(site, date) {
   if (!confirm("Remove this restricted-day marking?")) return;
-  const { error } = await sb.rpc("remove_restricted_day", { p_date: date });
+  const { error } = await sb.rpc("remove_restricted_day", { p_site: site, p_date: date });
   if (error) alert(error.message); else loadRestricted();
 }
 
@@ -548,7 +583,7 @@ function leaveRowsFor(status, data) {
     const req = PROFILES.find(x => x.id === r.requested_by);
     const appr = r.approved_by ? PROFILES.find(x => x.id === r.approved_by) : null;
     const siteText = r.snapshot_cross_site
-      ? `${SITE_LABEL[r.snapshot_primary_site] || r.snapshot_primary_site} + cross-site`
+      ? Object.values(SITE_LABEL).join(" & ")
       : (SITE_LABEL[r.snapshot_primary_site] || r.snapshot_primary_site || "");
     return {
       "Date": new Date(`${r.leave_date}T00:00:00`),
