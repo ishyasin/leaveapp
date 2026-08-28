@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Approvals — Leave Management</title>
+<title>Approvals — Leave Manager</title>
 <link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -12,8 +12,9 @@
 <div class="wrap">
   <div class="card">
     <h1>Pending Approvals</h1>
-    <p class="small">First requested, first listed. You cannot approve or reject your own leave.</p>
+    <p class="small">First requested, first listed. Lead Pharmacists cannot approve or reject their own leave — a Clinical Team Lead or Developer can.</p>
     <div id="msg"></div>
+    <div id="clashSummary"></div>
     <table>
       <thead>
         <tr><th>Requested</th><th>Person</th><th>Date</th><th>Type</th><th>Requested by</th><th></th></tr>
@@ -52,23 +53,41 @@ async function load() {
 
   const tbody = document.getElementById("rows");
   const empty = document.getElementById("empty");
+  const clashEl = document.getElementById("clashSummary");
   tbody.innerHTML = "";
+  clashEl.innerHTML = "";
 
   if (error) { showMsg(document.getElementById("msg"), error.message, "error"); return; }
   if (!data || data.length === 0) { empty.style.display = ""; return; }
   empty.style.display = "none";
 
+  // data is already ordered oldest-requested-first, so grouping by date
+  // preserves "who applied first" order within each group for free.
+  const byDate = {};
+  data.forEach(r => { (byDate[r.leave_date] = byDate[r.leave_date] || []).push(r); });
+
+  const clashDates = Object.keys(byDate).filter(d => byDate[d].length > 1).sort();
+  if (clashDates.length > 0) {
+    clashEl.innerHTML = clashDates.map(date => {
+      const names = byDate[date].map(r => nameFor(r.user_id)).join(", ");
+      return `<div class="banner-warning">${byDate[date].length} pharmacists have requested ${fmtDate(date)}: ${escapeHtml(names)} (in order applied).</div>`;
+    }).join("");
+  }
+
   data.forEach(r => {
     const isOwn = r.user_id === PROFILE.id;
+    const blocked = isOwn && !isSuperuserPlus(PROFILE);
+    const clashCount = byDate[r.leave_date].length;
     const tr = document.createElement("tr");
+    if (clashCount > 1) tr.className = "clash-row";
     tr.innerHTML = `
       <td>${fmtDateTime(r.requested_at)}</td>
       <td>${escapeHtml(nameFor(r.user_id))}</td>
-      <td>${fmtDate(r.leave_date)}</td>
-      <td>${LEAVE_TYPE_LABEL[r.leave_type]}</td>
+      <td>${fmtDate(r.leave_date)}${clashCount > 1 ? ` <span class="badge pending">${clashCount}&times;</span>` : ""}</td>
+      <td>${LEAVE_TYPE_LABEL[r.leave_type]}${(r.leave_type === "toil_am" || r.leave_type === "toil_pm") && r.toil_time ? ` (${fmtTime(r.toil_time)})` : ""}</td>
       <td>${escapeHtml(nameFor(r.requested_by))}</td>
       <td style="white-space:nowrap;">
-        ${isOwn
+        ${blocked
           ? '<span class="small">Awaiting another approver</span>'
           : `<button class="primary" onclick="approve('${r.id}')">Approve</button>
              <button class="danger" onclick="reject('${r.id}')">Reject</button>`}

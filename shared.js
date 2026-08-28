@@ -1,21 +1,23 @@
 /* =====================================================================
-   Leave Management — shared.js
-   GD&G Special Projects
+   Leave Manager — shared.js
+   GD&G Special Projects™
 
    Fill in SUPABASE_URL / SUPABASE_ANON_KEY below before deploying.
    ===================================================================== */
 
 const SUPABASE_URL = "https://otbdyjvfavghytznxzfd.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_9yzKRyJmB032pbBUcuTNHg_H0Lezdxf";
+const LOGIN_EMAIL_DOMAIN = "leave.gdgspecialprojects.local";
 const EDGE_FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const LEAVE_TYPE_LABEL = {
   full_day: "Full Day",
-  half_day_am: "Half Day (AM)",
-  half_day_pm: "Half Day (PM)",
   study_leave: "Study Leave",
+  toil_full_day: "TOIL (Full Day)",
+  toil_am: "TOIL (AM)",
+  toil_pm: "TOIL (PM)",
 };
 
 const ROLE_LABEL = {
@@ -26,25 +28,11 @@ const ROLE_LABEL = {
 };
 
 const SITE_LABEL = {
-  worthing: "Worthing",
-  st_richards: "St Richard's",
+  worthing: "Worthing Hospital",
+  st_richards: "St Richard's Hospital",
 };
 
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-
-/* ---------------- logo ---------------- */
-function gdgLogoSvg(size = 28) {
-  return `<svg viewBox="0 0 64 64" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
-    <ellipse cx="20" cy="18" rx="9" ry="7" fill="#ffffff" opacity="0.85" transform="rotate(-25 20 18)"/>
-    <ellipse cx="44" cy="18" rx="9" ry="7" fill="#ffffff" opacity="0.85" transform="rotate(25 44 18)"/>
-    <path d="M18 26c0-4 6-7 14-7s14 3 14 7-3 26-14 26-14-22-14-26z" fill="#f5b400" stroke="#1a2744" stroke-width="2"/>
-    <path d="M19 30c2 2 24 2 26 0M18 38c3 2 25 2 28 0M20 46c2 2 20 2 24 0" stroke="#1a2744" stroke-width="3" stroke-linecap="round" fill="none"/>
-    <line x1="27" y1="12" x2="24" y2="6" stroke="#1a2744" stroke-width="2" stroke-linecap="round"/>
-    <line x1="37" y1="12" x2="40" y2="6" stroke="#1a2744" stroke-width="2" stroke-linecap="round"/>
-    <circle cx="24" cy="6" r="1.6" fill="#1a2744"/>
-    <circle cx="40" cy="6" r="1.6" fill="#1a2744"/>
-  </svg>`;
-}
 
 /* ---------------- session / auth ---------------- */
 async function getSession() {
@@ -103,8 +91,8 @@ function renderTopbar(profile) {
   if (isSuperuserPlus(profile)) { links.push(["admin.html", "Admin"]); links.push(["audit.html", "Audit Trail"]); }
 
   el.innerHTML = `
-    <div class="brand">${gdgLogoSvg(30)}
-      <div>Leave Management<small>GD&amp;G Special Projects</small></div>
+    <div class="brand">
+      <div>Leave Manager<small>GD&amp;G Special Projects&trade;</small></div>
     </div>
     <div class="nav">${links.map(([href,label]) =>
       `<a href="${href}" class="${page===href?'active':''}">${label}</a>`).join("")}</div>
@@ -142,6 +130,10 @@ function fmtDate(iso) {
   if (!iso) return "";
   const d = new Date(iso + "T00:00:00");
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+function fmtTime(t) {
+  if (!t) return "";
+  return t.slice(0, 5); // "08:30:00" -> "08:30"
 }
 
 function showMsg(container, text, type) {

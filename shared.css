@@ -11,6 +11,7 @@
   --holiday:#d7f4d7;
   --restrict-yellow:#fdf1b8;
   --restrict-pink:#fbdadf;
+  --capacity-red:#f0a3a3;
   --pending:#e6a900;
   --approved:#1f9d55;
   --rejected:#c0392b;
@@ -101,7 +102,7 @@ th{color:var(--navy);background:#f7f8fb;}
 /* table-layout:fixed + width:100% means the grid always fits the
    viewport — columns share the available width instead of forcing a
    horizontal scrollbar, however many days are in the month. */
-.cal-grid{border-collapse:collapse;width:100%;table-layout:fixed;}
+.cal-grid{border-collapse:collapse;width:100%;table-layout:fixed;-webkit-user-select:none;user-select:none;}
 .cal-grid th,.cal-grid td{border:1px solid #999;padding:3px;text-align:center;font-size:12px;vertical-align:middle;overflow:hidden;}
 .cal-grid th{background:#fff;color:var(--navy);font-weight:700;}
 .cal-grid td.daynum{background:#fff;font-weight:700;color:#555;font-size:11px;padding:7px 2px;}
@@ -109,7 +110,11 @@ th{color:var(--navy);background:#f7f8fb;}
 .cal-grid td.holiday{background:var(--holiday);}
 .cal-grid td.restrict-yellow{background:var(--restrict-yellow);}
 .cal-grid td.restrict-pink{background:var(--restrict-pink);}
+.cal-grid td.capacity-yellow{background:var(--restrict-yellow);}
+.cal-grid td.capacity-red{background:var(--capacity-red);}
 .cal-grid td.today{box-shadow:inset 0 0 0 2px var(--navy);}
+.cal-grid td.selected{outline:2px dashed var(--teal);outline-offset:-2px;}
+.cal-grid td.daynum.selected,.cal-grid td.cell.selected:not(.tile){background-color:#cdeef1;}
 .cal-grid td.lanehead{
   width:100px;background:#fff;font-weight:700;text-align:left;color:var(--navy);
   padding:10px 8px;font-size:13px;vertical-align:top;
@@ -121,7 +126,17 @@ th{color:var(--navy);background:#f7f8fb;}
 .cal-grid td.tile.rejected{background:var(--rejected) !important;text-decoration:line-through;opacity:.85;}
 .cal-grid td.tile.study{background:var(--study) !important;}
 .cal-grid td.tile.study.study-pending{opacity:.65;}
-.site-heading{margin:0 0 10px;padding-bottom:8px;border-bottom:2px solid var(--honey);}
+.site-heading{margin:0;}
+.site-heading-row{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px 20px;
+  padding-bottom:8px;border-bottom:2px solid var(--honey);margin-bottom:10px;
+}
+.month-status-controls{display:flex;gap:18px;flex-wrap:wrap;}
+.banner-warning{
+  background:#fff3cd;color:#7a5b00;border:1px solid var(--honey);
+  padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:10px;font-weight:600;
+}
+tr.clash-row{background:#fff8e1;}
 
 .overlay{
   position:fixed;inset:0;background:rgba(15,20,35,.55);display:flex;

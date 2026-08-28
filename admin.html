@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin — Leave Management</title>
+<title>Admin — Leave Manager</title>
 <link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -15,6 +15,7 @@
     <button class="active" id="tabBtn-users" onclick="showTab('users')">Users</button>
     <button id="tabBtn-holidays" onclick="showTab('holidays')">Bank Holidays</button>
     <button id="tabBtn-restricted" onclick="showTab('restricted')">Restricted Days</button>
+    <button id="tabBtn-capacity" onclick="showTab('capacity')">Leave Capacity</button>
     <button id="tabBtn-leave" onclick="showTab('leave')">Leave Records</button>
   </div>
 
@@ -27,9 +28,6 @@
       <form id="createForm">
         <label>User ID (login)</label>
         <input type="text" id="newUserId" required>
-        <label>Email address</label>
-        <input type="text" id="newEmail" placeholder="name@nhs.net" required>
-        <p class="small" style="margin:2px 0 0;">Used only to deliver password-reset links — sign-in is still by User ID.</p>
         <label>Initials (shown on the calendar)</label>
         <input type="text" id="newInitials" required maxlength="4">
         <label>Full name</label>
@@ -38,8 +36,8 @@
         <select id="newRole"></select>
         <label>Site</label>
         <select id="newSite">
-          <option value="worthing">Worthing</option>
-          <option value="st_richards">St Richard's</option>
+          <option value="worthing">Worthing Hospital</option>
+          <option value="st_richards">St Richard's Hospital</option>
         </select>
         <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
           <input type="checkbox" id="newCrossSite" style="width:auto;">
@@ -54,6 +52,7 @@
     </div>
     <div class="card">
       <h2>Existing users</h2>
+      <p class="small">Developer accounts can never be suspended or hidden from the app — that's Supabase-dashboard-only, even for another Developer. A Clinical Team Lead additionally can't reset the password or edit the site of another Clinical Team Lead or a Developer.</p>
       <div id="usersMsg"></div>
       <table>
         <thead><tr><th>Name</th><th>Initials</th><th>User ID</th><th>Role</th><th>Site</th><th>Status</th><th></th></tr></thead>
@@ -97,7 +96,7 @@
         <input type="date" id="restStartDate" required>
         <label>End date</label>
         <input type="date" id="restEndDate" required>
-        <p class="small" style="margin:2px 0 0;">If the end date is after the start date, the whole range is marked (weekends included).</p>
+        <p class="small" style="margin:2px 0 0;">If the end date is after the start date, every weekday in between is marked — weekends and existing bank holidays are skipped automatically.</p>
         <label>Label</label>
         <input type="text" id="restLabel" placeholder="e.g. Restricted Leave — Christmas" required>
         <label>Highlight colour</label>
@@ -115,6 +114,40 @@
       <table>
         <thead><tr><th>Date</th><th>Label</th><th>Colour</th><th></th></tr></thead>
         <tbody id="restRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- LEAVE CAPACITY -->
+  <div id="tab-capacity" style="display:none;">
+    <div class="card">
+      <h2>Per-site capacity threshold</h2>
+      <p class="small">If this many pharmacists are off (approved or pending — annual leave, TOIL, and study leave all count) on the same day, that day automatically highlights yellow on the calendar for that site.</p>
+      <div id="capMsg"></div>
+      <div id="capThresholds"></div>
+    </div>
+    <div class="card">
+      <h2>Force a day to red</h2>
+      <p class="small">Overrides the automatic yellow calculation above for one specific site and date, showing red instead — for when a day needs flagging as critical regardless of the count.</p>
+      <div id="capOverrideMsg"></div>
+      <form id="capOverrideForm">
+        <label>Site</label>
+        <select id="capOverrideSite">
+          <option value="worthing">Worthing Hospital</option>
+          <option value="st_richards">St Richard's Hospital</option>
+        </select>
+        <label>Date</label>
+        <input type="date" id="capOverrideDate" required>
+        <div style="margin-top:14px;">
+          <button type="submit" class="primary" id="capOverrideBtn">Force red</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Current overrides</h2>
+      <table>
+        <thead><tr><th>Site</th><th>Date</th><th></th></tr></thead>
+        <tbody id="capOverrideRows"></tbody>
       </table>
     </div>
   </div>
@@ -139,12 +172,13 @@
   <div class="modal">
     <h3>Edit site</h3>
     <p class="small" id="siteModalName"></p>
+    <p class="small">This only affects leave requested from now on — any leave this person already has on record keeps showing on whichever site(s) applied when it was requested.</p>
     <div id="siteMsg"></div>
     <form id="siteForm">
       <label>Primary site</label>
       <select id="siteSelect">
-        <option value="worthing">Worthing</option>
-        <option value="st_richards">St Richard's</option>
+        <option value="worthing">Worthing Hospital</option>
+        <option value="st_richards">St Richard's Hospital</option>
       </select>
       <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
         <input type="checkbox" id="siteCrossCheck" style="width:auto;">
@@ -170,11 +204,13 @@ let PROFILES = [];
   await loadUsers();
   await loadHolidays();
   await loadRestricted();
+  await loadCapacity();
+  await loadCapacityOverrides();
   await loadLeave();
 })();
 
 function showTab(name) {
-  ["users","holidays","restricted","leave"].forEach(t => {
+  ["users","holidays","restricted","capacity","leave"].forEach(t => {
     document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
     document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);
   });
@@ -199,7 +235,6 @@ document.getElementById("createForm").addEventListener("submit", async (e) => {
   try {
     await callEdgeFunction("admin-create-user", {
       user_id: document.getElementById("newUserId").value.trim(),
-      email: document.getElementById("newEmail").value.trim(),
       initials: document.getElementById("newInitials").value.trim(),
       full_name: document.getElementById("newFullName").value.trim(),
       role: document.getElementById("newRole").value,
@@ -224,28 +259,52 @@ async function loadUsers() {
   if (error) { showMsg(document.getElementById("usersMsg"), error.message, "error"); return; }
   PROFILES = data || [];
 
-  PROFILES.forEach(p => {
-    const lockedForSuperuser = !isDeveloper(PROFILE) && ["superuser","developer"].includes(p.role);
+  // Superuser (Clinical Team Lead) never sees hidden accounts here —
+  // Developer always sees everything, hidden or not.
+  const visible = isDeveloper(PROFILE) ? PROFILES : PROFILES.filter(p => !p.hidden_by_superuser);
+
+  visible.forEach(p => {
+    // Three separate permission rules, matching the backend exactly:
+    //  - suspend/hide: blocked for ANY developer target (by anyone,
+    //    even another developer), and blocked for a Clinical Team Lead
+    //    acting on a Clinical Team Lead/Developer target.
+    //  - reset password / edit site: only blocked for a Clinical Team
+    //    Lead acting on a Clinical Team Lead/Developer target — a
+    //    Developer can still do these to another Developer account.
+    const superuserBlocked = !isDeveloper(PROFILE) && ["superuser","developer"].includes(p.role);
+    const canSuspendHide = p.role !== "developer" && !superuserBlocked;
+    const canResetPw = !superuserBlocked;
+    const canEditSite = !superuserBlocked;
     const siteText = p.cross_site
       ? `${SITE_LABEL[p.primary_site]} + cross-site`
       : SITE_LABEL[p.primary_site] || p.primary_site;
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${escapeHtml(p.full_name)}</td>
+      <td>${escapeHtml(p.full_name)}${p.hidden_by_superuser ? ' <span class="small">(hidden)</span>' : ""}</td>
       <td>${escapeHtml(p.initials)}</td>
       <td>${escapeHtml(p.user_id)}</td>
       <td>${ROLE_LABEL[p.role]}</td>
       <td>${escapeHtml(siteText)}</td>
       <td>${p.active ? '<span class="badge approved">active</span>' : '<span class="badge rejected">inactive</span>'}</td>
       <td style="white-space:nowrap;">
-        ${lockedForSuperuser ? '<span class="small">locked</span>' : `
-          <button class="secondary" onclick="toggleActive('${p.id}', ${!p.active})">${p.active ? "Deactivate" : "Reactivate"}</button>
-          <button class="secondary" onclick="resetPw('${p.id}')">Reset password</button>
-          <button class="secondary" onclick="openSiteModal('${p.id}')">Edit site</button>
-        `}
+        ${canSuspendHide ? `<button class="secondary" onclick="toggleActive('${p.id}', ${!p.active})">${p.active ? "Deactivate" : "Reactivate"}</button>` : ""}
+        ${canResetPw ? `<button class="secondary" onclick="resetPw('${p.id}')">Reset password</button>` : ""}
+        ${canEditSite ? `<button class="secondary" onclick="openSiteModal('${p.id}')">Edit site</button>` : ""}
+        ${canSuspendHide ? `<button class="danger" onclick="toggleHidden('${p.id}', ${!p.hidden_by_superuser})">${p.hidden_by_superuser ? "Unhide account" : "Hide account"}</button>` : ""}
+        ${!canSuspendHide && !canResetPw && !canEditSite ? '<span class="small">locked</span>' : ""}
       </td>`;
     tbody.appendChild(tr);
   });
+}
+
+async function toggleHidden(id, makeHidden) {
+  const msg = document.getElementById("usersMsg");
+  if (makeHidden && !confirm("Hide this account from the admin user list? The record itself is not deleted — a Developer can still see and unhide it.")) return;
+  try {
+    const { error } = await sb.rpc("set_user_hidden", { p_user_id: id, p_hidden: makeHidden });
+    if (error) throw error;
+    await loadUsers();
+  } catch (err) { showMsg(msg, err.message, "error"); }
 }
 
 async function toggleActive(id, makeActive) {
@@ -357,10 +416,11 @@ document.getElementById("restForm").addEventListener("submit", async (e) => {
       });
       if (error) throw error;
     } else {
-      const { error } = await sb.rpc("set_restricted_range", {
+      const { data: count, error } = await sb.rpc("set_restricted_range", {
         p_start_date: startDate, p_end_date: endDate, p_label: label, p_highlight: highlight,
       });
       if (error) throw error;
+      showMsg(msg, `${count} day${count === 1 ? "" : "s"} marked (weekends and bank holidays skipped).`, "ok");
     }
     document.getElementById("restForm").reset();
     await loadRestricted();
@@ -390,6 +450,69 @@ async function removeRestricted(date) {
   if (error) alert(error.message); else loadRestricted();
 }
 
+/* ---------------- leave capacity ---------------- */
+async function loadCapacity() {
+  const msg = document.getElementById("capMsg");
+  const { data, error } = await sb.from("site_settings").select("*").order("site");
+  if (error) { showMsg(msg, error.message, "error"); return; }
+
+  const wrap = document.getElementById("capThresholds");
+  wrap.innerHTML = (data || []).map(s => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <label style="margin:0;min-width:110px;">${SITE_LABEL[s.site] || s.site}</label>
+      <input type="number" min="1" style="width:90px;" id="threshold-${s.site}" value="${s.leave_capacity_threshold}">
+      <button class="secondary" onclick="saveThreshold('${s.site}')">Save</button>
+    </div>`).join("");
+}
+
+async function saveThreshold(site) {
+  const msg = document.getElementById("capMsg");
+  const value = parseInt(document.getElementById(`threshold-${site}`).value, 10);
+  if (!value || value < 1) { showMsg(msg, "Enter a threshold of at least 1.", "error"); return; }
+  try {
+    const { error } = await sb.rpc("set_capacity_threshold", { p_site: site, p_threshold: value });
+    if (error) throw error;
+    showMsg(msg, "Threshold saved.", "ok");
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+document.getElementById("capOverrideForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("capOverrideMsg");
+  const btn = document.getElementById("capOverrideBtn");
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const { error } = await sb.rpc("set_capacity_override", {
+      p_site: document.getElementById("capOverrideSite").value,
+      p_date: document.getElementById("capOverrideDate").value,
+    });
+    if (error) throw error;
+    document.getElementById("capOverrideForm").reset();
+    await loadCapacityOverrides();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Force red";
+  }
+});
+
+async function loadCapacityOverrides() {
+  const { data } = await sb.from("capacity_overrides").select("*").order("override_date");
+  const tbody = document.getElementById("capOverrideRows");
+  tbody.innerHTML = (data || []).map(o => `
+    <tr>
+      <td>${escapeHtml(SITE_LABEL[o.site] || o.site)}</td>
+      <td>${fmtDate(o.override_date)}</td>
+      <td><button class="danger" onclick="removeCapacityOverride('${o.site}','${o.override_date}')">Remove</button></td>
+    </tr>`).join("");
+}
+
+async function removeCapacityOverride(site, date) {
+  if (!confirm("Remove this red override?")) return;
+  const { error } = await sb.rpc("remove_capacity_override", { p_site: site, p_date: date });
+  if (error) alert(error.message); else loadCapacityOverrides();
+}
+
 /* ---------------- leave records ---------------- */
 async function loadLeave() {
   const { data, error } = await sb.from("leave_requests").select("*").eq("deleted", false)
@@ -417,10 +540,17 @@ async function loadLeave() {
 async function editLeave(id, currentDate, currentType) {
   const newDate = prompt("New date (YYYY-MM-DD):", currentDate);
   if (!newDate) return;
-  const newType = prompt("New leave type (full_day / half_day_am / half_day_pm / study_leave):", currentType);
+  const newType = prompt("New leave type (full_day / toil_full_day / toil_am / toil_pm / study_leave):", currentType);
   if (!newType) return;
+  let newToilTime = null;
+  if (newType === "toil_am" || newType === "toil_pm") {
+    newToilTime = prompt(newType === "toil_am" ? "Start time (HH:MM):" : "Leaving time (HH:MM):");
+    if (!newToilTime) return;
+  }
   const note = prompt("Note for the audit trail (optional):") || null;
-  const { error } = await sb.rpc("edit_leave", { p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note });
+  const { error } = await sb.rpc("edit_leave", {
+    p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note, p_new_toil_time: newToilTime,
+  });
   if (error) { alert(error.message); return; }
   await loadLeave();
 }

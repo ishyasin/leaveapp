@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calendar — Leave Management</title>
+<title>Calendar — Leave Manager</title>
 <link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -28,18 +28,27 @@
       <span><i style="background:#2563eb"></i> Study leave</span>
       <span><i style="background:#e7e7e7;border:1px solid #ccc"></i> Weekend</span>
       <span><i style="background:#d7f4d7;border:1px solid #ccc"></i> Bank holiday</span>
-      <span><i style="background:#fdf1b8;border:1px solid #ccc"></i> Restricted (yellow)</span>
-      <span><i style="background:#fbdadf;border:1px solid #ccc"></i> Restricted (pink)</span>
+      <span><i style="background:#fdf1b8;border:1px solid #ccc"></i> Leave capacity reached</span>
+      <span><i style="background:#f0a3a3;border:1px solid #ccc"></i> Capacity override (critical)</span>
     </div>
+    <p class="small" style="margin:8px 0 0;">Tip: hold <strong>Ctrl</strong> and drag across the day numbers to select a range, then right-click the selection to request leave for it.</p>
   </div>
 
   <div class="card">
-    <h3 class="site-heading">Worthing</h3>
+    <div class="site-heading-row">
+      <h3 class="site-heading">Worthing Hospital</h3>
+      <div class="month-status-controls" id="statusControls-worthing"></div>
+    </div>
+    <div id="banners-worthing"></div>
     <table class="cal-grid" id="calGrid-worthing"></table>
   </div>
 
   <div class="card">
-    <h3 class="site-heading">St Richard's</h3>
+    <div class="site-heading-row">
+      <h3 class="site-heading">St Richard's Hospital</h3>
+      <div class="month-status-controls" id="statusControls-st_richards"></div>
+    </div>
+    <div id="banners-st_richards"></div>
     <table class="cal-grid" id="calGrid-st_richards"></table>
   </div>
 
@@ -54,6 +63,7 @@
       <div id="userPickerWrap" style="display:none;">
         <label>For</label>
         <select id="reqUser"></select>
+        <p class="small" style="margin:2px 0 0;">Study leave can be raised for someone else. Full Day and TOIL can only be requested for yourself.</p>
       </div>
       <label>Start date</label>
       <input type="date" id="reqStartDate" required>
@@ -63,22 +73,38 @@
       <label>Leave type</label>
       <select id="reqType">
         <option value="full_day">Full Day</option>
-        <option value="half_day">Half Day</option>
+        <option value="toil">TOIL</option>
         <option value="study_leave" id="studyOption">Study Leave</option>
       </select>
-      <div id="halfWrap" style="display:none;">
-        <label>Half day</label>
-        <select id="reqHalf">
-          <option value="half_day_am">AM</option>
-          <option value="half_day_pm">PM</option>
+
+      <div id="toilWrap" style="display:none;">
+        <label>TOIL</label>
+        <select id="toilKind">
+          <option value="toil_full_day">Full day</option>
+          <option value="part_day">Part day</option>
         </select>
+        <div id="toilPartWrap" style="display:none;">
+          <label>Part of day</label>
+          <select id="toilPart">
+            <option value="toil_am">AM (late start)</option>
+            <option value="toil_pm">PM (early finish)</option>
+          </select>
+          <label id="toilTimeLabel">Start time</label>
+          <input type="time" id="toilTime">
+        </div>
       </div>
+
       <div class="modal-actions">
         <button type="button" class="secondary" onclick="closeRequestModal()">Cancel</button>
         <button type="submit" class="primary" id="reqSubmitBtn">Submit request</button>
       </div>
     </form>
   </div>
+</div>
+
+<!-- Drag-select context menu -->
+<div id="dragContextMenu" style="display:none;position:fixed;z-index:70;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.18);padding:6px;">
+  <button class="secondary" style="white-space:nowrap;" onclick="requestLeaveFromSelection()">+ Request leave for selected dates</button>
 </div>
 
 <!-- Detail modal -->
@@ -99,9 +125,12 @@ let PROFILE = null;
 let PROFILES = [];
 let VIEW_YEAR = new Date().getFullYear();
 let VIEW_MONTH = new Date().getMonth(); // 0-indexed
-let HOLIDAYS = {}; // 'YYYY-MM-DD' -> name
-let RESTRICTED = {}; // 'YYYY-MM-DD' -> {label, highlight}
-let REQUESTS = []; // this month's leave_requests, with joined names
+let HOLIDAYS = {};            // 'YYYY-MM-DD' -> name
+let RESTRICTED = {};          // 'YYYY-MM-DD' -> {label, highlight}
+let REQUESTS = [];            // this month's leave_requests
+let SITE_THRESHOLD = {};      // site -> capacity threshold
+let CAPACITY_OVERRIDES = {};  // site -> Set of 'YYYY-MM-DD' forced red
+let MONTH_STATUS = {};        // site -> month_status row
 
 (async () => {
   PROFILE = await requireAuth(["pharmacist","lead_pharmacist","superuser","developer"]);
@@ -137,7 +166,21 @@ async function loadProfiles() {
 }
 
 function profileById(id) { return PROFILES.find(p => p.id === id); }
-function profileInSite(p, site) { return !!p && (p.primary_site === site || p.cross_site === true); }
+// Site membership for a LEAVE REQUEST uses the snapshot taken when it
+// was created (snapshot_primary_site/snapshot_cross_site), not the
+// person's current profile — so changing someone's site assignment
+// only affects requests made from that point on, never past ones.
+function requestInSite(r, site) {
+  return r.snapshot_primary_site === site || r.snapshot_cross_site === true;
+}
+
+function leaveTypeLine(r) {
+  let line = LEAVE_TYPE_LABEL[r.leave_type];
+  if ((r.leave_type === "toil_am" || r.leave_type === "toil_pm") && r.toil_time) {
+    line += ` (${fmtTime(r.toil_time)})`;
+  }
+  return line;
+}
 
 // Same requested-by visibility rule as the detail modal: plain
 // Pharmacists don't see who/when it was requested unless it's already
@@ -145,7 +188,7 @@ function profileInSite(p, site) { return !!p && (p.primary_site === site || p.cr
 function tileTooltip(r, ownerProfile) {
   const lines = [];
   lines.push(ownerProfile ? ownerProfile.full_name : "Unknown");
-  lines.push(`${LEAVE_TYPE_LABEL[r.leave_type]} — ${fmtDate(r.leave_date)}`);
+  lines.push(`${leaveTypeLine(r)} — ${fmtDate(r.leave_date)}`);
 
   const showRequestAudit = PROFILE.role !== "pharmacist";
   if (showRequestAudit) {
@@ -180,10 +223,16 @@ async function refreshCalendar() {
   const start = isoDate(VIEW_YEAR, VIEW_MONTH, 1);
   const end = isoDate(VIEW_YEAR, VIEW_MONTH, daysInMonth(VIEW_YEAR, VIEW_MONTH));
 
-  const [{ data: reqs }, { data: hols }, { data: rests }] = await Promise.all([
+  const [
+    { data: reqs }, { data: hols }, { data: rests },
+    { data: settings }, { data: overrides }, { data: statuses },
+  ] = await Promise.all([
     sb.from("leave_requests").select("*").eq("deleted", false).gte("leave_date", start).lte("leave_date", end),
     sb.from("bank_holidays").select("*").gte("holiday_date", start).lte("holiday_date", end),
     sb.from("restricted_days").select("*").gte("restricted_date", start).lte("restricted_date", end),
+    sb.from("site_settings").select("*"),
+    sb.from("capacity_overrides").select("*").gte("override_date", start).lte("override_date", end),
+    sb.from("month_status").select("*").eq("year", VIEW_YEAR).eq("month", VIEW_MONTH + 1),
   ]);
 
   REQUESTS = (reqs || []).sort((a, b) => new Date(a.requested_at) - new Date(b.requested_at));
@@ -191,8 +240,34 @@ async function refreshCalendar() {
   (hols || []).forEach(h => HOLIDAYS[h.holiday_date] = h.name);
   RESTRICTED = {};
   (rests || []).forEach(r => RESTRICTED[r.restricted_date] = { label: r.label, highlight: r.highlight });
+  SITE_THRESHOLD = {};
+  (settings || []).forEach(s => SITE_THRESHOLD[s.site] = s.leave_capacity_threshold);
+  CAPACITY_OVERRIDES = {};
+  (overrides || []).forEach(o => {
+    CAPACITY_OVERRIDES[o.site] = CAPACITY_OVERRIDES[o.site] || new Set();
+    CAPACITY_OVERRIDES[o.site].add(o.override_date);
+  });
+  MONTH_STATUS = {};
+  (statuses || []).forEach(m => MONTH_STATUS[m.site] = m);
 
   renderGrid();
+}
+
+// Distinct pharmacists with an approved-or-pending request (any leave
+// type) at this site on this day. "capacity-red" wins if a superuser
+// has explicitly forced this day/site to red; otherwise "capacity-yellow"
+// once the count meets that site's threshold; otherwise null.
+function capacityColorFor(site, iso) {
+  if (CAPACITY_OVERRIDES[site] && CAPACITY_OVERRIDES[site].has(iso)) return "capacity-red";
+  const threshold = SITE_THRESHOLD[site];
+  if (!threshold) return null;
+  const ids = new Set();
+  REQUESTS.forEach(r => {
+    if (r.leave_date === iso && (r.status === "pending" || r.status === "approved")) {
+      if (requestInSite(r, site)) ids.add(r.user_id);
+    }
+  });
+  return ids.size >= threshold ? "capacity-yellow" : null;
 }
 
 // Each request gets its own full-width line for that day. If more than
@@ -201,7 +276,86 @@ async function refreshCalendar() {
 // Both site calendars are rendered every refresh so they're visible
 // side by side (stacked) without switching tabs.
 function renderGrid() {
-  Object.keys(SITE_LABEL).forEach(renderSiteGrid);
+  Object.keys(SITE_LABEL).forEach(site => {
+    renderSiteControls(site);
+    renderBanners(site);
+    renderSiteGrid(site);
+    setupDragSelect(site);
+  });
+}
+
+function renderSiteControls(site) {
+  const el = document.getElementById(`statusControls-${site}`);
+  if (!el) return;
+  if (!isLeadPlus(PROFILE)) { el.innerHTML = ""; return; }
+
+  const status = MONTH_STATUS[site] || {};
+  const rotaChecked = !!status.rota_complete;
+  const dsrChecked = !!status.dsr_complete;
+  const rotaLocked = rotaChecked && !isSuperuserPlus(PROFILE);
+  const dsrLocked = dsrChecked && !isSuperuserPlus(PROFILE);
+
+  el.innerHTML = `
+    <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:13px;">
+      <input type="checkbox" style="width:auto;" ${rotaChecked ? "checked" : ""} ${rotaLocked ? "disabled" : ""}
+        onchange="toggleRotaComplete('${site}', this.checked)">
+      Rota complete
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:13px;">
+      <input type="checkbox" style="width:auto;" ${dsrChecked ? "checked" : ""} ${dsrLocked ? "disabled" : ""}
+        onchange="toggleDsrComplete('${site}', this.checked)">
+      DSR complete
+    </label>`;
+}
+
+function renderBanners(site) {
+  const el = document.getElementById(`banners-${site}`);
+  if (!el) return;
+  const status = MONTH_STATUS[site] || {};
+  let html = "";
+  if (status.rota_complete) {
+    html += `<div class="banner-warning">Rota for this month has been completed. For any new leave approvals please update clinical rota.</div>`;
+  }
+  if (status.dsr_complete) {
+    html += `<div class="banner-warning">Rota for this month has been completed. Pharmacists requesting leave; please make arrangements for swaps.</div>`;
+  }
+  el.innerHTML = html;
+}
+
+async function toggleRotaComplete(site, checked) {
+  const monthLabel = `${MONTH_NAMES[VIEW_MONTH]} ${VIEW_YEAR}`;
+  const warn = checked
+    ? `Mark the rota complete for ${SITE_LABEL[site]} — ${monthLabel}? A banner will appear on this month telling pharmacists that any new leave approvals need the clinical rota updated.`
+    : `Un-tick rota complete for ${SITE_LABEL[site]} — ${monthLabel}?`;
+  if (!confirm(warn)) { renderSiteControls(site); return; }
+  try {
+    const { error } = await sb.rpc("set_rota_complete", {
+      p_site: site, p_year: VIEW_YEAR, p_month: VIEW_MONTH + 1, p_complete: checked,
+    });
+    if (error) throw error;
+    await refreshCalendar();
+  } catch (err) {
+    alert(err.message);
+    await refreshCalendar();
+  }
+}
+
+async function toggleDsrComplete(site, checked) {
+  const monthLabel = `${MONTH_NAMES[VIEW_MONTH]} ${VIEW_YEAR}`;
+  const warn = checked
+    ? `Mark DSR complete for ${SITE_LABEL[site]} — ${monthLabel}? A banner will appear on this month telling pharmacists requesting leave to make arrangements for swaps.`
+    : `Un-tick DSR complete for ${SITE_LABEL[site]} — ${monthLabel}?`;
+  if (!confirm(warn)) { renderSiteControls(site); return; }
+  try {
+    const { error } = await sb.rpc("set_dsr_complete", {
+      p_site: site, p_year: VIEW_YEAR, p_month: VIEW_MONTH + 1, p_complete: checked,
+    });
+    if (error) throw error;
+    await refreshCalendar();
+  } catch (err) {
+    alert(err.message);
+    await refreshCalendar();
+  }
 }
 
 function renderSiteGrid(site) {
@@ -209,20 +363,34 @@ function renderSiteGrid(site) {
   const grid = document.getElementById(`calGrid-${site}`);
   if (!grid) return;
 
+  // Priority (highest first): capacity override (red) > capacity
+  // threshold (yellow) > restricted day > bank holiday > weekend.
+  function dayBgClass(d) {
+    const iso = isoDate(VIEW_YEAR, VIEW_MONTH, d);
+    const cap = capacityColorFor(site, iso);
+    if (cap) return cap;
+    if (RESTRICTED[iso]) return `restrict-${RESTRICTED[iso].highlight}`;
+    if (HOLIDAYS[iso]) return "holiday";
+    if (isWeekend(VIEW_YEAR, VIEW_MONTH, d)) return "weekend";
+    return null;
+  }
+  function dayTitle(d) {
+    const iso = isoDate(VIEW_YEAR, VIEW_MONTH, d);
+    const parts = [];
+    if (HOLIDAYS[iso]) parts.push(HOLIDAYS[iso]);
+    if (RESTRICTED[iso]) parts.push(RESTRICTED[iso].label);
+    const cap = capacityColorFor(site, iso);
+    if (cap === "capacity-red") parts.push("Capacity override — forced red");
+    else if (cap === "capacity-yellow") parts.push(`Leave capacity reached (${SITE_THRESHOLD[site]}+ off)`);
+    return parts.length ? ` title="${escapeHtml(parts.join(" — "))}"` : "";
+  }
+
   let headHtml = "<tr><td class='lanehead'></td>";
   for (let d = 1; d <= nDays; d++) {
-    const iso = isoDate(VIEW_YEAR, VIEW_MONTH, d);
-    let cls = "daynum";
-    if (isWeekend(VIEW_YEAR, VIEW_MONTH, d)) cls += " weekend";
-    if (HOLIDAYS[iso]) cls += " holiday";
-    const restricted = RESTRICTED[iso];
-    if (restricted) cls += ` restrict-${restricted.highlight}`;
+    const bg = dayBgClass(d);
+    let cls = "daynum" + (bg ? ` ${bg}` : "");
     if (isToday(VIEW_YEAR, VIEW_MONTH, d)) cls += " today";
-    const titleParts = [];
-    if (HOLIDAYS[iso]) titleParts.push(HOLIDAYS[iso]);
-    if (restricted) titleParts.push(restricted.label);
-    const title = titleParts.length ? ` title="${escapeHtml(titleParts.join(" — "))}"` : "";
-    headHtml += `<td class="${cls}"${title}>${d}</td>`;
+    headHtml += `<td class="${cls}" data-day="${d}"${dayTitle(d)}>${d}</td>`;
   }
   headHtml += "</tr>";
 
@@ -233,7 +401,7 @@ function renderSiteGrid(site) {
     for (let d = 1; d <= nDays; d++) {
       const iso = isoDate(VIEW_YEAR, VIEW_MONTH, d);
       const dayReqs = REQUESTS.filter(r =>
-        r.leave_date === iso && matchFn(r) && profileInSite(profileById(r.user_id), site));
+        r.leave_date === iso && matchFn(r) && requestInSite(r, site));
       perDay[d] = dayReqs;
       if (dayReqs.length > maxTrack) maxTrack = dayReqs.length;
     }
@@ -243,17 +411,15 @@ function renderSiteGrid(site) {
       rows += "<tr>";
       if (t === 0) rows += `<td class="lanehead" rowspan="${maxTrack}">${label}</td>`;
       for (let d = 1; d <= nDays; d++) {
-        const iso = isoDate(VIEW_YEAR, VIEW_MONTH, d);
-        let cls = "cell";
-        if (isWeekend(VIEW_YEAR, VIEW_MONTH, d)) cls += " weekend";
-        if (HOLIDAYS[iso]) cls += " holiday";
-        if (RESTRICTED[iso]) cls += ` restrict-${RESTRICTED[iso].highlight}`;
+        const bg = dayBgClass(d);
+        let cls = "cell" + (bg ? ` ${bg}` : "");
         if (isToday(VIEW_YEAR, VIEW_MONTH, d)) cls += " today";
         const r = perDay[d][t];
         if (r) {
           const p = profileById(r.user_id);
           const initials = p ? p.initials : "?";
-          const suffix = r.leave_type === "half_day_am" ? " AM" : r.leave_type === "half_day_pm" ? " PM" : "";
+          const suffix = (r.leave_type === "toil_am" || r.leave_type === "toil_pm") && r.toil_time
+            ? ` ${fmtTime(r.toil_time)}` : "";
           // Study leave keeps its blue "study" colour throughout — pending
           // or approved — rather than only turning blue once approved.
           // Rejected always overrides to red regardless of type, so an
@@ -270,9 +436,9 @@ function renderSiteGrid(site) {
           // fill is guaranteed by the table cell's own background rather
           // than a percentage-height flex child, which some browsers
           // fail to size correctly inside a table row.
-          rows += `<td class="${cls} tile ${statusClass}${pendingModifier}" title="${escapeHtml(tooltip)}" onclick="openDetail('${r.id}')">${escapeHtml(initials)}${suffix}</td>`;
+          rows += `<td class="${cls} tile ${statusClass}${pendingModifier}" data-day="${d}" title="${escapeHtml(tooltip)}" onclick="if(!event.ctrlKey) openDetail('${r.id}')">${escapeHtml(initials)}${suffix}</td>`;
         } else {
-          rows += `<td class="${cls}"></td>`;
+          rows += `<td class="${cls}" data-day="${d}"></td>`;
         }
       }
       rows += "</tr>";
@@ -281,9 +447,103 @@ function renderSiteGrid(site) {
   }
 
   grid.innerHTML = headHtml
-    + laneRows("Annual Leave", r => r.leave_type !== "study_leave")
+    + laneRows("Annual Leave", r => r.leave_type === "full_day")
+    + laneRows("TOIL", r => r.leave_type === "toil_full_day" || r.leave_type === "toil_am" || r.leave_type === "toil_pm")
     + laneRows("Study Leave", r => r.leave_type === "study_leave");
 }
+
+/* ---------------- Drag-to-select a date range ---------------- */
+// Hold Ctrl, mousedown on a day number, drag across others (in the same
+// site's table) to select a range, then right-click the selection to
+// open a "Request leave" shortcut pre-filled with that range.
+let DRAG = { site: null, dragging: false, startDay: null, endDay: null };
+
+function daySelectionRange() {
+  if (DRAG.startDay == null || DRAG.endDay == null) return null;
+  return [Math.min(DRAG.startDay, DRAG.endDay), Math.max(DRAG.startDay, DRAG.endDay)];
+}
+
+function applySelectionHighlight() {
+  document.querySelectorAll(".cal-grid td.selected").forEach(td => td.classList.remove("selected"));
+  const range = daySelectionRange();
+  if (!range || !DRAG.site) return;
+  const grid = document.getElementById(`calGrid-${DRAG.site}`);
+  if (!grid) return;
+  for (let d = range[0]; d <= range[1]; d++) {
+    grid.querySelectorAll(`td[data-day="${d}"]`).forEach(td => td.classList.add("selected"));
+  }
+}
+
+function clearSelection() {
+  DRAG = { site: null, dragging: false, startDay: null, endDay: null };
+  document.querySelectorAll(".cal-grid td.selected").forEach(td => td.classList.remove("selected"));
+  hideContextMenu();
+}
+
+function showContextMenu(x, y) {
+  const menu = document.getElementById("dragContextMenu");
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+  menu.style.display = "block";
+}
+function hideContextMenu() {
+  document.getElementById("dragContextMenu").style.display = "none";
+}
+
+function requestLeaveFromSelection() {
+  const range = daySelectionRange();
+  const site = DRAG.site;
+  hideContextMenu();
+  if (!range) return;
+  openRequestModal();
+  document.getElementById("reqStartDate").value = isoDate(VIEW_YEAR, VIEW_MONTH, range[0]);
+  document.getElementById("reqEndDate").value = isoDate(VIEW_YEAR, VIEW_MONTH, range[1]);
+  clearSelection();
+}
+
+// Table elements persist across re-renders (only their innerHTML
+// changes), so listeners are bound once per table via a data-flag and
+// then rely on event delegation for the actual day cells.
+function setupDragSelect(site) {
+  const grid = document.getElementById(`calGrid-${site}`);
+  if (!grid || grid.dataset.dragBound) return;
+  grid.dataset.dragBound = "1";
+
+  grid.addEventListener("mousedown", (e) => {
+    if (!e.ctrlKey) return;
+    const td = e.target.closest("td[data-day]");
+    if (!td) return;
+    e.preventDefault();
+    const d = parseInt(td.dataset.day, 10);
+    DRAG = { site, dragging: true, startDay: d, endDay: d };
+    applySelectionHighlight();
+  });
+
+  grid.addEventListener("mouseover", (e) => {
+    if (!DRAG.dragging || DRAG.site !== site) return;
+    const td = e.target.closest("td[data-day]");
+    if (!td) return;
+    DRAG.endDay = parseInt(td.dataset.day, 10);
+    applySelectionHighlight();
+  });
+
+  grid.addEventListener("contextmenu", (e) => {
+    const range = daySelectionRange();
+    if (!range || DRAG.site !== site) return;
+    e.preventDefault();
+    showContextMenu(e.clientX, e.clientY);
+  });
+}
+
+document.addEventListener("mouseup", () => { if (DRAG.dragging) DRAG.dragging = false; });
+document.addEventListener("click", (e) => {
+  if (e.target.closest("#dragContextMenu")) return;
+  if (e.target.closest(".cal-grid td[data-day]") && document.getElementById("dragContextMenu").style.display !== "none") {
+    hideContextMenu();
+    return;
+  }
+  if (!e.target.closest(".cal-grid")) clearSelection();
+});
 
 /* ---------------- Request modal ---------------- */
 function openRequestModal() {
@@ -293,13 +553,18 @@ function openRequestModal() {
   document.getElementById("reqStartDate").value = defaultDate;
   document.getElementById("reqEndDate").value = defaultDate;
   document.getElementById("reqType").value = "full_day";
-  document.getElementById("halfWrap").style.display = "none";
+  document.getElementById("toilWrap").style.display = "none";
+  document.getElementById("toilKind").value = "toil_full_day";
+  document.getElementById("toilPartWrap").style.display = "none";
+  document.getElementById("toilPart").value = "toil_am";
+  document.getElementById("toilTimeLabel").textContent = "Start time";
+  document.getElementById("toilTime").value = "";
   document.getElementById("reqOverlay").style.display = "flex";
 }
 function closeRequestModal() { document.getElementById("reqOverlay").style.display = "none"; }
 
 document.getElementById("reqType").addEventListener("change", (e) => {
-  document.getElementById("halfWrap").style.display = e.target.value === "half_day" ? "" : "none";
+  document.getElementById("toilWrap").style.display = e.target.value === "toil" ? "" : "none";
   const wrap = document.getElementById("userPickerWrap");
   if (e.target.value === "study_leave") {
     wrap.style.display = isLeadPlus(PROFILE) ? "" : "none";
@@ -307,6 +572,29 @@ document.getElementById("reqType").addEventListener("change", (e) => {
     wrap.style.display = "none";
   }
 });
+document.getElementById("toilKind").addEventListener("change", (e) => {
+  document.getElementById("toilPartWrap").style.display = e.target.value === "part_day" ? "" : "none";
+});
+document.getElementById("toilPart").addEventListener("change", (e) => {
+  document.getElementById("toilTimeLabel").textContent = e.target.value === "toil_am" ? "Start time" : "Leaving time";
+});
+
+// Resolves the modal's selections down to a single leave_type + optional
+// TOIL clock time to send to the backend.
+function computeLeaveSelection() {
+  const typeSel = document.getElementById("reqType").value;
+  if (typeSel === "full_day" || typeSel === "study_leave") {
+    return { leaveType: typeSel, toilTime: null };
+  }
+  // TOIL
+  const kind = document.getElementById("toilKind").value;
+  if (kind === "toil_full_day") {
+    return { leaveType: "toil_full_day", toilTime: null };
+  }
+  const part = document.getElementById("toilPart").value; // 'toil_am' | 'toil_pm'
+  const time = document.getElementById("toilTime").value; // 'HH:MM' or ''
+  return { leaveType: part, toilTime: time || null };
+}
 
 document.getElementById("reqForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -314,8 +602,7 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
   const btn = document.getElementById("reqSubmitBtn");
   const startDate = document.getElementById("reqStartDate").value;
   const endDate = document.getElementById("reqEndDate").value;
-  const typeSel = document.getElementById("reqType").value;
-  const leaveType = typeSel === "half_day" ? document.getElementById("reqHalf").value : typeSel;
+  const { leaveType, toilTime } = computeLeaveSelection();
   const targetUser = (isLeadPlus(PROFILE) && document.getElementById("userPickerWrap").style.display !== "none")
     ? document.getElementById("reqUser").value
     : PROFILE.id;
@@ -324,19 +611,24 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
     showMsg(msg, "End date must be on or after the start date.", "error");
     return;
   }
+  if ((leaveType === "toil_am" || leaveType === "toil_pm") && !toilTime) {
+    showMsg(msg, leaveType === "toil_am" ? "Please choose a start time." : "Please choose a leaving time.", "error");
+    return;
+  }
 
   btn.disabled = true; btn.textContent = "Submitting…";
   try {
     if (startDate === endDate) {
       const { error } = await sb.rpc("request_leave", {
-        p_user_id: targetUser, p_leave_date: startDate, p_leave_type: leaveType,
+        p_user_id: targetUser, p_leave_date: startDate, p_leave_type: leaveType, p_toil_time: toilTime,
       });
       if (error) throw error;
       closeRequestModal();
       await refreshCalendar();
     } else {
       const { data: count, error } = await sb.rpc("request_leave_range", {
-        p_user_id: targetUser, p_start_date: startDate, p_end_date: endDate, p_leave_type: leaveType,
+        p_user_id: targetUser, p_start_date: startDate, p_end_date: endDate,
+        p_leave_type: leaveType, p_toil_time: toilTime,
       });
       if (error) throw error;
       showMsg(msg, `${count} tile${count === 1 ? "" : "s"} created (weekends skipped).`, "ok");
@@ -362,7 +654,7 @@ async function openDetail(id) {
   document.getElementById("detMsg").innerHTML = "";
   document.getElementById("detBody").innerHTML = `
     <p><strong>${escapeHtml(owner?.full_name || "?")}</strong> (${escapeHtml(owner?.initials || "?")})</p>
-    <p>${LEAVE_TYPE_LABEL[r.leave_type]} &middot; ${fmtDate(r.leave_date)}</p>
+    <p>${leaveTypeLine(r)} &middot; ${fmtDate(r.leave_date)}</p>
     <p>Status: <span class="badge ${r.status}">${r.status}</span></p>
     ${showRequestAudit ? `<p class="small">Requested by ${escapeHtml(requester?.full_name || "?")} on ${fmtDateTime(r.requested_at)}</p>` : ""}
     ${approver && r.status !== "pending" ? `<p class="small">${r.status === 'rejected' ? 'Rejected' : 'Approved'} by ${escapeHtml(approver.full_name)} on ${fmtDateTime(r.approved_at)}</p>` : ""}
@@ -371,7 +663,10 @@ async function openDetail(id) {
   `;
 
   const actions = document.getElementById("detActions");
-  const canProcess = isLeadPlus(PROFILE) && r.status === "pending" && r.user_id !== PROFILE.id;
+  // A Clinical Team Lead (superuser) or Developer may approve/reject
+  // their own leave; everyone else must have someone else action it.
+  const canProcess = isLeadPlus(PROFILE) && r.status === "pending"
+    && (r.user_id !== PROFILE.id || isSuperuserPlus(PROFILE));
   const isOwnPending = r.status === "pending" && (r.requested_by === PROFILE.id || r.user_id === PROFILE.id);
   const canSuperAdmin = isSuperuserPlus(PROFILE);
   const canDelete = isLeadPlus(PROFILE); // lead_pharmacist and above — a note is required
@@ -437,12 +732,22 @@ async function doEdit(id) {
   const r = REQUESTS.find(x => x.id === id);
   const newDate = prompt("New date (YYYY-MM-DD):", r.leave_date);
   if (!newDate) return;
-  const newType = prompt("New leave type (full_day / half_day_am / half_day_pm / study_leave):", r.leave_type);
+  const newType = prompt("New leave type (full_day / toil_full_day / toil_am / toil_pm / study_leave):", r.leave_type);
   if (!newType) return;
+  let newToilTime = null;
+  if (newType === "toil_am" || newType === "toil_pm") {
+    newToilTime = prompt(
+      newType === "toil_am" ? "Start time (HH:MM):" : "Leaving time (HH:MM):",
+      r.toil_time ? fmtTime(r.toil_time) : ""
+    );
+    if (!newToilTime) return;
+  }
   const note = prompt("Note for the audit trail (optional):") || null;
   const msg = document.getElementById("detMsg");
   try {
-    const { error } = await sb.rpc("edit_leave", { p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note });
+    const { error } = await sb.rpc("edit_leave", {
+      p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note, p_new_toil_time: newToilTime,
+    });
     if (error) throw error;
     closeDetailModal(); await refreshCalendar();
   } catch (err) { showMsg(msg, err.message, "error"); }

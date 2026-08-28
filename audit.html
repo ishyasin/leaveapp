@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audit Trail — Leave Management</title>
+<title>Audit Trail — Leave Manager</title>
 <link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -29,6 +29,13 @@
         <option value="set_user_site">Set user site</option>
         <option value="set_restricted_day">Set restricted day</option>
         <option value="remove_restricted_day">Remove restricted day</option>
+        <option value="hide_user">Hide user</option>
+        <option value="unhide_user">Unhide user</option>
+        <option value="set_rota_complete">Set rota complete</option>
+        <option value="set_dsr_complete">Set DSR complete</option>
+        <option value="set_capacity_threshold">Set capacity threshold</option>
+        <option value="set_capacity_override">Set capacity override</option>
+        <option value="remove_capacity_override">Remove capacity override</option>
         <option value="set_bank_holiday">Set bank holiday</option>
         <option value="remove_bank_holiday">Remove bank holiday</option>
       </select>
@@ -36,7 +43,7 @@
     </div>
     <div id="msg"></div>
     <table>
-      <thead><tr><th>When</th><th>Action</th><th>Actor</th><th>Note</th><th></th></tr></thead>
+      <thead><tr><th>When</th><th>Action</th><th>Actor</th><th>Note</th></tr></thead>
       <tbody id="rows"></tbody>
     </table>
   </div>
@@ -74,23 +81,8 @@ async function load() {
       <td><span class="badge study">${a.action}</span></td>
       <td>${escapeHtml(nameFor(a.actor_id))}</td>
       <td class="small">${escapeHtml(a.note || "")}</td>
-      <td><button class="secondary" onclick='toggleDetail(this)' data-before='${escapeHtml(JSON.stringify(a.before_state || null))}' data-after='${escapeHtml(JSON.stringify(a.after_state || null))}'>View</button></td>
     </tr>
-    <tr class="detailRow" style="display:none;"><td colspan="5"><pre class="small" style="white-space:pre-wrap;"></pre></td></tr>
   `).join("");
-}
-
-function toggleDetail(btn) {
-  const tr = btn.closest("tr").nextElementSibling;
-  const pre = tr.querySelector("pre");
-  if (tr.style.display === "none") {
-    const before = JSON.parse(btn.dataset.before || "null");
-    const after = JSON.parse(btn.dataset.after || "null");
-    pre.textContent = "BEFORE:\n" + JSON.stringify(before, null, 2) + "\n\nAFTER:\n" + JSON.stringify(after, null, 2);
-    tr.style.display = "";
-  } else {
-    tr.style.display = "none";
-  }
 }
 </script>
 </body>
