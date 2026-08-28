@@ -12,12 +12,12 @@
 <div class="wrap">
   <div class="card">
     <h1>Pending Approvals</h1>
-    <p class="small">First requested, first listed. Lead Pharmacists cannot approve or reject their own leave — a Clinical Team Lead or Developer can.</p>
+    <p class="small">Every pending request — Annual Leave, TOIL, or Study Leave — is numbered in the order it was submitted. Lead Pharmacists cannot approve or reject their own leave — a Clinical Team Lead or Developer can.</p>
     <div id="msg"></div>
     <div id="clashSummary"></div>
     <table>
       <thead>
-        <tr><th>Requested</th><th>Person</th><th>Date</th><th>Type</th><th>Requested by</th><th></th></tr>
+        <tr><th>#</th><th>Requested</th><th>Person</th><th>Date</th><th>Type</th><th>Requested by</th><th></th></tr>
       </thead>
       <tbody id="rows"></tbody>
     </table>
@@ -43,6 +43,13 @@ function nameFor(id) {
   return p ? `${p.full_name} (${p.initials})` : "?";
 }
 
+// "1st", "2nd", "3rd", "4th", ... (standard English ordinal suffix).
+function ordinalLabel(n) {
+  const suffixes = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]);
+}
+
 async function load() {
   const { data, error } = await sb
     .from("leave_requests")
@@ -61,8 +68,11 @@ async function load() {
   if (!data || data.length === 0) { empty.style.display = ""; return; }
   empty.style.display = "none";
 
-  // data is already ordered oldest-requested-first, so grouping by date
-  // preserves "who applied first" order within each group for free.
+  // data is already ordered oldest-requested-first across EVERY leave
+  // type — Annual Leave, TOIL, and Study Leave all share one queue —
+  // so grouping by date preserves "who applied first" order within
+  // each group for free, and the row index doubles as the overall
+  // 1st/2nd/3rd submission order for the whole list.
   const byDate = {};
   data.forEach(r => { (byDate[r.leave_date] = byDate[r.leave_date] || []).push(r); });
 
@@ -74,13 +84,14 @@ async function load() {
     }).join("");
   }
 
-  data.forEach(r => {
+  data.forEach((r, index) => {
     const isOwn = r.user_id === PROFILE.id;
     const blocked = isOwn && !isSuperuserPlus(PROFILE);
     const clashCount = byDate[r.leave_date].length;
     const tr = document.createElement("tr");
     if (clashCount > 1) tr.className = "clash-row";
     tr.innerHTML = `
+      <td><span class="badge study">${ordinalLabel(index + 1)}</span></td>
       <td>${fmtDateTime(r.requested_at)}</td>
       <td>${escapeHtml(nameFor(r.user_id))}</td>
       <td>${fmtDate(r.leave_date)}${clashCount > 1 ? ` <span class="badge pending">${clashCount}&times;</span>` : ""}</td>

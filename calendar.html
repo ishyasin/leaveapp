@@ -26,18 +26,21 @@
       <span><i style="background:#1f9d55"></i> Approved</span>
       <span><i style="background:#c0392b"></i> Rejected</span>
       <span><i style="background:#2563eb"></i> Study leave</span>
+      <span><i style="background:#d9baf0;border:1px solid #ccc"></i> TOIL (pending)</span>
+      <span><i style="background:#6a1b9a"></i> TOIL (approved)</span>
       <span><i style="background:#e7e7e7;border:1px solid #ccc"></i> Weekend</span>
       <span><i style="background:#d7f4d7;border:1px solid #ccc"></i> Bank holiday</span>
-      <span><i style="background:#fdf1b8;border:1px solid #ccc"></i> Leave capacity reached</span>
-      <span><i style="background:#f0a3a3;border:1px solid #ccc"></i> Capacity override (critical)</span>
     </div>
-    <p class="small" style="margin:8px 0 0;">Tip: hold <strong>Ctrl</strong> and drag across the day numbers to select a range, then right-click the selection to request leave for it.</p>
+    <p class="small" style="margin:8px 0 0;">Tip: hold <strong>Ctrl</strong> and click day numbers to select several — a "Request Leave" button appears next to the site name once you have.</p>
   </div>
 
   <div class="card">
     <div class="site-heading-row">
       <h3 class="site-heading">Worthing Hospital</h3>
-      <div class="month-status-controls" id="statusControls-worthing"></div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <span id="selectionAction-worthing"></span>
+        <div class="month-status-controls" id="statusControls-worthing"></div>
+      </div>
     </div>
     <div id="banners-worthing"></div>
     <table class="cal-grid" id="calGrid-worthing"></table>
@@ -46,7 +49,10 @@
   <div class="card">
     <div class="site-heading-row">
       <h3 class="site-heading">St Richard's Hospital</h3>
-      <div class="month-status-controls" id="statusControls-st_richards"></div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <span id="selectionAction-st_richards"></span>
+        <div class="month-status-controls" id="statusControls-st_richards"></div>
+      </div>
     </div>
     <div id="banners-st_richards"></div>
     <table class="cal-grid" id="calGrid-st_richards"></table>
@@ -100,11 +106,6 @@
       </div>
     </form>
   </div>
-</div>
-
-<!-- Drag-select context menu -->
-<div id="dragContextMenu" style="display:none;position:fixed;z-index:70;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.18);padding:6px;">
-  <button class="secondary" style="white-space:nowrap;" onclick="requestLeaveFromSelection()">+ Request leave for selected dates</button>
 </div>
 
 <!-- Detail modal -->
@@ -174,12 +175,26 @@ function requestInSite(r, site) {
   return r.snapshot_primary_site === site || r.snapshot_cross_site === true;
 }
 
+function leaveCategoryLabel(r) {
+  if (r.leave_type === "study_leave") return "Study Leave";
+  if (r.leave_type.startsWith("toil")) return "TOIL";
+  return "Annual Leave";
+}
+
+// Used for both the hover tooltip and the click-through detail modal —
+// always leads with the category (Annual Leave / TOIL / Study Leave)
+// so it's clear at a glance, with TOIL's part-of-day and chosen time
+// appended for the extra detail that actually varies.
 function leaveTypeLine(r) {
-  let line = LEAVE_TYPE_LABEL[r.leave_type];
-  if ((r.leave_type === "toil_am" || r.leave_type === "toil_pm") && r.toil_time) {
-    line += ` (${fmtTime(r.toil_time)})`;
+  const category = leaveCategoryLabel(r);
+  if (r.leave_type === "toil_full_day") return `${category} — Full day`;
+  if (r.leave_type === "toil_am") {
+    return `${category} — AM${r.toil_time ? ` (start ${fmtTime(r.toil_time)})` : ""}`;
   }
-  return line;
+  if (r.leave_type === "toil_pm") {
+    return `${category} — PM${r.toil_time ? ` (leaving ${fmtTime(r.toil_time)})` : ""}`;
+  }
+  return category;
 }
 
 // Same requested-by visibility rule as the detail modal: plain
@@ -280,7 +295,8 @@ function renderGrid() {
     renderSiteControls(site);
     renderBanners(site);
     renderSiteGrid(site);
-    setupDragSelect(site);
+    setupDaySelect(site);
+    updateSelectionAction(site);
   });
 }
 
@@ -299,7 +315,7 @@ function renderSiteControls(site) {
     <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:13px;">
       <input type="checkbox" style="width:auto;" ${rotaChecked ? "checked" : ""} ${rotaLocked ? "disabled" : ""}
         onchange="toggleRotaComplete('${site}', this.checked)">
-      Rota complete
+      Clinical Rota Completed
     </label>
     <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:13px;">
       <input type="checkbox" style="width:auto;" ${dsrChecked ? "checked" : ""} ${dsrLocked ? "disabled" : ""}
@@ -314,10 +330,10 @@ function renderBanners(site) {
   const status = MONTH_STATUS[site] || {};
   let html = "";
   if (status.rota_complete) {
-    html += `<div class="banner-warning">Rota for this month has been completed. For any new leave approvals please update clinical rota.</div>`;
+    html += `<div class="banner-warning banner-rota">The rota for this month has been completed. Please update the clinical rota for any new leave approvals.</div>`;
   }
   if (status.dsr_complete) {
-    html += `<div class="banner-warning">Rota for this month has been completed. Pharmacists requesting leave; please make arrangements for swaps.</div>`;
+    html += `<div class="banner-warning banner-rota">The DSR for this month has been completed. Pharmacists requesting leave; please make arrangements for swaps.</div>`;
   }
   el.innerHTML = html;
 }
@@ -325,8 +341,8 @@ function renderBanners(site) {
 async function toggleRotaComplete(site, checked) {
   const monthLabel = `${MONTH_NAMES[VIEW_MONTH]} ${VIEW_YEAR}`;
   const warn = checked
-    ? `Mark the rota complete for ${SITE_LABEL[site]} — ${monthLabel}? A banner will appear on this month telling pharmacists that any new leave approvals need the clinical rota updated.`
-    : `Un-tick rota complete for ${SITE_LABEL[site]} — ${monthLabel}?`;
+    ? `Mark the Clinical Rota Completed for ${SITE_LABEL[site]} — ${monthLabel}? A banner will appear on this month telling pharmacists to update the clinical rota for any new leave approvals.`
+    : `Un-tick Clinical Rota Completed for ${SITE_LABEL[site]} — ${monthLabel}?`;
   if (!confirm(warn)) { renderSiteControls(site); return; }
   try {
     const { error } = await sb.rpc("set_rota_complete", {
@@ -390,6 +406,7 @@ function renderSiteGrid(site) {
     const bg = dayBgClass(d);
     let cls = "daynum" + (bg ? ` ${bg}` : "");
     if (isToday(VIEW_YEAR, VIEW_MONTH, d)) cls += " today";
+    if (SELECTED_DAYS.site === site && SELECTED_DAYS.days.has(d)) cls += " selected";
     headHtml += `<td class="${cls}" data-day="${d}"${dayTitle(d)}>${d}</td>`;
   }
   headHtml += "</tr>";
@@ -422,11 +439,16 @@ function renderSiteGrid(site) {
             ? ` ${fmtTime(r.toil_time)}` : "";
           // Study leave keeps its blue "study" colour throughout — pending
           // or approved — rather than only turning blue once approved.
-          // Rejected always overrides to red regardless of type, so an
-          // invalid request is never mistaken for a valid one.
+          // TOIL similarly gets its own purple identity: light purple
+          // pending, dark purple approved. Rejected always overrides to
+          // red regardless of type, so an invalid request is never
+          // mistaken for a valid one.
           let statusClass;
           if (r.leave_type === "study_leave") {
             statusClass = r.status === "rejected" ? "rejected" : "study";
+          } else if (r.leave_type === "toil_full_day" || r.leave_type === "toil_am" || r.leave_type === "toil_pm") {
+            statusClass = r.status === "rejected" ? "rejected"
+              : r.status === "approved" ? "toil-approved" : "toil-pending";
           } else {
             statusClass = r.status;
           }
@@ -436,9 +458,9 @@ function renderSiteGrid(site) {
           // fill is guaranteed by the table cell's own background rather
           // than a percentage-height flex child, which some browsers
           // fail to size correctly inside a table row.
-          rows += `<td class="${cls} tile ${statusClass}${pendingModifier}" data-day="${d}" title="${escapeHtml(tooltip)}" onclick="if(!event.ctrlKey) openDetail('${r.id}')">${escapeHtml(initials)}${suffix}</td>`;
+          rows += `<td class="${cls} tile ${statusClass}${pendingModifier}" title="${escapeHtml(tooltip)}" onclick="openDetail('${r.id}')">${escapeHtml(initials)}${suffix}</td>`;
         } else {
-          rows += `<td class="${cls}" data-day="${d}"></td>`;
+          rows += `<td class="${cls}"></td>`;
         }
       }
       rows += "</tr>";
@@ -452,97 +474,76 @@ function renderSiteGrid(site) {
     + laneRows("Study Leave", r => r.leave_type === "study_leave");
 }
 
-/* ---------------- Drag-to-select a date range ---------------- */
-// Hold Ctrl, mousedown on a day number, drag across others (in the same
-// site's table) to select a range, then right-click the selection to
-// open a "Request leave" shortcut pre-filled with that range.
-let DRAG = { site: null, dragging: false, startDay: null, endDay: null };
+/* ---------------- Ctrl+click day-number selection ---------------- */
+// Hold Ctrl and click day numbers (in one site's table) to build up a
+// selection; a "Request Leave" button appears next to that site's
+// heading once at least one day is selected. Pressing it opens the
+// request form pre-filled with the earliest/latest selected day as
+// the start/end date (the same weekday-only range logic the form
+// already uses covers everything in between).
+let SELECTED_DAYS = { site: null, days: new Set() };
 
-function daySelectionRange() {
-  if (DRAG.startDay == null || DRAG.endDay == null) return null;
-  return [Math.min(DRAG.startDay, DRAG.endDay), Math.max(DRAG.startDay, DRAG.endDay)];
-}
-
-function applySelectionHighlight() {
-  document.querySelectorAll(".cal-grid td.selected").forEach(td => td.classList.remove("selected"));
-  const range = daySelectionRange();
-  if (!range || !DRAG.site) return;
-  const grid = document.getElementById(`calGrid-${DRAG.site}`);
-  if (!grid) return;
-  for (let d = range[0]; d <= range[1]; d++) {
-    grid.querySelectorAll(`td[data-day="${d}"]`).forEach(td => td.classList.add("selected"));
+function toggleDaySelection(site, d) {
+  if (SELECTED_DAYS.site !== site) {
+    SELECTED_DAYS = { site, days: new Set() };
   }
+  if (SELECTED_DAYS.days.has(d)) {
+    SELECTED_DAYS.days.delete(d);
+  } else {
+    SELECTED_DAYS.days.add(d);
+  }
+  if (SELECTED_DAYS.days.size === 0) SELECTED_DAYS.site = null;
+  renderSiteGrid(site);
+  updateSelectionAction(site);
 }
 
-function clearSelection() {
-  DRAG = { site: null, dragging: false, startDay: null, endDay: null };
-  document.querySelectorAll(".cal-grid td.selected").forEach(td => td.classList.remove("selected"));
-  hideContextMenu();
+function clearDaySelection() {
+  const prevSite = SELECTED_DAYS.site;
+  SELECTED_DAYS = { site: null, days: new Set() };
+  if (prevSite) { renderSiteGrid(prevSite); updateSelectionAction(prevSite); }
 }
 
-function showContextMenu(x, y) {
-  const menu = document.getElementById("dragContextMenu");
-  menu.style.left = `${x}px`;
-  menu.style.top = `${y}px`;
-  menu.style.display = "block";
-}
-function hideContextMenu() {
-  document.getElementById("dragContextMenu").style.display = "none";
+function updateSelectionAction(site) {
+  const el = document.getElementById(`selectionAction-${site}`);
+  if (!el) return;
+  if (SELECTED_DAYS.site === site && SELECTED_DAYS.days.size > 0) {
+    const n = SELECTED_DAYS.days.size;
+    el.innerHTML = `<button class="primary" onclick="requestLeaveFromSelection()">+ Request Leave (${n} day${n === 1 ? "" : "s"} selected)</button>`;
+  } else {
+    el.innerHTML = "";
+  }
 }
 
 function requestLeaveFromSelection() {
-  const range = daySelectionRange();
-  const site = DRAG.site;
-  hideContextMenu();
-  if (!range) return;
+  if (!SELECTED_DAYS.site || SELECTED_DAYS.days.size === 0) return;
+  const days = Array.from(SELECTED_DAYS.days).sort((a, b) => a - b);
   openRequestModal();
-  document.getElementById("reqStartDate").value = isoDate(VIEW_YEAR, VIEW_MONTH, range[0]);
-  document.getElementById("reqEndDate").value = isoDate(VIEW_YEAR, VIEW_MONTH, range[1]);
-  clearSelection();
+  document.getElementById("reqStartDate").value = isoDate(VIEW_YEAR, VIEW_MONTH, days[0]);
+  document.getElementById("reqEndDate").value = isoDate(VIEW_YEAR, VIEW_MONTH, days[days.length - 1]);
+  clearDaySelection();
 }
 
-// Table elements persist across re-renders (only their innerHTML
-// changes), so listeners are bound once per table via a data-flag and
-// then rely on event delegation for the actual day cells.
-function setupDragSelect(site) {
+// The <table> element persists across re-renders (only its innerHTML
+// changes), so the click listener is bound once via a data-flag and
+// relies on event delegation to reach the actual day-number cells.
+function setupDaySelect(site) {
   const grid = document.getElementById(`calGrid-${site}`);
-  if (!grid || grid.dataset.dragBound) return;
-  grid.dataset.dragBound = "1";
-
-  grid.addEventListener("mousedown", (e) => {
+  if (!grid || grid.dataset.selectBound) return;
+  grid.dataset.selectBound = "1";
+  grid.addEventListener("click", (e) => {
     if (!e.ctrlKey) return;
-    const td = e.target.closest("td[data-day]");
+    const td = e.target.closest("td.daynum[data-day]");
     if (!td) return;
     e.preventDefault();
-    const d = parseInt(td.dataset.day, 10);
-    DRAG = { site, dragging: true, startDay: d, endDay: d };
-    applySelectionHighlight();
-  });
-
-  grid.addEventListener("mouseover", (e) => {
-    if (!DRAG.dragging || DRAG.site !== site) return;
-    const td = e.target.closest("td[data-day]");
-    if (!td) return;
-    DRAG.endDay = parseInt(td.dataset.day, 10);
-    applySelectionHighlight();
-  });
-
-  grid.addEventListener("contextmenu", (e) => {
-    const range = daySelectionRange();
-    if (!range || DRAG.site !== site) return;
-    e.preventDefault();
-    showContextMenu(e.clientX, e.clientY);
+    toggleDaySelection(site, parseInt(td.dataset.day, 10));
   });
 }
 
-document.addEventListener("mouseup", () => { if (DRAG.dragging) DRAG.dragging = false; });
+// Any ordinary click elsewhere (not a Ctrl+click on a day number)
+// clears whatever selection is active.
 document.addEventListener("click", (e) => {
-  if (e.target.closest("#dragContextMenu")) return;
-  if (e.target.closest(".cal-grid td[data-day]") && document.getElementById("dragContextMenu").style.display !== "none") {
-    hideContextMenu();
-    return;
-  }
-  if (!e.target.closest(".cal-grid")) clearSelection();
+  if (e.ctrlKey && e.target.closest("td.daynum[data-day]")) return;
+  clearDaySelection();
 });
 
 /* ---------------- Request modal ---------------- */
@@ -670,6 +671,7 @@ async function openDetail(id) {
   const isOwnPending = r.status === "pending" && (r.requested_by === PROFILE.id || r.user_id === PROFILE.id);
   const canSuperAdmin = isSuperuserPlus(PROFILE);
   const canDelete = isLeadPlus(PROFILE); // lead_pharmacist and above — a note is required
+  const canAmendToil = isLeadPlus(PROFILE) && (r.leave_type === "toil_am" || r.leave_type === "toil_pm");
 
   if (canProcess) {
     actions.innerHTML += `<button class="primary" onclick="doApprove('${r.id}')">Approve</button>
@@ -677,6 +679,9 @@ async function openDetail(id) {
   }
   if (isOwnPending && !canSuperAdmin) {
     actions.innerHTML += `<button class="secondary" onclick="doCancelOwn('${r.id}')">Cancel request</button>`;
+  }
+  if (canAmendToil) {
+    actions.innerHTML += `<button class="secondary" onclick="doAmendToilTime('${r.id}')">Amend TOIL time</button>`;
   }
   if (canSuperAdmin) {
     actions.innerHTML += `<button class="secondary" onclick="doEdit('${r.id}')">Edit</button>`;
@@ -724,6 +729,20 @@ async function doUnapprove(id) {
   const msg = document.getElementById("detMsg");
   try {
     const { error } = await sb.rpc("unapprove_leave", { p_leave_id: id, p_note: note });
+    if (error) throw error;
+    closeDetailModal(); await refreshCalendar();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+async function doAmendToilTime(id) {
+  const r = REQUESTS.find(x => x.id === id);
+  if (!r) return;
+  const label = r.leave_type === "toil_am" ? "New start time (HH:MM):" : "New leaving time (HH:MM):";
+  const newTime = prompt(label, r.toil_time ? fmtTime(r.toil_time) : "");
+  if (!newTime) return;
+  const note = prompt("Note for the audit trail (optional):") || null;
+  const msg = document.getElementById("detMsg");
+  try {
+    const { error } = await sb.rpc("amend_toil_time", { p_leave_id: id, p_new_toil_time: newTime, p_note: note });
     if (error) throw error;
     closeDetailModal(); await refreshCalendar();
   } catch (err) { showMsg(msg, err.message, "error"); }

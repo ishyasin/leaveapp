@@ -6,6 +6,7 @@
 <title>Admin — Leave Manager</title>
 <link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <div class="topbar" id="topbar"></div>
@@ -155,8 +156,11 @@
   <!-- LEAVE RECORDS -->
   <div id="tab-leave" style="display:none;">
     <div class="card">
-      <h2>All leave requests</h2>
-      <p class="small">Editing, unapproving, and deleting are all recorded in the Audit Trail. A note is required to delete.</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <h2 style="margin:0;">All leave requests</h2>
+        <button class="secondary" id="exportBtn" onclick="exportLeaveExcel()">Export to Excel</button>
+      </div>
+      <p class="small">Editing, unapproving, and deleting are all recorded in the Audit Trail. A note is required to delete. Export produces one workbook with three tabs — Approved, Pending, Rejected.</p>
       <div id="leaveMsg"></div>
       <table>
         <thead><tr><th>Date</th><th>Person</th><th>Type</th><th>Status</th><th>Requested</th><th></th></tr></thead>
@@ -535,6 +539,56 @@ async function loadLeave() {
       </td>
     </tr>`;
   }).join("");
+}
+
+/* ---------------- Excel export ---------------- */
+function leaveRowsFor(status, data) {
+  const rows = data.filter(r => r.status === status).map(r => {
+    const p = PROFILES.find(x => x.id === r.user_id);
+    const req = PROFILES.find(x => x.id === r.requested_by);
+    const appr = r.approved_by ? PROFILES.find(x => x.id === r.approved_by) : null;
+    const siteText = r.snapshot_cross_site
+      ? `${SITE_LABEL[r.snapshot_primary_site] || r.snapshot_primary_site} + cross-site`
+      : (SITE_LABEL[r.snapshot_primary_site] || r.snapshot_primary_site || "");
+    return {
+      "Date": new Date(`${r.leave_date}T00:00:00`),
+      "Person": p ? p.full_name : "?",
+      "Initials": p ? p.initials : "?",
+      "Site": siteText,
+      "Leave Type": LEAVE_TYPE_LABEL[r.leave_type] || r.leave_type,
+      "TOIL Time": r.toil_time ? fmtTime(r.toil_time) : "",
+      "Requested By": req ? req.full_name : "?",
+      "Requested At": r.requested_at ? new Date(r.requested_at) : "",
+      "Actioned By": appr ? appr.full_name : "",
+      "Actioned At": r.approved_at ? new Date(r.approved_at) : "",
+      "Rejected Reason": r.rejected_reason || "",
+    };
+  });
+  return rows.length ? rows : [{ "Note": "No records" }];
+}
+
+async function exportLeaveExcel() {
+  const btn = document.getElementById("exportBtn");
+  const msg = document.getElementById("leaveMsg");
+  btn.disabled = true; btn.textContent = "Exporting…";
+  try {
+    const { data, error } = await sb.from("leave_requests").select("*")
+      .eq("deleted", false).order("leave_date", { ascending: true }).limit(10000);
+    if (error) throw error;
+
+    const wb = XLSX.utils.book_new();
+    [["Approved", "approved"], ["Pending", "pending"], ["Rejected", "rejected"]].forEach(([label, status]) => {
+      const ws = XLSX.utils.json_to_sheet(leaveRowsFor(status, data || []));
+      XLSX.utils.book_append_sheet(wb, ws, label);
+    });
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `leave-export-${stamp}.xlsx`);
+  } catch (err) {
+    showMsg(msg, err.message || "Export failed.", "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Export to Excel";
+  }
 }
 
 async function editLeave(id, currentDate, currentType) {
