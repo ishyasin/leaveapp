@@ -25,6 +25,11 @@ const ROLE_LABEL = {
   developer: "Developer",
 };
 
+const SITE_LABEL = {
+  worthing: "Worthing",
+  st_richards: "St Richard's",
+};
+
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 /* ---------------- logo ---------------- */

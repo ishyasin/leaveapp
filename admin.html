@@ -35,6 +35,15 @@
         <input type="text" id="newFullName" required>
         <label>Role</label>
         <select id="newRole"></select>
+        <label>Site</label>
+        <select id="newSite">
+          <option value="worthing">Worthing</option>
+          <option value="st_richards">St Richard's</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+          <input type="checkbox" id="newCrossSite" style="width:auto;">
+          Cross-site (works at both Worthing and St Richard's)
+        </label>
         <label>Temporary password (min. 8 characters)</label>
         <input type="text" id="newTempPw" required minlength="8">
         <div style="margin-top:14px;">
@@ -46,7 +55,7 @@
       <h2>Existing users</h2>
       <div id="usersMsg"></div>
       <table>
-        <thead><tr><th>Name</th><th>Initials</th><th>User ID</th><th>Role</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Initials</th><th>User ID</th><th>Role</th><th>Site</th><th>Status</th><th></th></tr></thead>
         <tbody id="usersRows"></tbody>
       </table>
     </div>
@@ -89,6 +98,30 @@
     </div>
   </div>
 
+</div>
+
+<!-- Edit site modal -->
+<div class="overlay" id="siteOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Edit site</h3>
+    <p class="small" id="siteModalName"></p>
+    <div id="siteMsg"></div>
+    <form id="siteForm">
+      <label>Primary site</label>
+      <select id="siteSelect">
+        <option value="worthing">Worthing</option>
+        <option value="st_richards">St Richard's</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+        <input type="checkbox" id="siteCrossCheck" style="width:auto;">
+        Cross-site (works at both Worthing and St Richard's)
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeSiteModal()">Cancel</button>
+        <button type="submit" class="primary" id="siteSaveBtn">Save</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <script src="shared.js"></script>
@@ -135,6 +168,8 @@ document.getElementById("createForm").addEventListener("submit", async (e) => {
       initials: document.getElementById("newInitials").value.trim(),
       full_name: document.getElementById("newFullName").value.trim(),
       role: document.getElementById("newRole").value,
+      primary_site: document.getElementById("newSite").value,
+      cross_site: document.getElementById("newCrossSite").checked,
       temp_password: document.getElementById("newTempPw").value,
     });
     showMsg(msg, "Login created. Share the temporary password with the user — they'll be asked to change it on first sign-in.", "ok");
@@ -156,17 +191,22 @@ async function loadUsers() {
 
   PROFILES.forEach(p => {
     const lockedForSuperuser = !isDeveloper(PROFILE) && ["superuser","developer"].includes(p.role);
+    const siteText = p.cross_site
+      ? `${SITE_LABEL[p.primary_site]} + cross-site`
+      : SITE_LABEL[p.primary_site] || p.primary_site;
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(p.full_name)}</td>
       <td>${escapeHtml(p.initials)}</td>
       <td>${escapeHtml(p.user_id)}</td>
       <td>${ROLE_LABEL[p.role]}</td>
+      <td>${escapeHtml(siteText)}</td>
       <td>${p.active ? '<span class="badge approved">active</span>' : '<span class="badge rejected">inactive</span>'}</td>
       <td style="white-space:nowrap;">
         ${lockedForSuperuser ? '<span class="small">locked</span>' : `
           <button class="secondary" onclick="toggleActive('${p.id}', ${!p.active})">${p.active ? "Deactivate" : "Reactivate"}</button>
           <button class="secondary" onclick="resetPw('${p.id}')">Reset password</button>
+          <button class="secondary" onclick="openSiteModal('${p.id}')">Edit site</button>
         `}
       </td>`;
     tbody.appendChild(tr);
@@ -191,6 +231,41 @@ async function resetPw(id) {
     showMsg(msg, "Password reset. The user will be asked to set their own on next sign-in.", "ok");
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
+
+/* ---------------- edit site ---------------- */
+let SITE_MODAL_USER_ID = null;
+function openSiteModal(id) {
+  const p = PROFILES.find(x => x.id === id);
+  if (!p) return;
+  SITE_MODAL_USER_ID = id;
+  document.getElementById("siteMsg").innerHTML = "";
+  document.getElementById("siteModalName").textContent = `${p.full_name} (${p.initials})`;
+  document.getElementById("siteSelect").value = p.primary_site;
+  document.getElementById("siteCrossCheck").checked = !!p.cross_site;
+  document.getElementById("siteOverlay").style.display = "flex";
+}
+function closeSiteModal() { document.getElementById("siteOverlay").style.display = "none"; }
+
+document.getElementById("siteForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("siteMsg");
+  const btn = document.getElementById("siteSaveBtn");
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const { error } = await sb.rpc("set_user_site", {
+      p_user_id: SITE_MODAL_USER_ID,
+      p_primary_site: document.getElementById("siteSelect").value,
+      p_cross_site: document.getElementById("siteCrossCheck").checked,
+    });
+    if (error) throw error;
+    closeSiteModal();
+    await loadUsers();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Save";
+  }
+});
 
 /* ---------------- bank holidays ---------------- */
 document.getElementById("holForm").addEventListener("submit", async (e) => {
