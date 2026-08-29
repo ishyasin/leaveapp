@@ -279,20 +279,22 @@ async function refreshCalendar() {
 }
 
 // Distinct pharmacists with an approved-or-pending request (any leave
-// type) at this site on this day. "capacity-red" wins if a superuser
-// has explicitly forced this day/site to red; otherwise "capacity-yellow"
-// once the count meets that site's threshold; otherwise null.
-function capacityColorFor(site, iso) {
-  if (CAPACITY_OVERRIDES[site] && CAPACITY_OVERRIDES[site].has(iso)) return "capacity-red";
-  const threshold = SITE_THRESHOLD[site];
-  if (!threshold) return null;
+// type) at this site on this day.
+function capacityCountFor(site, iso) {
   const ids = new Set();
   REQUESTS.forEach(r => {
     if (r.leave_date === iso && (r.status === "pending" || r.status === "approved")) {
       if (requestInSite(r, site)) ids.add(r.user_id);
     }
   });
-  return ids.size >= threshold ? "capacity-yellow" : null;
+  return ids.size;
+}
+function capacityOverrideFor(site, iso) {
+  return !!(CAPACITY_OVERRIDES[site] && CAPACITY_OVERRIDES[site].has(iso));
+}
+function capacityThresholdMetFor(site, iso) {
+  const threshold = SITE_THRESHOLD[site];
+  return !!threshold && capacityCountFor(site, iso) >= threshold;
 }
 
 // Each request gets its own full-width line for that day. If more than
@@ -389,14 +391,19 @@ function renderSiteGrid(site) {
   const grid = document.getElementById(`calGrid-${site}`);
   if (!grid) return;
 
-  // Priority (highest first): capacity override (red) > capacity
-  // threshold (yellow) > restricted day > bank holiday > weekend.
+  // Priority (highest first): forced red capacity override > a manual
+  // Restricted Day marking (pink or yellow) > the automatic leave-
+  // capacity yellow threshold > bank holiday > weekend. A day someone
+  // has deliberately marked — either as a capacity override or as a
+  // Restricted Day — always keeps that colour; the auto-yellow
+  // threshold never silently overrides it just because the headcount
+  // also happens to cross the limit that same day.
   function dayBgClass(d) {
     const iso = isoDate(VIEW_YEAR, VIEW_MONTH, d);
-    const cap = capacityColorFor(site, iso);
-    if (cap) return cap;
+    if (capacityOverrideFor(site, iso)) return "capacity-red";
     const restricted = RESTRICTED[site] && RESTRICTED[site][iso];
     if (restricted) return `restrict-${restricted.highlight}`;
+    if (capacityThresholdMetFor(site, iso)) return "capacity-yellow";
     if (HOLIDAYS[iso]) return "holiday";
     if (isWeekend(VIEW_YEAR, VIEW_MONTH, d)) return "weekend";
     return null;
@@ -406,10 +413,9 @@ function renderSiteGrid(site) {
     const parts = [];
     if (HOLIDAYS[iso]) parts.push(HOLIDAYS[iso]);
     const restricted = RESTRICTED[site] && RESTRICTED[site][iso];
-    if (restricted) parts.push(restricted.label);
-    const cap = capacityColorFor(site, iso);
-    if (cap === "capacity-red") parts.push("Capacity override — forced red");
-    else if (cap === "capacity-yellow") parts.push(`Leave capacity reached (${SITE_THRESHOLD[site]}+ off)`);
+    if (capacityOverrideFor(site, iso)) parts.push("Capacity override — forced red");
+    else if (restricted) parts.push(restricted.label);
+    else if (capacityThresholdMetFor(site, iso)) parts.push(`Leave capacity reached (${SITE_THRESHOLD[site]}+ off)`);
     return parts.length ? ` title="${escapeHtml(parts.join(" — "))}"` : "";
   }
 
