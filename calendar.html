@@ -323,17 +323,30 @@ function renderSiteControls(site) {
   const rotaLocked = rotaChecked && !isSuperuserPlus(PROFILE);
   const dsrLocked = dsrChecked && !isSuperuserPlus(PROFILE);
 
+  // Shows who completed it and when, right under the checkbox, once ticked.
+  function completedNote(completedBy, completedAt) {
+    if (!completedAt) return "";
+    const who = profileById(completedBy);
+    return `<div class="small" style="margin-left:24px;">${who ? escapeHtml(who.full_name) + " — " : ""}${fmtDateTime(completedAt)}</div>`;
+  }
+
   el.innerHTML = `
-    <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:13px;">
-      <input type="checkbox" style="width:auto;" ${rotaChecked ? "checked" : ""} ${rotaLocked ? "disabled" : ""}
-        onchange="toggleRotaComplete('${site}', this.checked)">
-      Clinical Rota Completed
-    </label>
-    <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:13px;">
-      <input type="checkbox" style="width:auto;" ${dsrChecked ? "checked" : ""} ${dsrLocked ? "disabled" : ""}
-        onchange="toggleDsrComplete('${site}', this.checked)">
-      DSR complete
-    </label>`;
+    <div>
+      <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:13px;">
+        <input type="checkbox" style="width:auto;" ${rotaChecked ? "checked" : ""} ${rotaLocked ? "disabled" : ""}
+          onchange="toggleRotaComplete('${site}', this.checked)">
+        Clinical Rota Completed
+      </label>
+      ${completedNote(status.rota_completed_by, status.rota_completed_at)}
+    </div>
+    <div>
+      <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:13px;">
+        <input type="checkbox" style="width:auto;" ${dsrChecked ? "checked" : ""} ${dsrLocked ? "disabled" : ""}
+          onchange="toggleDsrComplete('${site}', this.checked)">
+        DSR complete
+      </label>
+      ${completedNote(status.dsr_completed_by, status.dsr_completed_at)}
+    </div>`;
 }
 
 function renderBanners(site) {
