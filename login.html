@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
 <title>Sign in — Leave Manager</title>
 <link rel="stylesheet" href="shared.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 </head>
 <body>
 <div class="login-wrap">
@@ -46,12 +47,25 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   msg.innerHTML = "";
 
   try {
-    // Resolve User ID -> the real auth email via RPC (avoids exposing emails directly).
-    const { data: email, error: lookupErr } = await sb.rpc("email_for_user_id", { p_user_id: userId });
-    const loginEmail = email || `${userId}@${LOGIN_EMAIL_DOMAIN}`;
-    if (lookupErr) throw lookupErr;
+    // The email itself is never resolved or returned to the browser —
+    // this edge function looks it up and signs in entirely server-side,
+    // handing back only session tokens. A nonexistent User ID, an
+    // inactive account, and a wrong password all get the identical
+    // generic error, so this can't be used to probe which accounts exist.
+    const res = await fetch(`${EDGE_FUNCTIONS_URL}/login-with-user-id`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
+      body: JSON.stringify({ user_id: userId, password }),
+    });
+    const result = await res.json();
+    if (!res.ok || !result.access_token) {
+      throw new Error(result.error || "Sign in failed.");
+    }
 
-    const { error } = await sb.auth.signInWithPassword({ email: loginEmail, password });
+    const { error } = await sb.auth.setSession({
+      access_token: result.access_token,
+      refresh_token: result.refresh_token,
+    });
     if (error) throw error;
 
     window.location.href = "calendar.html";

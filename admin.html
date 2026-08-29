@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
 <title>Admin — Leave Manager</title>
 <link rel="stylesheet" href="shared.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -18,6 +19,7 @@
     <button id="tabBtn-restricted" onclick="showTab('restricted')">Restricted Days</button>
     <button id="tabBtn-capacity" onclick="showTab('capacity')">Leave Capacity</button>
     <button id="tabBtn-leave" onclick="showTab('leave')">Leave Records</button>
+    <button id="tabBtn-import" onclick="showTab('import')" style="display:none;">Import Historical Leave</button>
     <button id="tabBtn-reset" onclick="showTab('reset')" style="display:none;">Reset Data</button>
   </div>
 
@@ -45,8 +47,8 @@
           <input type="checkbox" id="newCrossSite" style="width:auto;">
           Cross-site (works at both Worthing and St Richard's)
         </label>
-        <label>Temporary password (min. 8 characters)</label>
-        <input type="text" id="newTempPw" required minlength="8">
+        <label>Temporary password (min. 12 characters)</label>
+        <input type="text" id="newTempPw" required minlength="12">
         <div style="margin-top:14px;">
           <button type="submit" class="primary" id="createBtn">Create login</button>
         </div>
@@ -175,6 +177,66 @@
     </div>
   </div>
 
+  <!-- IMPORT HISTORICAL LEAVE (Developer only) -->
+  <div id="tab-import" style="display:none;">
+    <div class="card">
+      <h2>Import historical leave</h2>
+      <p class="small">Developer only. Manually back-fills a leave record from an old spreadsheet or paper record — set who it's for, who requested it, who approved it (or the rejection reason), and the original dates. This bypasses the normal self-only/approval-flow rules that apply to everyone else, since it's recreating something that already happened rather than raising something new. The same one-request-per-day check still applies, so it won't silently create a duplicate for a date that's already on record.</p>
+      <div id="importMsg"></div>
+      <form id="importForm">
+        <label>Person (whose leave this is)</label>
+        <select id="importUser"></select>
+
+        <label>Leave date</label>
+        <input type="date" id="importDate" required>
+
+        <label>Leave type</label>
+        <select id="importType">
+          <option value="full_day">Full Day</option>
+          <option value="toil_full_day">TOIL — Full day</option>
+          <option value="toil_am">TOIL — AM (late start)</option>
+          <option value="toil_pm">TOIL — PM (early finish)</option>
+          <option value="study_leave">Study Leave</option>
+        </select>
+        <div id="importToilTimeWrap" style="display:none;">
+          <label id="importToilTimeLabel">Start time</label>
+          <input type="time" id="importToilTime">
+        </div>
+
+        <label>Status</label>
+        <select id="importStatus">
+          <option value="approved">Approved</option>
+          <option value="pending">Pending</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <div id="importRejectedWrap" style="display:none;">
+          <label>Rejection reason</label>
+          <input type="text" id="importRejectedReason">
+        </div>
+
+        <label>Requested by</label>
+        <select id="importRequestedBy"></select>
+        <label>Requested on (optional — defaults to now if left blank)</label>
+        <input type="datetime-local" id="importRequestedAt">
+
+        <div id="importApprovedWrap" style="display:none;">
+          <label>Approved/rejected by</label>
+          <select id="importApprovedBy"></select>
+          <label>Approved/rejected on (optional — defaults to the requested-on time if left blank)</label>
+          <input type="datetime-local" id="importApprovedAt">
+        </div>
+
+        <label>Note for the audit trail (optional)</label>
+        <input type="text" id="importNote" placeholder="e.g. Ported from 2025 leave spreadsheet">
+
+        <div style="margin-top:14px;">
+          <button type="submit" class="primary" id="importSubmitBtn">Import record</button>
+        </div>
+      </form>
+      <p class="small" style="margin-top:10px;">Times are stored as entered in your browser's local time zone — worth a quick sanity check on the calendar afterwards if precise timing matters for a TOIL record.</p>
+    </div>
+  </div>
+
   <!-- RESET DATA (Developer only) -->
   <div id="tab-reset" style="display:none;">
     <div class="card">
@@ -254,7 +316,10 @@ let PROFILES = [];
 (async () => {
   PROFILE = await requireAuth(["superuser","developer"]);
   if (!PROFILE) return;
-  if (isDeveloper(PROFILE)) document.getElementById("tabBtn-reset").style.display = "";
+  if (isDeveloper(PROFILE)) {
+    document.getElementById("tabBtn-import").style.display = "";
+    document.getElementById("tabBtn-reset").style.display = "";
+  }
   setupRoleOptions();
   await loadUsers();
   await loadHolidays();
@@ -262,10 +327,11 @@ let PROFILES = [];
   await loadCapacity();
   await loadCapacityOverrides();
   await loadLeave();
+  setupImportForm();
 })();
 
 function showTab(name) {
-  ["users","holidays","restricted","capacity","leave","reset"].forEach(t => {
+  ["users","holidays","restricted","capacity","leave","import","reset"].forEach(t => {
     document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
     document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);
   });
@@ -338,7 +404,7 @@ async function loadUsers() {
     const canDelete = isDeveloper(PROFILE) && p.role !== "developer" && !p.deleted_by_developer;
     const canEditRole = !superuserBlocked && p.role !== "developer";
     const siteText = p.cross_site
-      ? `${SITE_LABEL[p.primary_site]} + cross-site`
+      ? "Cross site"
       : SITE_LABEL[p.primary_site] || p.primary_site;
     const statusTag = p.deleted_by_developer
       ? ' <span class="small">(deleted)</span>'
@@ -357,9 +423,16 @@ async function loadUsers() {
         ${canEditSite ? `<button class="secondary" onclick="openSiteModal('${p.id}')">Edit site</button>` : ""}
         ${canEditRole ? `<button class="secondary" onclick="openRoleModal('${p.id}')">Edit role</button>` : ""}
         ${canSuspendHide ? `<button class="danger" onclick="toggleHidden('${p.id}', ${!p.hidden_by_superuser})">${p.hidden_by_superuser ? "Unhide account" : "Hide account"}</button>` : ""}
-        ${canDelete ? `<button class="danger" onclick="deleteUser('${p.id}', '${escapeHtml(p.full_name)}')">Delete account</button>` : ""}
+        ${canDelete ? `<button class="danger" data-delete-btn>Delete account</button>` : ""}
         ${!canSuspendHide && !canResetPw && !canEditSite && !canEditRole && !canDelete ? '<span class="small">locked</span>' : ""}
       </td>`;
+    if (canDelete) {
+      // p.full_name never touches an HTML/JS string here — passed as a
+      // real JS value via closure, not interpolated into markup, so a
+      // maliciously-crafted name (e.g. containing a quote that would
+      // break out of an inline onclick="...") can't execute anything.
+      tr.querySelector("[data-delete-btn]").addEventListener("click", () => deleteUser(p.id, p.full_name));
+    }
     tbody.appendChild(tr);
   });
 }
@@ -394,6 +467,86 @@ async function deleteUser(id, fullName) {
     await callEdgeFunction("admin-reset-password", { target_user_id: id, temp_password: randomLockoutPassword() });
     await loadUsers();
   } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+/* ---------------- import historical leave (Developer only) ---------------- */
+function setupImportForm() {
+  const form = document.getElementById("importForm");
+  if (!form) return;
+
+  // Includes inactive accounts too — backfilling leave for someone
+  // who's since left (and been deactivated) is a real scenario here.
+  const userOptions = () => PROFILES.map(p =>
+    `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})${p.active ? "" : " — inactive"}</option>`).join("");
+  document.getElementById("importUser").innerHTML = userOptions();
+  document.getElementById("importRequestedBy").innerHTML = userOptions();
+  document.getElementById("importApprovedBy").innerHTML = userOptions();
+
+  document.getElementById("importType").addEventListener("change", (e) => {
+    const isToilTime = e.target.value === "toil_am" || e.target.value === "toil_pm";
+    document.getElementById("importToilTimeWrap").style.display = isToilTime ? "" : "none";
+    document.getElementById("importToilTimeLabel").textContent = e.target.value === "toil_am" ? "Start time" : "Leaving time";
+  });
+  document.getElementById("importStatus").addEventListener("change", (e) => {
+    document.getElementById("importRejectedWrap").style.display = e.target.value === "rejected" ? "" : "none";
+    document.getElementById("importApprovedWrap").style.display = e.target.value === "pending" ? "none" : "";
+  });
+  // Trigger once to match the defaults already selected.
+  document.getElementById("importStatus").dispatchEvent(new Event("change"));
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById("importMsg");
+    const btn = document.getElementById("importSubmitBtn");
+
+    const status = document.getElementById("importStatus").value;
+    const leaveType = document.getElementById("importType").value;
+    const toilTime = (leaveType === "toil_am" || leaveType === "toil_pm")
+      ? document.getElementById("importToilTime").value : null;
+    if ((leaveType === "toil_am" || leaveType === "toil_pm") && !toilTime) {
+      showMsg(msg, "Please enter a TOIL time.", "error");
+      return;
+    }
+    const rejectedReason = status === "rejected" ? document.getElementById("importRejectedReason").value.trim() : null;
+    if (status === "rejected" && !rejectedReason) {
+      showMsg(msg, "A rejection reason is required for a rejected record.", "error");
+      return;
+    }
+    const approvedBy = status === "pending" ? null : document.getElementById("importApprovedBy").value;
+    const requestedAtRaw = document.getElementById("importRequestedAt").value;
+    const approvedAtRaw = document.getElementById("importApprovedAt").value;
+
+    if (!await uiConfirm("Import this leave record exactly as entered? This bypasses the normal request/approval flow, since it's recreating something that already happened.")) {
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = "Importing…";
+    try {
+      const { error } = await sb.rpc("import_historical_leave", {
+        p_user_id: document.getElementById("importUser").value,
+        p_leave_date: document.getElementById("importDate").value,
+        p_leave_type: leaveType,
+        p_toil_time: toilTime,
+        p_status: status,
+        p_requested_by: document.getElementById("importRequestedBy").value,
+        p_requested_at: requestedAtRaw ? new Date(requestedAtRaw).toISOString() : null,
+        p_approved_by: approvedBy,
+        p_approved_at: approvedAtRaw ? new Date(approvedAtRaw).toISOString() : null,
+        p_rejected_reason: rejectedReason,
+        p_note: document.getElementById("importNote").value.trim() || null,
+      });
+      if (error) throw error;
+      showMsg(msg, "Record imported. It now appears on the calendar and in Leave Records.", "ok");
+      form.reset();
+      document.getElementById("importStatus").dispatchEvent(new Event("change"));
+      document.getElementById("importType").dispatchEvent(new Event("change"));
+      await loadLeave();
+    } catch (err) {
+      showMsg(msg, err.message, "error");
+    } finally {
+      btn.disabled = false; btn.textContent = "Import record";
+    }
+  });
 }
 
 /* ---------------- reset app data (Developer only) ---------------- */
@@ -453,7 +606,7 @@ async function toggleActive(id, makeActive) {
 }
 
 async function resetPw(id) {
-  const pw = await uiPrompt("Enter a new temporary password (min. 8 characters):", "", { required: true, title: "Reset password" });
+  const pw = await uiPrompt("Enter a new temporary password (min. 12 characters):", "", { required: true, title: "Reset password" });
   if (!pw) return;
   const msg = document.getElementById("usersMsg");
   try {

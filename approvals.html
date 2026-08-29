@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
 <title>Approvals — Leave Manager</title>
 <link rel="stylesheet" href="shared.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 </head>
 <body>
 <div class="topbar" id="topbar"></div>
 <div class="wrap">
   <div class="card">
     <h1>Pending Approvals</h1>
-    <p class="small">Every pending request — Annual Leave, TOIL, or Study Leave — is numbered in the order it was submitted. A Lead Pharmacist can only approve/reject a Pharmacist's leave (never their own, another Lead Pharmacist's, or a Clinical Team Lead's); a Clinical Team Lead can approve Pharmacist or Lead Pharmacist leave, or their own — a Developer can action anyone's. A <span class="badge rejected">&#9888; Restricted day</span> badge means the request falls on a day that's either auto-flagged for leave capacity or explicitly marked restricted for that site.</p>
     <div id="msg"></div>
     <div id="clashSummary"></div>
     <table>

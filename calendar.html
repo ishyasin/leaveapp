@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
 <title>Calendar — Leave Manager</title>
 <link rel="stylesheet" href="shared.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 </head>
 <body>
 <div class="topbar" id="topbar"></div>
@@ -31,7 +32,7 @@
       <span><i style="background:#e7e7e7;border:1px solid #ccc"></i> Weekend</span>
       <span><i style="background:#d7f4d7;border:1px solid #ccc"></i> Bank holiday</span>
     </div>
-    <p class="small" style="margin:8px 0 0;">Tip: hold <strong>Ctrl</strong> and click day numbers to select several — a "Request Leave" button appears next to the site name once you have.</p>
+    <p class="small" style="margin:8px 0 0;">Tip: hold <strong>Ctrl</strong> and click day numbers to select multiple days at a time</p>
   </div>
 
   <div class="card">
@@ -157,10 +158,16 @@ function scrollToToday() {
 }
 
 async function loadProfiles() {
-  const { data } = await sb.from("profiles")
-    .select("id, initials, full_name, role, active, primary_site, cross_site")
-    .order("full_name");
-  PROFILES = data || [];
+  // A plain Pharmacist only gets their own full row from the base
+  // profiles table now (see profiles_select in schema.sql) — this RPC
+  // is what everyone uses to see names/initials for rendering other
+  // people's tiles on the calendar. It's a function rather than a
+  // plain view specifically because a view would bypass RLS (running
+  // with its owner's privileges) and keep working for a deactivated
+  // user whose JWT hasn't expired yet — the function re-checks
+  // current_profile_id() itself before returning anything.
+  const { data } = await sb.rpc("get_profile_directory");
+  PROFILES = (data || []).slice().sort((a, b) => a.full_name.localeCompare(b.full_name));
   const sel = document.getElementById("reqUser");
   sel.innerHTML = PROFILES.filter(p => p.active).map(p =>
     `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})</option>`).join("");
@@ -620,6 +627,22 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
   if ((leaveType === "toil_am" || leaveType === "toil_pm") && !toilTime) {
     showMsg(msg, leaveType === "toil_am" ? "Please choose a start time." : "Please choose a leaving time.", "error");
     return;
+  }
+
+  // Sanity-check for a wrong year picked by mistake (e.g. a date-picker
+  // slip) — not a permission gate, just a "are you sure" confirmation,
+  // and it applies to every role, not just the retrospective-leave
+  // restriction above.
+  const thisYear = new Date().getFullYear();
+  const startYear = parseInt(startDate.slice(0, 4), 10);
+  const endYear = parseInt(endDate.slice(0, 4), 10);
+  if (startYear !== thisYear || endYear !== thisYear) {
+    const years = [...new Set([startYear, endYear])].join(" and ");
+    const proceed = await uiConfirm(
+      `You're requesting leave for ${years}, which is not the current year (${thisYear}). Continue anyway?`,
+      "Check the year"
+    );
+    if (!proceed) return;
   }
 
   btn.disabled = true; btn.textContent = "Submitting…";

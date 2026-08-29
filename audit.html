@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
 <title>Audit Trail — Leave Manager</title>
 <link rel="stylesheet" href="shared.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 </head>
 <body>
 <div class="topbar" id="topbar"></div>
@@ -23,6 +24,7 @@
         <option value="amend_toil_time">Amend TOIL time</option>
         <option value="unapprove">Unapprove</option>
         <option value="delete">Delete</option>
+        <option value="import_historical_leave">Import historical leave</option>
         <option value="create_user">Create user</option>
         <option value="deactivate_user">Deactivate user</option>
         <option value="reactivate_user">Reactivate user</option>
