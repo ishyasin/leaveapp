@@ -97,7 +97,9 @@
             <option value="toil_pm">PM (early finish)</option>
           </select>
           <label id="toilTimeLabel">Start time</label>
-          <input type="time" id="toilTime">
+          <div id="toilClockStatus" class="small" style="margin:2px 0 6px;">No time selected yet — tap a point on the dial.</div>
+          <div id="toilClockWrap" style="display:flex;justify-content:center;"></div>
+          <input type="hidden" id="toilTime">
         </div>
       </div>
 
@@ -577,6 +579,117 @@ document.addEventListener("click", (e) => {
   clearDaySelection();
 });
 
+/* ---------------- TOIL time clock picker ---------------- */
+// A single-time-point pick, styled after the same clock-dial approach
+// used elsewhere (07:00–19:00, 5-minute increments) but simplified
+// down to one selection instead of a range — that's all a TOIL
+// start/leaving time needs.
+const TOIL_CLOCK_START = 420; // 07:00 in minutes since midnight
+const TOIL_CLOCK_END = 1140;  // 19:00
+const TOIL_CLOCK_STEP = 5;
+let TOIL_SELECTED_MINUTE = null;
+
+function toilClockFmt(m) {
+  return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+}
+
+function renderTimeClock() {
+  const wrap = document.getElementById("toilClockWrap");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  const NS = "http://www.w3.org/2000/svg";
+  const cx = 155, cy = 155, r = 128;
+  function E(n, attrs) {
+    const el = document.createElementNS(NS, n);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+  function point(m, rad) {
+    rad = rad == null ? r : rad;
+    const f = (m - TOIL_CLOCK_START) / (TOIL_CLOCK_END - TOIL_CLOCK_START);
+    const a = -Math.PI / 2 + f * Math.PI * 2;
+    return { x: cx + Math.cos(a) * rad, y: cy + Math.sin(a) * rad };
+  }
+
+  const svg = E("svg", { viewBox: "0 0 310 310" });
+  svg.style.width = "100%";
+  svg.style.maxWidth = "300px";
+  svg.style.touchAction = "manipulation";
+
+  svg.appendChild(E("circle", { cx, cy, r, fill: "#fbfcfe", stroke: "#d0d7e2", "stroke-width": 2 }));
+
+  for (let h = 7; h <= 18; h++) {
+    const p = point(h * 60, r - 26);
+    const t = E("text", {
+      x: p.x, y: p.y, "text-anchor": "middle", "dominant-baseline": "middle",
+      fill: "#172033", "font-size": 11, "font-weight": 700,
+    });
+    t.textContent = String(h).padStart(2, "0");
+    svg.appendChild(t);
+  }
+  const epText = E("text", { x: cx, y: 16, "text-anchor": "middle", fill: "#667085", "font-size": 9 });
+  epText.textContent = "07:00 / 19:00";
+  svg.appendChild(epText);
+
+  const dots = [];
+  for (let m = TOIL_CLOCK_START; m < TOIL_CLOCK_END; m += TOIL_CLOCK_STEP) {
+    const p = point(m);
+    const d = E("circle", {
+      cx: p.x, cy: p.y, r: m % 60 === 0 ? 4 : 2.2, fill: "#94a3b8",
+      tabindex: 0, role: "button", "aria-label": "Select " + toilClockFmt(m),
+    });
+    d.style.cursor = "pointer";
+    d.dataset.m = m;
+    d.addEventListener("click", () => selectToilTime(m));
+    d.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectToilTime(m); } });
+    svg.appendChild(d);
+    dots.push(d);
+  }
+
+  const p19 = point(TOIL_CLOCK_END, r - 13);
+  const endDot = E("circle", {
+    cx: p19.x, cy: p19.y, r: 4.5, fill: "#475569",
+    tabindex: 0, role: "button", "aria-label": "Select 19:00",
+  });
+  endDot.style.cursor = "pointer";
+  endDot.addEventListener("click", () => selectToilTime(TOIL_CLOCK_END));
+  endDot.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectToilTime(TOIL_CLOCK_END); } });
+  svg.appendChild(endDot);
+
+  wrap.appendChild(svg);
+  wrap._dots = dots;
+  wrap._endDot = endDot;
+  updateToilClockHighlight();
+}
+
+function updateToilClockHighlight() {
+  const wrap = document.getElementById("toilClockWrap");
+  if (!wrap || !wrap._dots) return;
+  wrap._dots.forEach((d) => {
+    const m = +d.dataset.m;
+    const sel = TOIL_SELECTED_MINUTE === m;
+    d.setAttribute("fill", sel ? "#172033" : "#94a3b8");
+    d.setAttribute("r", sel ? 7 : (m % 60 === 0 ? 4 : 2.2));
+  });
+  if (wrap._endDot) {
+    const sel = TOIL_SELECTED_MINUTE === TOIL_CLOCK_END;
+    wrap._endDot.setAttribute("fill", sel ? "#172033" : "#475569");
+    wrap._endDot.setAttribute("r", sel ? 7 : 4.5);
+  }
+  const status = document.getElementById("toilClockStatus");
+  if (status) {
+    status.textContent = TOIL_SELECTED_MINUTE === null
+      ? "No time selected yet — tap a point on the dial."
+      : `Selected: ${toilClockFmt(TOIL_SELECTED_MINUTE)}`;
+  }
+}
+
+function selectToilTime(m) {
+  TOIL_SELECTED_MINUTE = m;
+  document.getElementById("toilTime").value = toilClockFmt(m);
+  updateToilClockHighlight();
+}
+
 /* ---------------- Request modal ---------------- */
 function openRequestModal() {
   document.getElementById("reqMsg").innerHTML = "";
@@ -591,6 +704,7 @@ function openRequestModal() {
   document.getElementById("toilPart").value = "toil_am";
   document.getElementById("toilTimeLabel").textContent = "Start time";
   document.getElementById("toilTime").value = "";
+  TOIL_SELECTED_MINUTE = null;
   document.getElementById("reqOverlay").style.display = "flex";
 }
 function closeRequestModal() { document.getElementById("reqOverlay").style.display = "none"; }
@@ -605,7 +719,13 @@ document.getElementById("reqType").addEventListener("change", (e) => {
   }
 });
 document.getElementById("toilKind").addEventListener("change", (e) => {
-  document.getElementById("toilPartWrap").style.display = e.target.value === "part_day" ? "" : "none";
+  const showPart = e.target.value === "part_day";
+  document.getElementById("toilPartWrap").style.display = showPart ? "" : "none";
+  if (showPart) {
+    TOIL_SELECTED_MINUTE = null;
+    document.getElementById("toilTime").value = "";
+    renderTimeClock();
+  }
 });
 document.getElementById("toilPart").addEventListener("change", (e) => {
   document.getElementById("toilTimeLabel").textContent = e.target.value === "toil_am" ? "Start time" : "Leaving time";
@@ -745,8 +865,17 @@ function closeDetailModal() { document.getElementById("detOverlay").style.displa
 
 async function doApprove(id) {
   const msg = document.getElementById("detMsg");
+  const r = REQUESTS.find(x => x.id === id);
+  let note = null;
+  if (r && (r.leave_type === "toil_am" || r.leave_type === "toil_pm")) {
+    const label = r.leave_type === "toil_am"
+      ? "Confirm the time they're starting (their TOIL AM request):"
+      : "Confirm the time they're finishing (their TOIL PM request):";
+    note = await uiPrompt(label, r.toil_time ? fmtTime(r.toil_time) : "", { required: true, title: "Approve TOIL" });
+    if (note === null) return; // cancelled
+  }
   try {
-    const { error } = await sb.rpc("approve_leave", { p_leave_id: id });
+    const { error } = await sb.rpc("approve_leave", { p_leave_id: id, p_note: note });
     if (error) throw error;
     closeDetailModal(); await refreshCalendar();
   } catch (err) { showMsg(msg, err.message, "error"); }
