@@ -33,6 +33,7 @@
       <span><i style="background:#d7f4d7;border:1px solid #ccc"></i> Bank holiday</span>
     </div>
     <p class="small" style="margin:8px 0 0;">Tip: hold <strong>Ctrl</strong> and click day numbers to select multiple days at a time</p>
+    <p class="small" id="bulkTip" style="margin:4px 0 0;display:none;">Tip: hold <strong>Ctrl</strong> and click a pending leave tile to select several at once, then approve or reject them together.</p>
   </div>
 
   <div class="card">
@@ -91,15 +92,9 @@
           <option value="part_day">Part day</option>
         </select>
         <div id="toilPartWrap" style="display:none;">
-          <label>Part of day</label>
-          <select id="toilPart">
-            <option value="toil_am">AM (late start)</option>
-            <option value="toil_pm">PM (early finish)</option>
-          </select>
-          <label id="toilTimeLabel">Start time</label>
-          <div id="toilClockStatus" class="small" style="margin:2px 0 6px;">No time selected yet — tap a point on the dial.</div>
-          <div id="toilClockWrap" style="display:flex;justify-content:center;"></div>
-          <input type="hidden" id="toilTime">
+          <label>Time(s)</label>
+          <p class="small" style="margin:2px 0 6px;">Click a start point on the dial, then click again for the end — repeat for as many separate time ranges as needed (e.g. 08:00–10:00 and 16:00–18:00 in the same request). Edit or remove any range in the list below.</p>
+          <div id="toilRangePicker"></div>
         </div>
       </div>
 
@@ -108,6 +103,30 @@
         <button type="submit" class="primary" id="reqSubmitBtn">Submit request</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Bulk approve/reject toolbar — Ctrl/Cmd+click a pending tile to select it -->
+<div id="bulkActionBar" style="display:none;position:fixed;bottom:0;left:0;right:0;background:var(--navy);color:#fff;padding:12px 20px;align-items:center;justify-content:center;gap:14px;z-index:60;box-shadow:0 -2px 10px rgba(0,0,0,.2);flex-wrap:wrap;">
+  <span id="bulkCount" style="font-weight:700;"></span>
+  <button type="button" class="primary" onclick="bulkApprove()">Approve selected</button>
+  <button type="button" class="danger" onclick="bulkReject()">Reject selected</button>
+  <button type="button" class="secondary" onclick="bulkClearSelection()">Clear selection</button>
+</div>
+
+<!-- Amend TOIL times modal -->
+<div class="overlay" id="amendToilOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Amend TOIL times</h3>
+    <p class="small">Correcting a mistyped time — the date and leave type stay the same.</p>
+    <div id="amendToilMsg"></div>
+    <div id="amendToilPicker"></div>
+    <label>Note for the audit trail (optional)</label>
+    <input type="text" id="amendToilNote">
+    <div class="modal-actions">
+      <button type="button" class="secondary" onclick="closeAmendToilModal()">Cancel</button>
+      <button type="button" class="primary" id="amendToilSaveBtn" onclick="saveAmendToilRanges()">Save</button>
+    </div>
   </div>
 </div>
 
@@ -130,11 +149,12 @@ let PROFILES = [];
 let VIEW_YEAR = new Date().getFullYear();
 let VIEW_MONTH = new Date().getMonth(); // 0-indexed
 let HOLIDAYS = {};            // 'YYYY-MM-DD' -> name
-let RESTRICTED = {};          // site -> { 'YYYY-MM-DD' -> {label, highlight} }
+let RESTRICTED = {};          // site -> { 'YYYY-MM-DD' -> {label, color} }
 let REQUESTS = [];            // this month's leave_requests
 let SITE_THRESHOLD = {};      // site -> capacity threshold
 let CAPACITY_OVERRIDES = {};  // site -> Set of 'YYYY-MM-DD' forced red
 let MONTH_STATUS = {};        // site -> month_status row
+let BULK_SELECTED = new Set(); // pending leave_request ids, Ctrl+click-selected for bulk approve/reject
 
 (async () => {
   PROFILE = await requireAuth(["pharmacist","lead_pharmacist","superuser","developer"]);
@@ -142,6 +162,7 @@ let MONTH_STATUS = {};        // site -> month_status row
   await loadProfiles();
   buildMonthTabs();
   document.getElementById("studyOption").style.display = isLeadPlus(PROFILE) ? "" : "none";
+  document.getElementById("bulkTip").style.display = isLeadPlus(PROFILE) ? "" : "none";
   await refreshCalendar();
   scrollToToday();
 })();
@@ -192,16 +213,14 @@ function leaveCategoryLabel(r) {
 
 // Used for both the hover tooltip and the click-through detail modal —
 // always leads with the category (Annual Leave / TOIL / Study Leave)
-// so it's clear at a glance, with TOIL's part-of-day and chosen time
+// so it's clear at a glance, with TOIL's chosen time range(s)
 // appended for the extra detail that actually varies.
 function leaveTypeLine(r) {
   const category = leaveCategoryLabel(r);
   if (r.leave_type === "toil_full_day") return `${category} — Full day`;
-  if (r.leave_type === "toil_am") {
-    return `${category} — AM${r.toil_time ? ` (start ${fmtTime(r.toil_time)})` : ""}`;
-  }
-  if (r.leave_type === "toil_pm") {
-    return `${category} — PM${r.toil_time ? ` (leaving ${fmtTime(r.toil_time)})` : ""}`;
+  if (r.leave_type === "toil_part_day") {
+    const ranges = formatToilRanges(r.toil_ranges);
+    return `${category} — Part day${ranges ? ` (${ranges})` : ""}`;
   }
   return category;
 }
@@ -244,6 +263,13 @@ function changeYear(delta) { VIEW_YEAR += delta; buildMonthTabs(); refreshCalend
 function selectMonth(idx) { VIEW_MONTH = idx; buildMonthTabs(); refreshCalendar(); }
 
 async function refreshCalendar() {
+  // A re-render always rebuilds every tile's DOM element from scratch,
+  // so any bulk-selection outline on the old elements is gone either
+  // way — clear the underlying set too rather than leaving stale IDs
+  // (possibly for requests that just got actioned) silently selected.
+  BULK_SELECTED.clear();
+  updateBulkToolbar();
+
   const start = isoDate(VIEW_YEAR, VIEW_MONTH, 1);
   const end = isoDate(VIEW_YEAR, VIEW_MONTH, daysInMonth(VIEW_YEAR, VIEW_MONTH));
 
@@ -265,7 +291,7 @@ async function refreshCalendar() {
   RESTRICTED = {};
   (rests || []).forEach(r => {
     RESTRICTED[r.site] = RESTRICTED[r.site] || {};
-    RESTRICTED[r.site][r.restricted_date] = { label: r.label, highlight: r.highlight };
+    RESTRICTED[r.site][r.restricted_date] = { label: r.label, color: r.highlight_color };
   });
   SITE_THRESHOLD = {};
   (settings || []).forEach(s => SITE_THRESHOLD[s.site] = s.leave_capacity_threshold);
@@ -407,21 +433,24 @@ function renderSiteGrid(site) {
   if (!grid) return;
 
   // Priority (highest first): forced red capacity override > a manual
-  // Restricted Day marking (pink or yellow) > the automatic leave-
+  // Restricted Day marking (any custom colour) > the automatic leave-
   // capacity yellow threshold > bank holiday > weekend. A day someone
   // has deliberately marked — either as a capacity override or as a
   // Restricted Day — always keeps that colour; the auto-yellow
   // threshold never silently overrides it just because the headcount
-  // also happens to cross the limit that same day.
-  function dayBgClass(d) {
+  // also happens to cross the limit that same day. Restricted-day
+  // colours are arbitrary (picked from the colour table + intensity
+  // slider in Admin), so they're applied as an inline style rather
+  // than a fixed CSS class — the other states here stay class-based.
+  function dayBackground(d) {
     const iso = isoDate(VIEW_YEAR, VIEW_MONTH, d);
-    if (capacityOverrideFor(site, iso)) return "capacity-red";
+    if (capacityOverrideFor(site, iso)) return { cls: "capacity-red", style: "" };
     const restricted = RESTRICTED[site] && RESTRICTED[site][iso];
-    if (restricted) return `restrict-${restricted.highlight}`;
-    if (capacityThresholdMetFor(site, iso)) return "capacity-yellow";
-    if (HOLIDAYS[iso]) return "holiday";
-    if (isWeekend(VIEW_YEAR, VIEW_MONTH, d)) return "weekend";
-    return null;
+    if (restricted) return { cls: "", style: `background-color:${restricted.color};` };
+    if (capacityThresholdMetFor(site, iso)) return { cls: "capacity-yellow", style: "" };
+    if (HOLIDAYS[iso]) return { cls: "holiday", style: "" };
+    if (isWeekend(VIEW_YEAR, VIEW_MONTH, d)) return { cls: "weekend", style: "" };
+    return { cls: "", style: "" };
   }
   function dayTitle(d) {
     const iso = isoDate(VIEW_YEAR, VIEW_MONTH, d);
@@ -436,11 +465,11 @@ function renderSiteGrid(site) {
 
   let headHtml = "<tr><td class='lanehead'></td>";
   for (let d = 1; d <= nDays; d++) {
-    const bg = dayBgClass(d);
-    let cls = "daynum" + (bg ? ` ${bg}` : "");
+    const bg = dayBackground(d);
+    let cls = "daynum" + (bg.cls ? ` ${bg.cls}` : "");
     if (isToday(VIEW_YEAR, VIEW_MONTH, d)) cls += " today";
     if (SELECTED_DAYS.site === site && SELECTED_DAYS.days.has(d)) cls += " selected";
-    headHtml += `<td class="${cls}" data-day="${d}"${dayTitle(d)}>${d}<span class="daynum-weekday">${weekdayAbbr(VIEW_YEAR, VIEW_MONTH, d)}</span></td>`;
+    headHtml += `<td class="${cls}" style="${bg.style}" data-day="${d}"${dayTitle(d)}>${d}<span class="daynum-weekday">${weekdayAbbr(VIEW_YEAR, VIEW_MONTH, d)}</span></td>`;
   }
   headHtml += "</tr>";
 
@@ -461,15 +490,21 @@ function renderSiteGrid(site) {
       rows += "<tr>";
       if (t === 0) rows += `<td class="lanehead" rowspan="${maxTrack}">${label}</td>`;
       for (let d = 1; d <= nDays; d++) {
-        const bg = dayBgClass(d);
-        let cls = "cell" + (bg ? ` ${bg}` : "");
+        const bg = dayBackground(d);
+        let cls = "cell" + (bg.cls ? ` ${bg.cls}` : "");
         if (isToday(VIEW_YEAR, VIEW_MONTH, d)) cls += " today";
         const r = perDay[d][t];
         if (r) {
           const p = profileById(r.user_id);
           const initials = p ? p.initials : "?";
-          const suffix = (r.leave_type === "toil_am" || r.leave_type === "toil_pm") && r.toil_time
-            ? ` ${fmtTime(r.toil_time)}` : "";
+          // Narrow tile — show the first range's start time, plus a
+          // "+N" if there's more than one range, rather than trying to
+          // cram every range in (the full list is in the tooltip/detail popup).
+          let suffix = "";
+          if (r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length) {
+            suffix = ` ${r.toil_ranges[0].start}`;
+            if (r.toil_ranges.length > 1) suffix += `+${r.toil_ranges.length - 1}`;
+          }
           // Study leave keeps its blue "study" colour throughout — pending
           // or approved — rather than only turning blue once approved.
           // TOIL similarly gets its own purple identity: light purple
@@ -479,7 +514,7 @@ function renderSiteGrid(site) {
           let statusClass;
           if (r.leave_type === "study_leave") {
             statusClass = r.status === "rejected" ? "rejected" : "study";
-          } else if (r.leave_type === "toil_full_day" || r.leave_type === "toil_am" || r.leave_type === "toil_pm") {
+          } else if (r.leave_type === "toil_full_day" || r.leave_type === "toil_part_day") {
             statusClass = r.status === "rejected" ? "rejected"
               : r.status === "approved" ? "toil-approved" : "toil-pending";
           } else {
@@ -491,9 +526,9 @@ function renderSiteGrid(site) {
           // fill is guaranteed by the table cell's own background rather
           // than a percentage-height flex child, which some browsers
           // fail to size correctly inside a table row.
-          rows += `<td class="${cls} tile ${statusClass}${pendingModifier}" title="${escapeHtml(tooltip)}" onclick="openDetail('${r.id}')">${escapeHtml(initials)}${suffix}</td>`;
+          rows += `<td class="${cls} tile ${statusClass}${pendingModifier}${BULK_SELECTED.has(r.id) ? " bulk-selected" : ""}" style="${bg.style}" title="${escapeHtml(tooltip)}" onclick="handleTileClick(event, '${r.id}')">${escapeHtml(initials)}${suffix}</td>`;
         } else {
-          rows += `<td class="${cls}"></td>`;
+          rows += `<td class="${cls}" style="${bg.style}"></td>`;
         }
       }
       rows += "</tr>";
@@ -503,7 +538,7 @@ function renderSiteGrid(site) {
 
   grid.innerHTML = headHtml
     + laneRows("Annual Leave", r => r.leave_type === "full_day")
-    + laneRows("TOIL", r => r.leave_type === "toil_full_day" || r.leave_type === "toil_am" || r.leave_type === "toil_pm")
+    + laneRows("TOIL", r => r.leave_type === "toil_full_day" || r.leave_type === "toil_part_day")
     + laneRows("Study Leave", r => r.leave_type === "study_leave");
 }
 
@@ -579,118 +614,9 @@ document.addEventListener("click", (e) => {
   clearDaySelection();
 });
 
-/* ---------------- TOIL time clock picker ---------------- */
-// A single-time-point pick, styled after the same clock-dial approach
-// used elsewhere (07:00–19:00, 5-minute increments) but simplified
-// down to one selection instead of a range — that's all a TOIL
-// start/leaving time needs.
-const TOIL_CLOCK_START = 420; // 07:00 in minutes since midnight
-const TOIL_CLOCK_END = 1140;  // 19:00
-const TOIL_CLOCK_STEP = 5;
-let TOIL_SELECTED_MINUTE = null;
-
-function toilClockFmt(m) {
-  return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
-}
-
-function renderTimeClock() {
-  const wrap = document.getElementById("toilClockWrap");
-  if (!wrap) return;
-  wrap.innerHTML = "";
-  const NS = "http://www.w3.org/2000/svg";
-  const cx = 155, cy = 155, r = 128;
-  function E(n, attrs) {
-    const el = document.createElementNS(NS, n);
-    for (const k in attrs) el.setAttribute(k, attrs[k]);
-    return el;
-  }
-  function point(m, rad) {
-    rad = rad == null ? r : rad;
-    const f = (m - TOIL_CLOCK_START) / (TOIL_CLOCK_END - TOIL_CLOCK_START);
-    const a = -Math.PI / 2 + f * Math.PI * 2;
-    return { x: cx + Math.cos(a) * rad, y: cy + Math.sin(a) * rad };
-  }
-
-  const svg = E("svg", { viewBox: "0 0 310 310" });
-  svg.style.width = "100%";
-  svg.style.maxWidth = "300px";
-  svg.style.touchAction = "manipulation";
-
-  svg.appendChild(E("circle", { cx, cy, r, fill: "#fbfcfe", stroke: "#d0d7e2", "stroke-width": 2 }));
-
-  for (let h = 7; h <= 18; h++) {
-    const p = point(h * 60, r - 26);
-    const t = E("text", {
-      x: p.x, y: p.y, "text-anchor": "middle", "dominant-baseline": "middle",
-      fill: "#172033", "font-size": 11, "font-weight": 700,
-    });
-    t.textContent = String(h).padStart(2, "0");
-    svg.appendChild(t);
-  }
-  const epText = E("text", { x: cx, y: 16, "text-anchor": "middle", fill: "#667085", "font-size": 9 });
-  epText.textContent = "07:00 / 19:00";
-  svg.appendChild(epText);
-
-  const dots = [];
-  for (let m = TOIL_CLOCK_START; m < TOIL_CLOCK_END; m += TOIL_CLOCK_STEP) {
-    const p = point(m);
-    const d = E("circle", {
-      cx: p.x, cy: p.y, r: m % 60 === 0 ? 4 : 2.2, fill: "#94a3b8",
-      tabindex: 0, role: "button", "aria-label": "Select " + toilClockFmt(m),
-    });
-    d.style.cursor = "pointer";
-    d.dataset.m = m;
-    d.addEventListener("click", () => selectToilTime(m));
-    d.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectToilTime(m); } });
-    svg.appendChild(d);
-    dots.push(d);
-  }
-
-  const p19 = point(TOIL_CLOCK_END, r - 13);
-  const endDot = E("circle", {
-    cx: p19.x, cy: p19.y, r: 4.5, fill: "#475569",
-    tabindex: 0, role: "button", "aria-label": "Select 19:00",
-  });
-  endDot.style.cursor = "pointer";
-  endDot.addEventListener("click", () => selectToilTime(TOIL_CLOCK_END));
-  endDot.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectToilTime(TOIL_CLOCK_END); } });
-  svg.appendChild(endDot);
-
-  wrap.appendChild(svg);
-  wrap._dots = dots;
-  wrap._endDot = endDot;
-  updateToilClockHighlight();
-}
-
-function updateToilClockHighlight() {
-  const wrap = document.getElementById("toilClockWrap");
-  if (!wrap || !wrap._dots) return;
-  wrap._dots.forEach((d) => {
-    const m = +d.dataset.m;
-    const sel = TOIL_SELECTED_MINUTE === m;
-    d.setAttribute("fill", sel ? "#172033" : "#94a3b8");
-    d.setAttribute("r", sel ? 7 : (m % 60 === 0 ? 4 : 2.2));
-  });
-  if (wrap._endDot) {
-    const sel = TOIL_SELECTED_MINUTE === TOIL_CLOCK_END;
-    wrap._endDot.setAttribute("fill", sel ? "#172033" : "#475569");
-    wrap._endDot.setAttribute("r", sel ? 7 : 4.5);
-  }
-  const status = document.getElementById("toilClockStatus");
-  if (status) {
-    status.textContent = TOIL_SELECTED_MINUTE === null
-      ? "No time selected yet — tap a point on the dial."
-      : `Selected: ${toilClockFmt(TOIL_SELECTED_MINUTE)}`;
-  }
-}
-
-function selectToilTime(m) {
-  TOIL_SELECTED_MINUTE = m;
-  document.getElementById("toilTime").value = toilClockFmt(m);
-  updateToilClockHighlight();
-}
-
 /* ---------------- Request modal ---------------- */
+let REQ_TOIL_PICKER = null;
+
 function openRequestModal() {
   document.getElementById("reqMsg").innerHTML = "";
   document.getElementById("userPickerWrap").style.display = isLeadPlus(PROFILE) ? "" : "none";
@@ -701,10 +627,8 @@ function openRequestModal() {
   document.getElementById("toilWrap").style.display = "none";
   document.getElementById("toilKind").value = "toil_full_day";
   document.getElementById("toilPartWrap").style.display = "none";
-  document.getElementById("toilPart").value = "toil_am";
-  document.getElementById("toilTimeLabel").textContent = "Start time";
-  document.getElementById("toilTime").value = "";
-  TOIL_SELECTED_MINUTE = null;
+  REQ_TOIL_PICKER = null;
+  document.getElementById("toilRangePicker").innerHTML = "";
   document.getElementById("reqOverlay").style.display = "flex";
 }
 function closeRequestModal() { document.getElementById("reqOverlay").style.display = "none"; }
@@ -722,30 +646,24 @@ document.getElementById("toilKind").addEventListener("change", (e) => {
   const showPart = e.target.value === "part_day";
   document.getElementById("toilPartWrap").style.display = showPart ? "" : "none";
   if (showPart) {
-    TOIL_SELECTED_MINUTE = null;
-    document.getElementById("toilTime").value = "";
-    renderTimeClock();
+    REQ_TOIL_PICKER = createTimeRangePicker(document.getElementById("toilRangePicker"), []);
   }
-});
-document.getElementById("toilPart").addEventListener("change", (e) => {
-  document.getElementById("toilTimeLabel").textContent = e.target.value === "toil_am" ? "Start time" : "Leaving time";
 });
 
 // Resolves the modal's selections down to a single leave_type + optional
-// TOIL clock time to send to the backend.
+// TOIL time ranges to send to the backend.
 function computeLeaveSelection() {
   const typeSel = document.getElementById("reqType").value;
   if (typeSel === "full_day" || typeSel === "study_leave") {
-    return { leaveType: typeSel, toilTime: null };
+    return { leaveType: typeSel, toilRanges: null };
   }
   // TOIL
   const kind = document.getElementById("toilKind").value;
   if (kind === "toil_full_day") {
-    return { leaveType: "toil_full_day", toilTime: null };
+    return { leaveType: "toil_full_day", toilRanges: null };
   }
-  const part = document.getElementById("toilPart").value; // 'toil_am' | 'toil_pm'
-  const time = document.getElementById("toilTime").value; // 'HH:MM' or ''
-  return { leaveType: part, toilTime: time || null };
+  const ranges = REQ_TOIL_PICKER ? REQ_TOIL_PICKER.getRanges() : [];
+  return { leaveType: "toil_part_day", toilRanges: ranges.length ? ranges : null };
 }
 
 document.getElementById("reqForm").addEventListener("submit", async (e) => {
@@ -754,7 +672,7 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
   const btn = document.getElementById("reqSubmitBtn");
   const startDate = document.getElementById("reqStartDate").value;
   const endDate = document.getElementById("reqEndDate").value;
-  const { leaveType, toilTime } = computeLeaveSelection();
+  const { leaveType, toilRanges } = computeLeaveSelection();
   const targetUser = (isLeadPlus(PROFILE) && document.getElementById("userPickerWrap").style.display !== "none")
     ? document.getElementById("reqUser").value
     : PROFILE.id;
@@ -763,8 +681,8 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
     showMsg(msg, "End date must be on or after the start date.", "error");
     return;
   }
-  if ((leaveType === "toil_am" || leaveType === "toil_pm") && !toilTime) {
-    showMsg(msg, leaveType === "toil_am" ? "Please choose a start time." : "Please choose a leaving time.", "error");
+  if (leaveType === "toil_part_day" && !toilRanges) {
+    showMsg(msg, "Please select at least one time range on the dial.", "error");
     return;
   }
 
@@ -788,7 +706,7 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
   try {
     if (startDate === endDate) {
       const { error } = await sb.rpc("request_leave", {
-        p_user_id: targetUser, p_leave_date: startDate, p_leave_type: leaveType, p_toil_time: toilTime,
+        p_user_id: targetUser, p_leave_date: startDate, p_leave_type: leaveType, p_toil_ranges: toilRanges,
       });
       if (error) throw error;
       closeRequestModal();
@@ -796,7 +714,7 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
     } else {
       const { data: count, error } = await sb.rpc("request_leave_range", {
         p_user_id: targetUser, p_start_date: startDate, p_end_date: endDate,
-        p_leave_type: leaveType, p_toil_time: toilTime,
+        p_leave_type: leaveType, p_toil_ranges: toilRanges,
       });
       if (error) throw error;
       showMsg(msg, `${count} tile${count === 1 ? "" : "s"} created (weekends skipped).`, "ok");
@@ -837,7 +755,7 @@ async function openDetail(id) {
   const isOwnPending = r.status === "pending" && (r.requested_by === PROFILE.id || r.user_id === PROFILE.id);
   const canSuperAdmin = isSuperuserPlus(PROFILE);
   const canDelete = isLeadPlus(PROFILE); // lead_pharmacist and above — a note is required
-  const canAmendToil = isLeadPlus(PROFILE) && (r.leave_type === "toil_am" || r.leave_type === "toil_pm");
+  const canAmendToil = isLeadPlus(PROFILE) && r.leave_type === "toil_part_day";
 
   if (canProcess) {
     actions.innerHTML += `<button class="primary" onclick="doApprove('${r.id}')">Approve</button>
@@ -847,7 +765,7 @@ async function openDetail(id) {
     actions.innerHTML += `<button class="secondary" onclick="doCancelOwn('${r.id}')">Cancel request</button>`;
   }
   if (canAmendToil) {
-    actions.innerHTML += `<button class="secondary" onclick="doAmendToilTime('${r.id}')">Amend TOIL time</button>`;
+    actions.innerHTML += `<button class="secondary" onclick="doAmendToilRanges('${r.id}')">Amend TOIL times</button>`;
   }
   if (canSuperAdmin) {
     actions.innerHTML += `<button class="secondary" onclick="doEdit('${r.id}')">Edit</button>`;
@@ -863,15 +781,108 @@ async function openDetail(id) {
 }
 function closeDetailModal() { document.getElementById("detOverlay").style.display = "none"; }
 
+/* ---------------- Bulk select / approve / reject (Ctrl+click a tile) ---------------- */
+// Ctrl (or Cmd, on Mac) + click a PENDING tile toggles it into the bulk
+// selection instead of opening its detail popup — Lead Pharmacist+
+// only, since this is purely an approver convenience for clearing a
+// backlog. An ordinary click still opens the detail popup as normal.
+function handleTileClick(e, id) {
+  if ((e.ctrlKey || e.metaKey) && isLeadPlus(PROFILE)) {
+    e.preventDefault();
+    const r = REQUESTS.find(x => x.id === id);
+    if (!r || r.status !== "pending") return; // only pending requests can be bulk-actioned
+    if (BULK_SELECTED.has(id)) {
+      BULK_SELECTED.delete(id);
+      e.currentTarget.classList.remove("bulk-selected");
+    } else {
+      BULK_SELECTED.add(id);
+      e.currentTarget.classList.add("bulk-selected");
+    }
+    updateBulkToolbar();
+    return;
+  }
+  openDetail(id);
+}
+
+function updateBulkToolbar() {
+  const bar = document.getElementById("bulkActionBar");
+  const n = BULK_SELECTED.size;
+  document.getElementById("bulkCount").textContent = `${n} request${n === 1 ? "" : "s"} selected`;
+  bar.style.display = n > 0 ? "flex" : "none";
+}
+
+function bulkClearSelection() {
+  BULK_SELECTED.clear();
+  document.querySelectorAll(".tile.bulk-selected").forEach(el => el.classList.remove("bulk-selected"));
+  updateBulkToolbar();
+}
+
+async function bulkApprove() {
+  const ids = [...BULK_SELECTED];
+  if (!ids.length) return;
+  if (!await uiConfirm(`Approve ${ids.length} selected leave request${ids.length === 1 ? "" : "s"}?`)) return;
+
+  let okCount = 0;
+  const failures = [];
+  for (const id of ids) {
+    const r = REQUESTS.find(x => x.id === id);
+    if (!r) continue;
+    let note = null;
+    if (r.leave_type === "toil_part_day") {
+      const owner = profileById(r.user_id);
+      const ranges = formatToilRanges(r.toil_ranges);
+      note = await uiPrompt(
+        `Confirm the agreed TOIL times for ${owner ? owner.full_name : "this request"} on ${fmtDate(r.leave_date)}${ranges ? ` (requested: ${ranges})` : ""}:`,
+        ranges, { required: true, title: "Approve TOIL" }
+      );
+      if (note === null) { failures.push(`${fmtDate(r.leave_date)}: skipped (cancelled)`); continue; }
+    }
+    const { error } = await sb.rpc("approve_leave", { p_leave_id: id, p_note: note });
+    if (error) failures.push(`${fmtDate(r.leave_date)}: ${error.message}`);
+    else okCount++;
+  }
+
+  await refreshCalendar();
+  if (failures.length) {
+    await uiAlert(`${okCount} approved, ${failures.length} failed:\n${failures.join("\n")}`, "Bulk approve results");
+  }
+}
+
+async function bulkReject() {
+  const ids = [...BULK_SELECTED];
+  if (!ids.length) return;
+  const reason = await uiPrompt(
+    `Reason for rejecting ${ids.length} selected leave request${ids.length === 1 ? "" : "s"}:`,
+    "", { required: true, title: "Reject selected" }
+  );
+  if (reason === null) return;
+
+  let okCount = 0;
+  const failures = [];
+  for (const id of ids) {
+    const { error } = await sb.rpc("reject_leave", { p_leave_id: id, p_reason: reason });
+    if (error) {
+      const r = REQUESTS.find(x => x.id === id);
+      failures.push(`${r ? fmtDate(r.leave_date) : id}: ${error.message}`);
+    } else okCount++;
+  }
+
+  await refreshCalendar();
+  if (failures.length) {
+    await uiAlert(`${okCount} rejected, ${failures.length} failed:\n${failures.join("\n")}`, "Bulk reject results");
+  }
+}
+
 async function doApprove(id) {
   const msg = document.getElementById("detMsg");
   const r = REQUESTS.find(x => x.id === id);
   let note = null;
-  if (r && (r.leave_type === "toil_am" || r.leave_type === "toil_pm")) {
-    const label = r.leave_type === "toil_am"
-      ? "Confirm the time they're starting (their TOIL AM request):"
-      : "Confirm the time they're finishing (their TOIL PM request):";
-    note = await uiPrompt(label, r.toil_time ? fmtTime(r.toil_time) : "", { required: true, title: "Approve TOIL" });
+  if (r && r.leave_type === "toil_part_day") {
+    const ranges = formatToilRanges(r.toil_ranges);
+    note = await uiPrompt(
+      `Confirm the agreed TOIL times${ranges ? ` (requested: ${ranges})` : ""}:`,
+      ranges, { required: true, title: "Approve TOIL" }
+    );
     if (note === null) return; // cancelled
   }
   try {
@@ -909,44 +920,73 @@ async function doUnapprove(id) {
     closeDetailModal(); await refreshCalendar();
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
-async function doAmendToilTime(id) {
+
+/* ---------------- Amend TOIL times modal ---------------- */
+let AMEND_TOIL_PICKER = null;
+let AMEND_TOIL_ID = null;
+function doAmendToilRanges(id) {
   const r = REQUESTS.find(x => x.id === id);
   if (!r) return;
-  const label = r.leave_type === "toil_am" ? "New start time:" : "New leaving time:";
-  const newTime = await uiPrompt(label, r.toil_time ? fmtTime(r.toil_time) : "", { type: "time", required: true, title: "Amend TOIL time" });
-  if (!newTime) return;
-  const note = await uiPrompt("Note for the audit trail (optional):", "", { title: "Amend TOIL time" });
-  if (note === null) return;
-  const msg = document.getElementById("detMsg");
-  try {
-    const { error } = await sb.rpc("amend_toil_time", { p_leave_id: id, p_new_toil_time: newTime, p_note: note || null });
-    if (error) throw error;
-    closeDetailModal(); await refreshCalendar();
-  } catch (err) { showMsg(msg, err.message, "error"); }
+  AMEND_TOIL_ID = id;
+  document.getElementById("amendToilMsg").innerHTML = "";
+  document.getElementById("amendToilNote").value = "";
+  AMEND_TOIL_PICKER = createTimeRangePicker(document.getElementById("amendToilPicker"), r.toil_ranges || []);
+  document.getElementById("amendToilOverlay").style.display = "flex";
 }
+function closeAmendToilModal() { document.getElementById("amendToilOverlay").style.display = "none"; }
+
+async function saveAmendToilRanges() {
+  const msg = document.getElementById("amendToilMsg");
+  const btn = document.getElementById("amendToilSaveBtn");
+  const ranges = AMEND_TOIL_PICKER ? AMEND_TOIL_PICKER.getRanges() : [];
+  if (!ranges.length) {
+    showMsg(msg, "Please select at least one time range.", "error");
+    return;
+  }
+  const note = document.getElementById("amendToilNote").value.trim();
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const { error } = await sb.rpc("amend_toil_ranges", {
+      p_leave_id: AMEND_TOIL_ID, p_new_toil_ranges: ranges, p_note: note || null,
+    });
+    if (error) throw error;
+    closeAmendToilModal(); closeDetailModal(); await refreshCalendar();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Save";
+  }
+}
+
 async function doEdit(id) {
   const r = REQUESTS.find(x => x.id === id);
   const newDate = await uiPrompt("New date:", r.leave_date, { type: "date", required: true, title: "Edit leave" });
   if (!newDate) return;
   const newType = await uiPrompt(
-    "New leave type (full_day / toil_full_day / toil_am / toil_pm / study_leave):",
+    "New leave type (full_day / toil_full_day / toil_part_day / study_leave):",
     r.leave_type, { required: true, title: "Edit leave" }
   );
   if (!newType) return;
-  let newToilTime = null;
-  if (newType === "toil_am" || newType === "toil_pm") {
-    newToilTime = await uiPrompt(
-      newType === "toil_am" ? "Start time:" : "Leaving time:",
-      r.toil_time ? fmtTime(r.toil_time) : "", { type: "time", required: true, title: "Edit leave" }
+  let newToilRanges = null;
+  if (newType === "toil_part_day") {
+    const text = await uiPrompt(
+      "Time ranges, comma-separated (e.g. 08:00-10:00, 16:00-18:00):",
+      formatToilRanges(r.toil_ranges).replace(/\u2013/g, "-"),
+      { required: true, title: "Edit leave" }
     );
-    if (!newToilTime) return;
+    if (!text) return;
+    newToilRanges = parseToilRangesText(text);
+    if (!newToilRanges) {
+      await uiAlert("Couldn't parse those time ranges — please use the format 08:00-10:00, 16:00-18:00.");
+      return;
+    }
   }
   const note = await uiPrompt("Note for the audit trail (optional):", "", { title: "Edit leave" });
   if (note === null) return;
   const msg = document.getElementById("detMsg");
   try {
     const { error } = await sb.rpc("edit_leave", {
-      p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note || null, p_new_toil_time: newToilTime,
+      p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note || null, p_new_toil_ranges: newToilRanges,
     });
     if (error) throw error;
     closeDetailModal(); await refreshCalendar();

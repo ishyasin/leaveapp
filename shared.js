@@ -16,8 +16,7 @@ const LEAVE_TYPE_LABEL = {
   full_day: "Full Day",
   study_leave: "Study Leave",
   toil_full_day: "TOIL (Full Day)",
-  toil_am: "TOIL (AM)",
-  toil_pm: "TOIL (PM)",
+  toil_part_day: "TOIL (Part Day)",
 };
 
 const ROLE_LABEL = {
@@ -136,6 +135,212 @@ function uiPrompt(message, defaultValue, opts) {
       input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
     }
   });
+}
+
+/* =====================================================================
+   Reusable TOIL multi-time-range picker — a clock dial (07:00–19:00,
+   5-minute increments): click once for a start time, click again for
+   the end, and it becomes a highlighted range; repeat for as many
+   separate ranges as needed in the same request (e.g. 08:00–10:00 AND
+   16:00–18:00). Every range is also editable afterwards via a
+   start/end dropdown pair in the list underneath, with its own Remove
+   button, plus Undo-last-range and Clear-all. This is a factory
+   function (not globals) specifically so more than one instance can
+   exist on a page — e.g. the request modal and an "amend times" modal
+   — without their state colliding.
+   ===================================================================== */
+function createTimeRangePicker(container, initialRanges) {
+  const START = 420, END = 1140, STEP = 5; // 07:00–19:00
+  let pending = null;
+  const timeStrToMin = (s) => { const [h, m] = s.split(":").map(Number); return h * 60 + m; };
+  let ranges = (initialRanges || []).map(r => ({ start: timeStrToMin(r.start), end: timeStrToMin(r.end) }));
+
+  function fmt(m) { return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"); }
+  function inRange(m) { return ranges.some(q => m >= q.start && m < q.end); }
+  function sortMerge() {
+    ranges.sort((a, b) => a.start - b.start);
+    const out = [];
+    for (const q of ranges) {
+      if (out.length && q.start <= out[out.length - 1].end) {
+        out[out.length - 1].end = Math.max(out[out.length - 1].end, q.end);
+      } else out.push({ ...q });
+    }
+    ranges = out;
+  }
+
+  container.innerHTML = `
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:#f8fafc;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;">
+      <div>
+        <div class="trp-instruction" style="font-weight:700;font-size:13px;"></div>
+        <div class="small">Click once for start, then click again for end.</div>
+      </div>
+      <div class="trp-current" style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;"></div>
+    </div>
+    <div style="display:flex;justify-content:center;margin:8px 0;">
+      <svg class="trp-svg" viewBox="0 0 310 310" style="width:100%;max-width:280px;touch-action:manipulation;"></svg>
+    </div>
+    <div class="trp-ranges"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+      <button type="button" class="secondary trp-undo">Undo last range</button>
+      <button type="button" class="secondary trp-clear">Clear all</button>
+    </div>`;
+
+  const svg = container.querySelector(".trp-svg");
+  const instructionEl = container.querySelector(".trp-instruction");
+  const currentEl = container.querySelector(".trp-current");
+  const rangeListEl = container.querySelector(".trp-ranges");
+
+  const NS = "http://www.w3.org/2000/svg";
+  const cx = 155, cy = 155, r = 128;
+  function E(n, attrs) {
+    const el = document.createElementNS(NS, n);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+  function point(m, rad) {
+    rad = rad == null ? r : rad;
+    const f = (m - START) / (END - START);
+    const a = -Math.PI / 2 + f * Math.PI * 2;
+    return { x: cx + Math.cos(a) * rad, y: cy + Math.sin(a) * rad };
+  }
+
+  svg.appendChild(E("circle", { cx, cy, r, fill: "#fbfcfe", stroke: "#d0d7e2", "stroke-width": 2 }));
+  const arcLayer = E("g"); svg.appendChild(arcLayer);
+  for (let h = 7; h <= 18; h++) {
+    const p = point(h * 60, r - 26);
+    const t = E("text", { x: p.x, y: p.y, "text-anchor": "middle", "dominant-baseline": "middle", fill: "#172033", "font-size": 11, "font-weight": 700 });
+    t.textContent = String(h).padStart(2, "0");
+    svg.appendChild(t);
+  }
+  const epText = E("text", { x: cx, y: 16, "text-anchor": "middle", fill: "#667085", "font-size": 9 });
+  epText.textContent = "07:00 / 19:00";
+  svg.appendChild(epText);
+
+  const dots = [];
+  for (let m = START; m < END; m += STEP) {
+    const p = point(m);
+    const d = E("circle", { cx: p.x, cy: p.y, r: m % 60 === 0 ? 4 : 2.2, fill: "#94a3b8", tabindex: 0, role: "button", "aria-label": "Select " + fmt(m) });
+    d.style.cursor = "pointer";
+    d.dataset.m = m;
+    d.addEventListener("click", () => choose(m));
+    d.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(m); } });
+    svg.appendChild(d);
+    dots.push(d);
+  }
+  const p19 = point(END, r - 13);
+  const endDot = E("circle", { cx: p19.x, cy: p19.y, r: 4.5, fill: "#475569", tabindex: 0, role: "button", "aria-label": "Select 19:00" });
+  endDot.style.cursor = "pointer";
+  endDot.addEventListener("click", () => choose(END));
+  svg.appendChild(endDot);
+
+  function redrawArcs() {
+    arcLayer.innerHTML = "";
+    ranges.forEach((q) => {
+      const samples = [];
+      for (let m = q.start; m <= q.end; m += 5) samples.push(point(m, r - 16));
+      if (samples.length > 1) {
+        let d = "M " + samples[0].x + " " + samples[0].y;
+        for (let i = 1; i < samples.length; i++) d += " L " + samples[i].x + " " + samples[i].y;
+        arcLayer.appendChild(E("path", { d, fill: "none", stroke: "#dbeafe", "stroke-width": 22, "stroke-linecap": "round" }));
+      }
+    });
+  }
+
+  function renderRangeList() {
+    rangeListEl.innerHTML = "";
+    if (!ranges.length) {
+      rangeListEl.innerHTML = '<div class="small">No time ranges selected yet.</div>';
+      return;
+    }
+    ranges.forEach((q, i) => {
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;margin:4px 0;border:1px solid var(--border);border-radius:6px;background:#f8fafc;flex-wrap:wrap;";
+
+      function makeSelect(value, min, max) {
+        const sel = document.createElement("select");
+        sel.style.cssText = "width:auto;min-width:80px;";
+        for (let m = min; m <= max; m += STEP) {
+          const opt = document.createElement("option");
+          opt.value = m; opt.textContent = fmt(m);
+          if (m === value) opt.selected = true;
+          sel.appendChild(opt);
+        }
+        return sel;
+      }
+
+      const startSel = makeSelect(q.start, START, END - STEP);
+      const endSel = makeSelect(q.end, START + STEP, END);
+      const dash = document.createElement("span");
+      dash.textContent = "–";
+      dash.style.fontWeight = "700";
+
+      function applyEdit() {
+        let newStart = Number(startSel.value);
+        let newEnd = Number(endSel.value);
+        if (newEnd <= newStart) {
+          newEnd = Math.min(END, newStart + STEP);
+          endSel.value = String(newEnd);
+        }
+        ranges[i] = { start: newStart, end: newEnd };
+        sortMerge();
+        rerender();
+      }
+      startSel.addEventListener("change", applyEdit);
+      endSel.addEventListener("change", applyEdit);
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "danger";
+      removeBtn.textContent = "Remove";
+      removeBtn.addEventListener("click", () => { ranges.splice(i, 1); rerender(); });
+
+      const editWrap = document.createElement("div");
+      editWrap.style.cssText = "display:flex;align-items:center;gap:6px;";
+      editWrap.append(startSel, dash, endSel);
+      row.append(editWrap, removeBtn);
+      rangeListEl.appendChild(row);
+    });
+  }
+
+  function rerender() {
+    redrawArcs();
+    dots.forEach((d) => {
+      const m = +d.dataset.m;
+      const selected = inRange(m);
+      const isPending = pending === m;
+      d.setAttribute("fill", isPending ? "#172033" : selected ? "#2563eb" : "#94a3b8");
+      d.setAttribute("r", isPending ? 7 : selected ? 5 : (m % 60 === 0 ? 4 : 2.2));
+    });
+    const endSelected = ranges.some((q) => q.end === END);
+    endDot.setAttribute("fill", pending === END ? "#172033" : endSelected ? "#2563eb" : "#475569");
+    instructionEl.textContent = pending === null ? "Select a start time" : "Now select the end time";
+    currentEl.textContent = pending === null ? "—" : fmt(pending) + " →";
+    renderRangeList();
+  }
+
+  function choose(m) {
+    if (pending === null) { pending = m; rerender(); return; }
+    if (m === pending) { pending = null; rerender(); return; }
+    const a = Math.min(pending, m), b = Math.max(pending, m);
+    ranges.push({ start: a, end: b });
+    pending = null;
+    sortMerge();
+    rerender();
+  }
+
+  container.querySelector(".trp-undo").addEventListener("click", () => {
+    if (pending !== null) pending = null; else ranges.pop();
+    rerender();
+  });
+  container.querySelector(".trp-clear").addEventListener("click", () => {
+    ranges = []; pending = null; rerender();
+  });
+
+  rerender();
+
+  return {
+    getRanges() { return ranges.map((q) => ({ start: fmt(q.start), end: fmt(q.end) })); },
+  };
 }
 
 /* ---------------- session / auth ---------------- */
@@ -259,6 +464,31 @@ function fmtDate(iso) {
 function fmtTime(t) {
   if (!t) return "";
   return t.slice(0, 5); // "08:30:00" -> "08:30"
+}
+// e.g. [{"start":"08:00","end":"10:00"},{"start":"16:00","end":"18:00"}]
+// -> "08:00–10:00, 16:00–18:00"
+function formatToilRanges(ranges) {
+  if (!ranges || !ranges.length) return "";
+  return ranges.map(r => `${r.start}\u2013${r.end}`).join(", ");
+}
+// Reverse of the above, for the plain-text fallback entry points (the
+// admin Import/Edit flows use a comma-separated prompt rather than the
+// full dial picker). Returns null if any segment can't be parsed.
+function parseToilRangesText(text) {
+  if (!text || !text.trim()) return null;
+  const timeRe = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
+  const parts = text.split(",").map(s => s.trim()).filter(Boolean);
+  if (!parts.length) return null;
+  const ranges = [];
+  for (const part of parts) {
+    const m = part.match(/^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/);
+    if (!m) return null;
+    const start = m[1].padStart(5, "0");
+    const end = m[2].padStart(5, "0");
+    if (!timeRe.test(start) || !timeRe.test(end) || start >= end) return null;
+    ranges.push({ start, end });
+  }
+  return ranges;
 }
 
 function showMsg(container, text, type) {

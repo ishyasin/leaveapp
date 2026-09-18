@@ -167,7 +167,7 @@ async function load() {
       <td>${fmtDate(r.leave_date)}${clashCount > 1 ? ` <span class="badge pending">${clashCount}&times;</span>` : ""}
         ${r._restrictionFlag ? `<br><span class="badge rejected" title="${escapeHtml(restrictionLabel(r._restrictionFlag))}">&#9888; Restricted day</span>` : ""}
       </td>
-      <td>${LEAVE_TYPE_LABEL[r.leave_type]}${(r.leave_type === "toil_am" || r.leave_type === "toil_pm") && r.toil_time ? ` (${fmtTime(r.toil_time)})` : ""}</td>
+      <td>${LEAVE_TYPE_LABEL[r.leave_type]}${r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length ? ` (${formatToilRanges(r.toil_ranges)})` : ""}</td>
       <td>${escapeHtml(nameFor(r.requested_by))}</td>
       <td style="white-space:nowrap;">
         ${blocked
@@ -210,11 +210,12 @@ async function approve(id) {
     }
 
     let toilNote = null;
-    if (r.leave_type === "toil_am" || r.leave_type === "toil_pm") {
-      const label = r.leave_type === "toil_am"
-        ? "Confirm the time they're starting (their TOIL AM request):"
-        : "Confirm the time they're finishing (their TOIL PM request):";
-      toilNote = await uiPrompt(label, r.toil_time ? fmtTime(r.toil_time) : "", { required: true, title: "Approve TOIL" });
+    if (r.leave_type === "toil_part_day") {
+      const ranges = formatToilRanges(r.toil_ranges);
+      toilNote = await uiPrompt(
+        `Confirm the agreed TOIL times${ranges ? ` (requested: ${ranges})` : ""}:`,
+        ranges, { required: true, title: "Approve TOIL" }
+      );
       if (toilNote === null) return; // cancelled
     }
 

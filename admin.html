@@ -93,7 +93,7 @@
   <div id="tab-restricted" style="display:none;">
     <div class="card">
       <h2>Add restricted leave period</h2>
-      <p class="small">Marks a single day or a date range on the calendar, for one site, with a label and a highlight colour — useful for periods where leave is limited (e.g. a ward CQC visit, Christmas). Independent of bank holidays — a day can be both, either, or neither.</p>
+      <p class="small">Marks a single day or a date range on the calendar, for one site, with a label and any colour/intensity you pick from the table below — useful for periods where leave is limited (e.g. a ward CQC visit, Christmas). Independent of bank holidays — a day can be both, either, or neither.</p>
       <div id="restMsg"></div>
       <form id="restForm">
         <label>Site</label>
@@ -108,11 +108,25 @@
         <p class="small" style="margin:2px 0 0;">If the end date is after the start date, every weekday in between is marked — weekends and existing bank holidays are skipped automatically.</p>
         <label>Label</label>
         <input type="text" id="restLabel" placeholder="e.g. Restricted Leave — Christmas" required>
-        <label>Highlight colour</label>
-        <select id="restColour">
-          <option value="yellow">Light yellow</option>
-          <option value="pink">Light red / pink</option>
-        </select>
+
+        <label>Colour</label>
+        <div id="restColorTable" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
+
+        <label>Intensity</label>
+        <input type="range" id="restIntensity" min="0" max="100" value="18" style="width:100%;">
+
+        <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+          <span id="restColorPreview" style="width:32px;height:32px;border-radius:6px;border:1px solid #999;flex-shrink:0;"></span>
+          <span class="small" id="restColorHex">#fdf1b8</span>
+          <button type="button" class="secondary" id="restSaveFavBtn">&#9734; Save to favourites</button>
+        </div>
+        <input type="hidden" id="restColorValue" value="#fdf1b8">
+
+        <div id="restFavWrap" style="margin-top:10px;">
+          <label style="margin-bottom:4px;">Favourites</label>
+          <div id="restFavourites" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+        </div>
+
         <div style="margin-top:14px;">
           <button type="submit" class="primary" id="restSubmitBtn">Add</button>
         </div>
@@ -194,13 +208,12 @@
         <select id="importType">
           <option value="full_day">Full Day</option>
           <option value="toil_full_day">TOIL — Full day</option>
-          <option value="toil_am">TOIL — AM (late start)</option>
-          <option value="toil_pm">TOIL — PM (early finish)</option>
+          <option value="toil_part_day">TOIL — Part day</option>
           <option value="study_leave">Study Leave</option>
         </select>
         <div id="importToilTimeWrap" style="display:none;">
-          <label id="importToilTimeLabel">Start time</label>
-          <input type="time" id="importToilTime">
+          <label>Time ranges</label>
+          <input type="text" id="importToilRangesText" placeholder="e.g. 08:00-10:00, 16:00-18:00">
         </div>
 
         <label>Status</label>
@@ -323,6 +336,9 @@ let PROFILES = [];
   setupRoleOptions();
   await loadUsers();
   await loadHolidays();
+  renderRestColorTable();
+  updateRestColorPreview();
+  await loadFavouriteColors();
   await loadRestricted();
   await loadCapacity();
   await loadCapacityOverrides();
@@ -483,9 +499,7 @@ function setupImportForm() {
   document.getElementById("importApprovedBy").innerHTML = userOptions();
 
   document.getElementById("importType").addEventListener("change", (e) => {
-    const isToilTime = e.target.value === "toil_am" || e.target.value === "toil_pm";
-    document.getElementById("importToilTimeWrap").style.display = isToilTime ? "" : "none";
-    document.getElementById("importToilTimeLabel").textContent = e.target.value === "toil_am" ? "Start time" : "Leaving time";
+    document.getElementById("importToilTimeWrap").style.display = e.target.value === "toil_part_day" ? "" : "none";
   });
   document.getElementById("importStatus").addEventListener("change", (e) => {
     document.getElementById("importRejectedWrap").style.display = e.target.value === "rejected" ? "" : "none";
@@ -501,11 +515,13 @@ function setupImportForm() {
 
     const status = document.getElementById("importStatus").value;
     const leaveType = document.getElementById("importType").value;
-    const toilTime = (leaveType === "toil_am" || leaveType === "toil_pm")
-      ? document.getElementById("importToilTime").value : null;
-    if ((leaveType === "toil_am" || leaveType === "toil_pm") && !toilTime) {
-      showMsg(msg, "Please enter a TOIL time.", "error");
-      return;
+    let toilRanges = null;
+    if (leaveType === "toil_part_day") {
+      toilRanges = parseToilRangesText(document.getElementById("importToilRangesText").value);
+      if (!toilRanges) {
+        showMsg(msg, "Please enter valid time ranges, e.g. 08:00-10:00, 16:00-18:00.", "error");
+        return;
+      }
     }
     const rejectedReason = status === "rejected" ? document.getElementById("importRejectedReason").value.trim() : null;
     if (status === "rejected" && !rejectedReason) {
@@ -526,7 +542,7 @@ function setupImportForm() {
         p_user_id: document.getElementById("importUser").value,
         p_leave_date: document.getElementById("importDate").value,
         p_leave_type: leaveType,
-        p_toil_time: toilTime,
+        p_toil_ranges: toilRanges,
         p_status: status,
         p_requested_by: document.getElementById("importRequestedBy").value,
         p_requested_at: requestedAtRaw ? new Date(requestedAtRaw).toISOString() : null,
@@ -728,6 +744,105 @@ async function removeHoliday(date) {
 }
 
 /* ---------------- restricted days ---------------- */
+/* ---------------- restricted-day colour picker ---------------- */
+// A fixed table of base hues to pick from, each rendered as a mid-tone
+// swatch so they're recognisable in the picker itself — the intensity
+// slider then computes the actual shade (from a very pale tint up to
+// a bold, saturated version of that hue) used as the real highlight colour.
+const REST_HUES = [
+  { name: "Red", hue: 0 }, { name: "Orange", hue: 28 }, { name: "Amber", hue: 45 },
+  { name: "Yellow", hue: 55 }, { name: "Lime", hue: 85 }, { name: "Green", hue: 130 },
+  { name: "Teal", hue: 175 }, { name: "Blue", hue: 210 }, { name: "Indigo", hue: 245 },
+  { name: "Purple", hue: 280 }, { name: "Magenta", hue: 320 }, { name: "Pink", hue: 340 },
+];
+let REST_SELECTED_HUE = 55; // starts on Yellow, matching the old default
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const toHex = x => Math.round(255 * x).toString(16).padStart(2, "0");
+  return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+}
+// Intensity 0 -> very pale (barely tinted), 100 -> bold/saturated.
+function computeRestColor() {
+  const intensity = Number(document.getElementById("restIntensity").value);
+  const lightness = 95 - (intensity / 100) * 55; // 95% down to 40%
+  const saturation = 35 + (intensity / 100) * 45; // 35% up to 80%
+  return hslToHex(REST_SELECTED_HUE, saturation, lightness);
+}
+
+function renderRestColorTable() {
+  const wrap = document.getElementById("restColorTable");
+  wrap.innerHTML = REST_HUES.map(h => `
+    <button type="button" class="secondary" data-hue="${h.hue}" title="${h.name}"
+      style="width:30px;height:30px;padding:0;border-radius:6px;background:${hslToHex(h.hue, 60, 55)};${h.hue === REST_SELECTED_HUE ? "outline:2px solid #172033;outline-offset:1px;" : ""}"></button>
+  `).join("");
+  wrap.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      REST_SELECTED_HUE = Number(btn.dataset.hue);
+      renderRestColorTable();
+      updateRestColorPreview();
+    });
+  });
+}
+
+function updateRestColorPreview() {
+  const hex = computeRestColor();
+  document.getElementById("restColorValue").value = hex;
+  document.getElementById("restColorPreview").style.background = hex;
+  document.getElementById("restColorHex").textContent = hex;
+}
+
+document.getElementById("restIntensity").addEventListener("input", updateRestColorPreview);
+
+document.getElementById("restSaveFavBtn").addEventListener("click", async () => {
+  const msg = document.getElementById("restMsg");
+  const hex = document.getElementById("restColorValue").value;
+  const label = await uiPrompt("Optional label for this favourite (e.g. \"CQC visit red\"):", "", { title: "Save favourite colour" });
+  if (label === null) return; // cancelled
+  try {
+    const { error } = await sb.rpc("add_favourite_color", { p_color: hex, p_label: label || null });
+    if (error) throw error;
+    await loadFavouriteColors();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  }
+});
+
+async function loadFavouriteColors() {
+  const { data } = await sb.from("restricted_day_favourite_colors").select("*").order("created_at", { ascending: false });
+  const wrap = document.getElementById("restFavourites");
+  if (!data || data.length === 0) {
+    wrap.innerHTML = '<span class="small">No favourites saved yet.</span>';
+    return;
+  }
+  wrap.innerHTML = data.map(f => `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <button type="button" data-fav-id="${f.id}" data-fav-color="${f.color}" title="${escapeHtml(f.label || f.color)}"
+        style="width:30px;height:30px;padding:0;border-radius:6px;border:1px solid #999;background:${f.color};cursor:pointer;"></button>
+      <button type="button" data-remove-fav="${f.id}" style="border:none;background:none;color:#999;font-size:11px;cursor:pointer;padding:0;">&times;</button>
+    </div>
+  `).join("");
+  wrap.querySelectorAll("[data-fav-id]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.getElementById("restColorValue").value = btn.dataset.favColor;
+      document.getElementById("restColorPreview").style.background = btn.dataset.favColor;
+      document.getElementById("restColorHex").textContent = btn.dataset.favColor;
+    });
+  });
+  wrap.querySelectorAll("[data-remove-fav]").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!await uiConfirm("Remove this favourite colour?")) return;
+      const { error } = await sb.rpc("remove_favourite_color", { p_id: Number(btn.dataset.removeFav) });
+      if (error) { await uiAlert(error.message); return; }
+      await loadFavouriteColors();
+    });
+  });
+}
+
 document.getElementById("restForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const msg = document.getElementById("restMsg");
@@ -736,7 +851,7 @@ document.getElementById("restForm").addEventListener("submit", async (e) => {
   const startDate = document.getElementById("restStartDate").value;
   const endDate = document.getElementById("restEndDate").value;
   const label = document.getElementById("restLabel").value.trim();
-  const highlight = document.getElementById("restColour").value;
+  const highlightColor = document.getElementById("restColorValue").value;
 
   if (endDate < startDate) {
     showMsg(msg, "End date must be on or after the start date.", "error");
@@ -747,17 +862,19 @@ document.getElementById("restForm").addEventListener("submit", async (e) => {
   try {
     if (startDate === endDate) {
       const { error } = await sb.rpc("set_restricted_day", {
-        p_site: site, p_date: startDate, p_label: label, p_highlight: highlight,
+        p_site: site, p_date: startDate, p_label: label, p_highlight_color: highlightColor,
       });
       if (error) throw error;
     } else {
       const { data: count, error } = await sb.rpc("set_restricted_range", {
-        p_site: site, p_start_date: startDate, p_end_date: endDate, p_label: label, p_highlight: highlight,
+        p_site: site, p_start_date: startDate, p_end_date: endDate, p_label: label, p_highlight_color: highlightColor,
       });
       if (error) throw error;
       showMsg(msg, `${count} day${count === 1 ? "" : "s"} marked (weekends and bank holidays skipped).`, "ok");
     }
-    document.getElementById("restForm").reset();
+    document.getElementById("restLabel").value = "";
+    document.getElementById("restStartDate").value = "";
+    document.getElementById("restEndDate").value = "";
     await loadRestricted();
   } catch (err) {
     showMsg(msg, err.message, "error");
@@ -769,13 +886,12 @@ document.getElementById("restForm").addEventListener("submit", async (e) => {
 async function loadRestricted() {
   const { data } = await sb.from("restricted_days").select("*").order("restricted_date");
   const tbody = document.getElementById("restRows");
-  const colourLabel = { yellow: "Light yellow", pink: "Light red / pink" };
   tbody.innerHTML = (data || []).map(r => `
     <tr>
       <td>${escapeHtml(SITE_LABEL[r.site] || r.site)}</td>
       <td>${fmtDate(r.restricted_date)}</td>
       <td>${escapeHtml(r.label)}</td>
-      <td><span class="swatch swatch-${r.highlight}"></span>${colourLabel[r.highlight] || r.highlight}</td>
+      <td><span style="display:inline-block;width:16px;height:16px;border-radius:3px;border:1px solid #999;vertical-align:middle;margin-right:6px;background:${r.highlight_color}"></span>${escapeHtml(r.highlight_color)}</td>
       <td><button class="danger" onclick="removeRestricted('${r.site}','${r.restricted_date}')">Remove</button></td>
     </tr>`).join("");
 }
@@ -888,7 +1004,7 @@ function leaveRowsFor(status, data) {
       "Initials": p ? p.initials : "?",
       "Site": siteText,
       "Leave Type": LEAVE_TYPE_LABEL[r.leave_type] || r.leave_type,
-      "TOIL Time": r.toil_time ? fmtTime(r.toil_time) : "",
+      "TOIL Time Ranges": r.toil_ranges && r.toil_ranges.length ? formatToilRanges(r.toil_ranges) : "",
       "Requested By": req ? req.full_name : "?",
       "Requested At": r.requested_at ? new Date(r.requested_at) : "",
       "Actioned By": appr ? appr.full_name : "",
@@ -927,22 +1043,27 @@ async function editLeave(id, currentDate, currentType) {
   const newDate = await uiPrompt("New date:", currentDate, { type: "date", required: true, title: "Edit leave" });
   if (!newDate) return;
   const newType = await uiPrompt(
-    "New leave type (full_day / toil_full_day / toil_am / toil_pm / study_leave):",
+    "New leave type (full_day / toil_full_day / toil_part_day / study_leave):",
     currentType, { required: true, title: "Edit leave" }
   );
   if (!newType) return;
-  let newToilTime = null;
-  if (newType === "toil_am" || newType === "toil_pm") {
-    newToilTime = await uiPrompt(
-      newType === "toil_am" ? "Start time:" : "Leaving time:", "",
-      { type: "time", required: true, title: "Edit leave" }
+  let newToilRanges = null;
+  if (newType === "toil_part_day") {
+    const text = await uiPrompt(
+      "Time ranges, comma-separated (e.g. 08:00-10:00, 16:00-18:00):", "",
+      { required: true, title: "Edit leave" }
     );
-    if (!newToilTime) return;
+    if (!text) return;
+    newToilRanges = parseToilRangesText(text);
+    if (!newToilRanges) {
+      await uiAlert("Couldn't parse those time ranges — please use the format 08:00-10:00, 16:00-18:00.");
+      return;
+    }
   }
   const note = await uiPrompt("Note for the audit trail (optional):", "", { title: "Edit leave" });
   if (note === null) return;
   const { error } = await sb.rpc("edit_leave", {
-    p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note || null, p_new_toil_time: newToilTime,
+    p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note || null, p_new_toil_ranges: newToilRanges,
   });
   if (error) { await uiAlert(error.message); return; }
   await loadLeave();
