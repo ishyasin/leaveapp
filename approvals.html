@@ -199,7 +199,7 @@ async function load() {
       <td>${fmtDate(r.leave_date)}${clashCount > 1 ? ` <span class="badge pending">${clashCount}&times;</span>` : ""}
         ${r._restrictionFlag ? `<br><span class="badge rejected" title="${escapeHtml(restrictionLabel(r._restrictionFlag))}">&#9888; Restricted day</span>` : ""}
       </td>
-      <td>${LEAVE_TYPE_LABEL[r.leave_type]}${r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length ? ` (${formatToilRanges(r.toil_ranges)})` : ""}${r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length ? ` (${formatToilRanges(r.study_ranges)})` : ""}${r.requested_by && r.requested_by !== r.user_id ? `<br><span class="badge study">Allocated</span>` : ""}</td>
+      <td>${LEAVE_TYPE_LABEL[r.leave_type]}${r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length ? ` (${formatToilRanges(r.toil_ranges)})` : ""}${r.leave_type === "annual_part_day" && r.annual_leave_ranges && r.annual_leave_ranges.length ? ` (${formatToilRanges(r.annual_leave_ranges)})` : ""}${r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length ? ` (${formatToilRanges(r.study_ranges)})` : ""}${r.requested_by && r.requested_by !== r.user_id ? `<br><span class="badge study">Allocated</span>` : ""}</td>
       <td>${escapeHtml(nameFor(r.requested_by))}</td>
       <td style="white-space:nowrap;">
         ${blocked

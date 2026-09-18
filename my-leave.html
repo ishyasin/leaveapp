@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
+<title>My Leave — Leave Manager</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="wrap">
+  <div class="card">
+    <h1>My Leave</h1>
+    <p class="small">Every pending or approved leave request on your own record — Annual Leave, TOIL, and Study Leave together. Rejected and deleted requests aren't shown here; see the calendar for the full history if you need it.</p>
+    <div id="msg"></div>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Type</th><th>Status</th><th>Requested/Allocated</th><th>Approved</th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p id="empty" class="small" style="display:none;">No pending or approved leave on record.</p>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+let PROFILE = null;
+let PROFILES = [];
+
+(async () => {
+  PROFILE = await requireAuth(["pharmacist","lead_pharmacist","superuser","developer"]);
+  if (!PROFILE) return;
+  const { data } = await sb.from("profiles").select("id, full_name, initials, role");
+  PROFILES = data || [];
+  await load();
+})();
+
+function nameFor(id) {
+  const p = PROFILES.find(x => x.id === id);
+  return p ? `${p.full_name} (${p.initials})` : "?";
+}
+
+async function load() {
+  const { data, error } = await sb
+    .from("leave_requests")
+    .select("*")
+    .eq("user_id", PROFILE.id)
+    .eq("deleted", false)
+    .in("status", ["pending", "approved"])
+    .order("leave_date", { ascending: false });
+
+  const tbody = document.getElementById("rows");
+  const empty = document.getElementById("empty");
+  if (error) { showMsg(document.getElementById("msg"), error.message, "error"); return; }
+  if (!data || data.length === 0) { tbody.innerHTML = ""; empty.style.display = ""; return; }
+  empty.style.display = "none";
+
+  tbody.innerHTML = data.map(r => {
+    const isAllocated = r.requested_by && r.requested_by !== r.user_id;
+    let typeDetail = LEAVE_TYPE_LABEL[r.leave_type] || r.leave_type;
+    if (r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length) {
+      typeDetail += ` (${formatToilRanges(r.toil_ranges)})`;
+    } else if (r.leave_type === "annual_part_day" && r.annual_leave_ranges && r.annual_leave_ranges.length) {
+      typeDetail += ` (${formatToilRanges(r.annual_leave_ranges)})`;
+    } else if (r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length) {
+      typeDetail += ` (${formatToilRanges(r.study_ranges)})`;
+    } else if (r.leave_type === "full_day_split") {
+      typeDetail += ` (AL: ${formatToilRanges(r.annual_leave_ranges)}; TOIL: ${formatToilRanges(r.toil_ranges)})`;
+    }
+
+    const requestedCell = `${isAllocated ? "Allocated by" : "Requested by"} ${escapeHtml(nameFor(r.requested_by))}<br><span class="small">${fmtDateTime(r.requested_at)}</span>`;
+    const approvedCell = r.status === "approved"
+      ? `${escapeHtml(nameFor(r.approved_by))}<br><span class="small">${fmtDateTime(r.approved_at)}</span>`
+      : "";
+
+    return `
+      <tr>
+        <td>${fmtDate(r.leave_date)}</td>
+        <td>${escapeHtml(typeDetail)}${isAllocated ? ' <span class="badge study">Allocated</span>' : ""}</td>
+        <td><span class="badge ${r.status}">${r.status}</span></td>
+        <td class="small">${requestedCell}</td>
+        <td class="small">${approvedCell}</td>
+      </tr>`;
+  }).join("");
+}
+</script>
+</body>
+</html>

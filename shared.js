@@ -13,11 +13,12 @@ const EDGE_FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const LEAVE_TYPE_LABEL = {
-  full_day: "Full Day",
+  full_day: "Annual Leave (Full Day)",
+  annual_part_day: "Annual Leave (Part Day)",
   study_leave: "Study Leave",
   toil_full_day: "TOIL (Full Day)",
   toil_part_day: "TOIL (Part Day)",
-  full_day_split: "Full Day (Split AL/TOIL)",
+  full_day_split: "Annual Leave (Split AL/TOIL)",
 };
 
 const ROLE_LABEL = {
@@ -428,7 +429,7 @@ function renderTopbar(profile) {
   const el = document.getElementById("topbar");
   if (!el) return;
   const page = window.location.pathname.split("/").pop();
-  const links = [["calendar.html", "Calendar"]];
+  const links = [["calendar.html", "Calendar"], ["my-leave.html", "My Leave"]];
   if (isLeadPlus(profile)) links.push(["approvals.html", "Approvals"]);
   if (isSuperuserPlus(profile)) { links.push(["admin.html", "Admin"]); links.push(["audit.html", "Audit Trail"]); }
 
@@ -458,6 +459,13 @@ function daysInMonth(y, mIdx) { return new Date(y, mIdx + 1, 0).getDate(); }
 function isWeekend(y, mIdx, d) {
   const dow = new Date(y, mIdx, d).getDay();
   return dow === 0 || dow === 6;
+}
+// Same check, from a 'YYYY-MM-DD' string — for validating a date-input
+// value directly rather than a (year, month-index, day) triple.
+function isWeekendDate(isoStr) {
+  if (!isoStr) return false;
+  const [y, m, d] = isoStr.split("-").map(Number);
+  return isWeekend(y, m - 1, d);
 }
 function isToday(y, mIdx, d) {
   const t = new Date();

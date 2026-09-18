@@ -50,7 +50,7 @@
     </div>
     <div id="msg"></div>
     <table>
-      <thead><tr><th>When</th><th>Action</th><th>Actor</th><th>Note</th></tr></thead>
+      <thead><tr><th>When</th><th>Action</th><th>Actor</th><th>Person Affected</th><th>Note</th></tr></thead>
       <tbody id="rows"></tbody>
     </table>
   </div>
@@ -111,6 +111,7 @@ async function load() {
       <td class="small">${fmtDateTime(a.created_at)}</td>
       <td><span class="badge study">${a.action}</span></td>
       <td>${escapeHtml(nameFor(a.actor_id))}</td>
+      <td>${a.target_user_id ? escapeHtml(nameFor(a.target_user_id)) : ""}</td>
       <td class="small">${escapeHtml(a.note || "")}</td>
     </tr>
   `).join("");

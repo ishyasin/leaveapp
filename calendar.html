@@ -33,7 +33,7 @@
       <span><i style="background:#d7f4d7;border:1px solid #ccc"></i> Bank holiday</span>
     </div>
     <p class="small" style="margin:8px 0 0;">Tip: hold <strong>Ctrl</strong> and click day numbers to select multiple days at a time</p>
-    <p class="small" id="bulkTip" style="margin:4px 0 0;display:none;">Tip: hold <strong>Ctrl</strong> and click a pending leave tile to select several at once, then approve or reject them together.</p>
+    <p class="small" id="bulkTip" style="margin:4px 0 0;">Tip: hold <strong>Ctrl</strong> and click a pending leave tile to select several at once — your own get a "Cancel selected" option; a Lead Pharmacist/Clinical Team Lead reviewing someone else's also gets "Approve/Reject selected".</p>
   </div>
 
   <div class="card">
@@ -77,13 +77,27 @@
       <input type="date" id="reqStartDate" required>
       <label>End date</label>
       <input type="date" id="reqEndDate" required>
-      <p class="small" style="margin:2px 0 0;">If the end date is after the start date, a tile is created for each weekday in between — weekends are skipped automatically.</p>
+      <p class="small" style="margin:2px 0 0;" id="reqDateRangeHint">If the end date is after the start date, a tile is created for each weekday in between — weekends are skipped automatically.</p>
+      <p class="small" style="margin:2px 0 0;display:none;font-weight:700;" id="reqExactDatesNote"></p>
       <label>Leave type</label>
       <select id="reqType">
-        <option value="full_day">Full Day</option>
+        <option value="annual">Annual Leave</option>
         <option value="toil">TOIL</option>
         <option value="study_leave" id="studyOption">Study Leave</option>
       </select>
+
+      <div id="annualWrap" style="display:none;">
+        <label>Annual Leave</label>
+        <select id="annualKind">
+          <option value="full_day">Full day</option>
+          <option value="part_day">Part day</option>
+        </select>
+        <div id="annualPartWrap" style="display:none;">
+          <label>Time(s)</label>
+          <p class="small" style="margin:2px 0 6px;">Click a start point on the dial, then click again for the end — repeat for as many separate time ranges as needed. Edit or remove any range in the list below.</p>
+          <div id="annualRangePicker"></div>
+        </div>
+      </div>
 
       <div id="toilWrap" style="display:none;">
         <label>TOIL</label>
@@ -123,8 +137,9 @@
 <!-- Bulk approve/reject toolbar — Ctrl/Cmd+click a pending tile to select it -->
 <div id="bulkActionBar" style="display:none;position:fixed;bottom:0;left:0;right:0;background:var(--navy);color:#fff;padding:12px 20px;align-items:center;justify-content:center;gap:14px;z-index:60;box-shadow:0 -2px 10px rgba(0,0,0,.2);flex-wrap:wrap;">
   <span id="bulkCount" style="font-weight:700;"></span>
-  <button type="button" class="primary" onclick="bulkApprove()">Approve selected</button>
-  <button type="button" class="danger" onclick="bulkReject()">Reject selected</button>
+  <button type="button" class="primary" id="bulkApproveBtn" onclick="bulkApprove()">Approve selected</button>
+  <button type="button" class="danger" id="bulkRejectBtn" onclick="bulkReject()">Reject selected</button>
+  <button type="button" class="danger" id="bulkCancelBtn" onclick="bulkCancelOwn()">Cancel selected</button>
   <button type="button" class="secondary" onclick="bulkClearSelection()">Clear selection</button>
 </div>
 
@@ -197,8 +212,7 @@ let BULK_SELECTED = new Set(); // pending leave_request ids, Ctrl+click-selected
   if (!PROFILE) return;
   await loadProfiles();
   buildMonthTabs();
-  document.getElementById("studyOption").style.display = isLeadPlus(PROFILE) ? "" : "none";
-  document.getElementById("bulkTip").style.display = isLeadPlus(PROFILE) ? "" : "none";
+  document.getElementById("studyOption").style.display = "";
   await refreshCalendar();
   scrollToToday();
 })();
@@ -267,6 +281,11 @@ function leaveTypeLine(r) {
   if (r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length) {
     return `${category} — Part day (${formatToilRanges(r.study_ranges)})`;
   }
+  if (r.leave_type === "annual_part_day") {
+    const ranges = formatToilRanges(r.annual_leave_ranges);
+    return `${category} — Part day${ranges ? ` (${ranges})` : ""}`;
+  }
+  if (r.leave_type === "full_day") return `${category} — Full day`;
   return category;
 }
 
@@ -281,9 +300,19 @@ function tileTooltip(r, ownerProfile, stacked) {
     lines.push("Additional request — this person has another live request for the same date.");
   }
 
-  const showRequestAudit = PROFILE.role !== "pharmacist";
+  // Allocated leave always shows who allocated it and when, even to a
+  // plain Pharmacist looking at their own tile — that transparency
+  // matters more here than the general rule below it that otherwise
+  // hides request/audit timing from plain Pharmacists.
+  const isAllocated = r.requested_by && r.requested_by !== r.user_id;
+  const showRequestAudit = PROFILE.role !== "pharmacist" || isAllocated;
   if (showRequestAudit) {
-    lines.push(`Requested: ${fmtDateTime(r.requested_at)}`);
+    if (isAllocated) {
+      const requester = profileById(r.requested_by);
+      lines.push(`Allocated by: ${requester ? requester.full_name : "Unknown"} on ${fmtDateTime(r.requested_at)}`);
+    } else {
+      lines.push(`Requested: ${fmtDateTime(r.requested_at)}`);
+    }
   }
 
   if (r.status === "pending") {
@@ -552,6 +581,7 @@ function renderSiteGrid(site) {
           if (r.leave_type === "toil_part_day") tags.push("Part day");
           else if (r.leave_type === "full_day_split") tags.push("Split");
           else if (r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length) tags.push("Part day");
+          else if (r.leave_type === "annual_part_day") tags.push("Part day");
           if (r.requested_by && r.requested_by !== r.user_id) tags.push("Alloc");
           const suffix = tags.length ? ` <span style="font-size:9px;">${tags.join(" \u00b7 ")}</span>` : "";
           // Study leave keeps its blue "study" colour throughout — pending
@@ -592,7 +622,7 @@ function renderSiteGrid(site) {
   }
 
   grid.innerHTML = headHtml
-    + laneRows("Annual Leave", r => r.leave_type === "full_day" || r.leave_type === "full_day_split")
+    + laneRows("Annual Leave", r => r.leave_type === "full_day" || r.leave_type === "full_day_split" || r.leave_type === "annual_part_day")
     + laneRows("TOIL", r => r.leave_type === "toil_full_day" || r.leave_type === "toil_part_day")
     + laneRows("Study Leave", r => r.leave_type === "study_leave");
 }
@@ -607,6 +637,10 @@ function renderSiteGrid(site) {
 let SELECTED_DAYS = { site: null, days: new Set() };
 
 function toggleDaySelection(site, d) {
+  // Weekends can never be selected for a leave request — silently
+  // ignore the click rather than letting it enter the selection just
+  // to be rejected later at submit time.
+  if (isWeekend(VIEW_YEAR, VIEW_MONTH, d)) return;
   if (SELECTED_DAYS.site !== site) {
     SELECTED_DAYS = { site, days: new Set() };
   }
@@ -637,12 +671,30 @@ function updateSelectionAction(site) {
   }
 }
 
+// Set when the modal was opened from an explicit Ctrl+click day
+// selection — holds the EXACT dates chosen (which may skip days), not
+// just their min/max. Submitting in this mode loops request_leave()
+// once per exact date instead of calling request_leave_range() (which
+// would otherwise fill in every weekday between the earliest and
+// latest selected day, including any that were deliberately skipped).
+let EXACT_SELECTED_DATES = null;
+
 function requestLeaveFromSelection() {
   if (!SELECTED_DAYS.site || SELECTED_DAYS.days.size === 0) return;
   const days = Array.from(SELECTED_DAYS.days).sort((a, b) => a - b);
+  const dates = days.map(d => isoDate(VIEW_YEAR, VIEW_MONTH, d));
   openRequestModal();
-  document.getElementById("reqStartDate").value = isoDate(VIEW_YEAR, VIEW_MONTH, days[0]);
-  document.getElementById("reqEndDate").value = isoDate(VIEW_YEAR, VIEW_MONTH, days[days.length - 1]);
+  EXACT_SELECTED_DATES = dates;
+  document.getElementById("reqStartDate").value = dates[0];
+  document.getElementById("reqEndDate").value = dates[dates.length - 1];
+  document.getElementById("reqStartDate").disabled = true;
+  document.getElementById("reqEndDate").disabled = true;
+  document.getElementById("reqDateRangeHint").style.display = "none";
+  const note = document.getElementById("reqExactDatesNote");
+  note.style.display = "";
+  note.textContent = dates.length === 1
+    ? `Requesting for ${fmtDate(dates[0])}.`
+    : `Requesting for the ${dates.length} specific days you selected: ${dates.map(fmtDate).join(", ")}.`;
   clearDaySelection();
 }
 
@@ -672,18 +724,17 @@ document.addEventListener("click", (e) => {
 /* ---------------- Request modal ---------------- */
 let REQ_TOIL_PICKER = null;
 let REQ_STUDY_PICKER = null;
+let REQ_ANNUAL_PICKER = null;
 
 // Who the current actor is allowed to allocate leave for, given a
 // leave type — mirrors can_process_leave_for()/the approval hierarchy
-// exactly, so "who I can allocate for" always matches "who I can
-// approve for": Lead Pharmacist -> Pharmacist only; Clinical Team
-// Lead -> Pharmacist/Lead Pharmacist/self; Developer -> anyone. Study
-// leave keeps its own broader, pre-existing rule (any active user).
+// exactly for EVERY leave type now, including Study Leave (previously
+// broader — "anyone" — but the permission matrix ties allocation
+// scope to approval scope uniformly): Lead Pharmacist -> Pharmacist
+// only; Clinical Team Lead -> Pharmacist/Lead Pharmacist/self;
+// Developer -> anyone.
 function allocatableUsersFor(leaveType) {
   if (!isLeadPlus(PROFILE)) return [PROFILE];
-  if (leaveType === "study_leave") {
-    return PROFILES.filter(p => p.active);
-  }
   if (isDeveloper(PROFILE)) return PROFILES.filter(p => p.active);
   if (isSuperuserPlus(PROFILE)) {
     return PROFILES.filter(p => p.active && (p.id === PROFILE.id || p.role === "pharmacist" || p.role === "lead_pharmacist"));
@@ -703,21 +754,30 @@ function refreshUserPicker() {
   sel.innerHTML = users.map(p =>
     `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})${p.id === PROFILE.id ? " — me" : ""}</option>`).join("");
   sel.value = users.some(p => p.id === previous) ? previous : PROFILE.id;
-  document.getElementById("userPickerNote").textContent = typeSel === "study_leave"
-    ? "Study leave can be raised for anyone. Retrospective (past-dated) study leave is Clinical Team Lead/Developer only."
-    : `Requesting for someone else allocates it on their behalf — it still needs approving, and is tagged \u201cAllocated\u201d so it's clear it wasn't self-requested.${
-        isDeveloper(PROFILE) || isSuperuserPlus(PROFILE)
-          ? " Retrospective (past-dated) allocation is allowed for anyone you can allocate for."
-          : " Retrospective (past-dated) allocation is allowed when it's for a Pharmacist — never for your own past-dated leave."
-      }`;
+  document.getElementById("userPickerNote").textContent =
+    `Requesting for someone else allocates it on their behalf — it still needs approving, and is tagged \u201cAllocated\u201d so it's clear it wasn't self-requested.${
+      isDeveloper(PROFILE) || isSuperuserPlus(PROFILE)
+        ? " Retrospective (past-dated) allocation is allowed for anyone you can allocate for."
+        : " Retrospective (past-dated) allocation is allowed when it's for a Pharmacist — never for your own past-dated leave."
+    }`;
 }
 
 function openRequestModal() {
   document.getElementById("reqMsg").innerHTML = "";
   const defaultDate = isoDate(VIEW_YEAR, VIEW_MONTH, 1);
+  EXACT_SELECTED_DATES = null;
   document.getElementById("reqStartDate").value = defaultDate;
   document.getElementById("reqEndDate").value = defaultDate;
-  document.getElementById("reqType").value = "full_day";
+  document.getElementById("reqStartDate").disabled = false;
+  document.getElementById("reqEndDate").disabled = false;
+  document.getElementById("reqDateRangeHint").style.display = "";
+  document.getElementById("reqExactDatesNote").style.display = "none";
+  document.getElementById("reqType").value = "annual";
+  document.getElementById("annualWrap").style.display = "";
+  document.getElementById("annualKind").value = "full_day";
+  document.getElementById("annualPartWrap").style.display = "none";
+  REQ_ANNUAL_PICKER = null;
+  document.getElementById("annualRangePicker").innerHTML = "";
   document.getElementById("toilWrap").style.display = "none";
   document.getElementById("toilKind").value = "toil_full_day";
   document.getElementById("toilPartWrap").style.display = "none";
@@ -734,9 +794,17 @@ function openRequestModal() {
 function closeRequestModal() { document.getElementById("reqOverlay").style.display = "none"; }
 
 document.getElementById("reqType").addEventListener("change", (e) => {
+  document.getElementById("annualWrap").style.display = e.target.value === "annual" ? "" : "none";
   document.getElementById("toilWrap").style.display = e.target.value === "toil" ? "" : "none";
   document.getElementById("studyWrap").style.display = e.target.value === "study_leave" ? "" : "none";
   refreshUserPicker();
+});
+document.getElementById("annualKind").addEventListener("change", (e) => {
+  const showPart = e.target.value === "part_day";
+  document.getElementById("annualPartWrap").style.display = showPart ? "" : "none";
+  if (showPart) {
+    REQ_ANNUAL_PICKER = createTimeRangePicker(document.getElementById("annualRangePicker"), []);
+  }
 });
 document.getElementById("toilKind").addEventListener("change", (e) => {
   const showPart = e.target.value === "part_day";
@@ -754,27 +822,32 @@ document.getElementById("studyKind").addEventListener("change", (e) => {
 });
 
 // Resolves the modal's selections down to a single leave_type + optional
-// TOIL/study time ranges to send to the backend.
+// annual/TOIL/study time ranges to send to the backend.
 function computeLeaveSelection() {
   const typeSel = document.getElementById("reqType").value;
-  if (typeSel === "full_day") {
-    return { leaveType: "full_day", toilRanges: null, studyRanges: null };
+  if (typeSel === "annual") {
+    const kind = document.getElementById("annualKind").value;
+    if (kind === "full_day") {
+      return { leaveType: "full_day", toilRanges: null, studyRanges: null, annualRanges: null };
+    }
+    const ranges = REQ_ANNUAL_PICKER ? REQ_ANNUAL_PICKER.getRanges() : [];
+    return { leaveType: "annual_part_day", toilRanges: null, studyRanges: null, annualRanges: ranges.length ? ranges : null };
   }
   if (typeSel === "study_leave") {
     const kind = document.getElementById("studyKind").value;
     if (kind === "full_day") {
-      return { leaveType: "study_leave", toilRanges: null, studyRanges: null };
+      return { leaveType: "study_leave", toilRanges: null, studyRanges: null, annualRanges: null };
     }
     const ranges = REQ_STUDY_PICKER ? REQ_STUDY_PICKER.getRanges() : [];
-    return { leaveType: "study_leave", toilRanges: null, studyRanges: ranges.length ? ranges : null };
+    return { leaveType: "study_leave", toilRanges: null, studyRanges: ranges.length ? ranges : null, annualRanges: null };
   }
   // TOIL
   const kind = document.getElementById("toilKind").value;
   if (kind === "toil_full_day") {
-    return { leaveType: "toil_full_day", toilRanges: null, studyRanges: null };
+    return { leaveType: "toil_full_day", toilRanges: null, studyRanges: null, annualRanges: null };
   }
   const ranges = REQ_TOIL_PICKER ? REQ_TOIL_PICKER.getRanges() : [];
-  return { leaveType: "toil_part_day", toilRanges: ranges.length ? ranges : null, studyRanges: null };
+  return { leaveType: "toil_part_day", toilRanges: ranges.length ? ranges : null, studyRanges: null, annualRanges: null };
 }
 
 document.getElementById("reqForm").addEventListener("submit", async (e) => {
@@ -783,13 +856,23 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
   const btn = document.getElementById("reqSubmitBtn");
   const startDate = document.getElementById("reqStartDate").value;
   const endDate = document.getElementById("reqEndDate").value;
-  const { leaveType, toilRanges, studyRanges } = computeLeaveSelection();
+  const { leaveType, toilRanges, studyRanges, annualRanges } = computeLeaveSelection();
   const targetUser = (isLeadPlus(PROFILE) && document.getElementById("userPickerWrap").style.display !== "none")
     ? document.getElementById("reqUser").value
     : PROFILE.id;
 
   if (endDate < startDate) {
     showMsg(msg, "End date must be on or after the start date.", "error");
+    return;
+  }
+  // A single specific day (not a range being expanded across weekdays)
+  // can't be a weekend — matches the same rule the backend enforces.
+  if (!EXACT_SELECTED_DATES && startDate === endDate && isWeekendDate(startDate)) {
+    showMsg(msg, "Leave can't be requested for a weekend.", "error");
+    return;
+  }
+  if (leaveType === "annual_part_day" && !annualRanges) {
+    showMsg(msg, "Please select at least one time range on the dial.", "error");
     return;
   }
   if (leaveType === "toil_part_day" && !toilRanges) {
@@ -819,10 +902,33 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
 
   btn.disabled = true; btn.textContent = "Submitting…";
   try {
-    if (startDate === endDate) {
+    if (EXACT_SELECTED_DATES && EXACT_SELECTED_DATES.length > 1) {
+      // Explicit, possibly-discontinuous set of days from a Ctrl+click
+      // selection — one request_leave() call per exact date, NOT
+      // request_leave_range() (which would fill in every weekday
+      // between the earliest and latest date, including any that were
+      // deliberately left unselected).
+      let okCount = 0;
+      const failures = [];
+      for (const d of EXACT_SELECTED_DATES) {
+        const { error } = await sb.rpc("request_leave", {
+          p_user_id: targetUser, p_leave_date: d, p_leave_type: leaveType,
+          p_toil_ranges: toilRanges, p_study_ranges: studyRanges, p_annual_ranges: annualRanges,
+        });
+        if (error) failures.push(`${fmtDate(d)}: ${error.message}`);
+        else okCount++;
+      }
+      await refreshCalendar();
+      if (failures.length) {
+        showMsg(msg, `${okCount} of ${EXACT_SELECTED_DATES.length} created. Failed: ${failures.join("; ")}`, "error");
+      } else {
+        showMsg(msg, `${okCount} tile${okCount === 1 ? "" : "s"} created.`, "ok");
+        setTimeout(closeRequestModal, 1100);
+      }
+    } else if (startDate === endDate) {
       const { error } = await sb.rpc("request_leave", {
         p_user_id: targetUser, p_leave_date: startDate, p_leave_type: leaveType,
-        p_toil_ranges: toilRanges, p_study_ranges: studyRanges,
+        p_toil_ranges: toilRanges, p_study_ranges: studyRanges, p_annual_ranges: annualRanges,
       });
       if (error) throw error;
       closeRequestModal();
@@ -830,7 +936,7 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
     } else {
       const { data: count, error } = await sb.rpc("request_leave_range", {
         p_user_id: targetUser, p_start_date: startDate, p_end_date: endDate,
-        p_leave_type: leaveType, p_toil_ranges: toilRanges, p_study_ranges: studyRanges,
+        p_leave_type: leaveType, p_toil_ranges: toilRanges, p_study_ranges: studyRanges, p_annual_ranges: annualRanges,
       });
       if (error) throw error;
       showMsg(msg, `${count} tile${count === 1 ? "" : "s"} created (weekends skipped).`, "ok");
@@ -852,13 +958,18 @@ async function openDetail(id) {
   const requester = profileById(r.requested_by);
   const approver = r.approved_by ? profileById(r.approved_by) : null;
 
-  const showRequestAudit = PROFILE.role !== "pharmacist"; // pharmacists don't see who/when it was requested — that's audit-trail detail
+  // Plain Pharmacists don't normally see who/when their own ordinary
+  // request was submitted (that's audit-trail detail) — but allocated
+  // leave is different: seeing who allocated it and when matters more
+  // than that general privacy default, even for the person it's for.
+  const isAllocated = r.requested_by && r.requested_by !== r.user_id;
+  const showRequestAudit = PROFILE.role !== "pharmacist" || isAllocated;
   document.getElementById("detMsg").innerHTML = "";
   document.getElementById("detBody").innerHTML = `
     <p><strong>${escapeHtml(owner?.full_name || "?")}</strong> (${escapeHtml(owner?.initials || "?")})</p>
     <p>${leaveTypeLine(r)} &middot; ${fmtDate(r.leave_date)}</p>
     <p>Status: <span class="badge ${r.status}">${r.status}</span></p>
-    ${showRequestAudit ? `<p class="small">Requested by ${escapeHtml(requester?.full_name || "?")} on ${fmtDateTime(r.requested_at)}</p>` : ""}
+    ${showRequestAudit ? `<p class="small">${isAllocated ? "Allocated" : "Requested"} by ${escapeHtml(requester?.full_name || "?")} on ${fmtDateTime(r.requested_at)}</p>` : ""}
     ${approver && r.status !== "pending" ? `<p class="small">${r.status === 'rejected' ? 'Rejected' : 'Approved'} by ${escapeHtml(approver.full_name)} on ${fmtDateTime(r.approved_at)}</p>` : ""}
     ${r.status === "rejected" && r.rejected_reason ? `<p class="small">Reason: ${escapeHtml(r.rejected_reason)}</p>` : ""}
     <div id="detActions" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;"></div>
@@ -901,16 +1012,17 @@ async function openDetail(id) {
 }
 function closeDetailModal() { document.getElementById("detOverlay").style.display = "none"; }
 
-/* ---------------- Bulk select / approve / reject (Ctrl+click a tile) ---------------- */
+/* ---------------- Bulk select / approve / reject / cancel (Ctrl+click a tile) ---------------- */
 // Ctrl (or Cmd, on Mac) + click a PENDING tile toggles it into the bulk
-// selection instead of opening its detail popup — Lead Pharmacist+
-// only, since this is purely an approver convenience for clearing a
-// backlog. An ordinary click still opens the detail popup as normal.
+// selection instead of opening its detail popup — either because
+// you're Lead Pharmacist+ (reviewing others' requests) or because
+// it's your OWN still-pending request (so you can cancel several at
+// once). An ordinary click still opens the detail popup as normal.
 function handleTileClick(e, id) {
-  if ((e.ctrlKey || e.metaKey) && isLeadPlus(PROFILE)) {
+  const r = REQUESTS.find(x => x.id === id);
+  const canSelect = r && r.status === "pending" && (isLeadPlus(PROFILE) || r.user_id === PROFILE.id);
+  if ((e.ctrlKey || e.metaKey) && canSelect) {
     e.preventDefault();
-    const r = REQUESTS.find(x => x.id === id);
-    if (!r || r.status !== "pending") return; // only pending requests can be bulk-actioned
     if (BULK_SELECTED.has(id)) {
       BULK_SELECTED.delete(id);
       e.currentTarget.classList.remove("bulk-selected");
@@ -928,6 +1040,17 @@ function updateBulkToolbar() {
   const bar = document.getElementById("bulkActionBar");
   const n = BULK_SELECTED.size;
   document.getElementById("bulkCount").textContent = `${n} request${n === 1 ? "" : "s"} selected`;
+  // Show Approve/Reject only if at least one selected item is
+  // something this user is actually allowed to approve (Lead+
+  // reviewing others' — or their own, per the usual hierarchy);
+  // show Cancel only if at least one selected item is the user's own.
+  const ids = [...BULK_SELECTED];
+  const reqs = ids.map(id => REQUESTS.find(x => x.id === id)).filter(Boolean);
+  const anyOwn = reqs.some(r => r.user_id === PROFILE.id);
+  const anyApprovable = isLeadPlus(PROFILE) && reqs.some(r => canProcessLeaveForRole(PROFILE, profileById(r.user_id)));
+  document.getElementById("bulkApproveBtn").style.display = anyApprovable ? "" : "none";
+  document.getElementById("bulkRejectBtn").style.display = anyApprovable ? "" : "none";
+  document.getElementById("bulkCancelBtn").style.display = anyOwn ? "" : "none";
   bar.style.display = n > 0 ? "flex" : "none";
 }
 
@@ -935,6 +1058,30 @@ function bulkClearSelection() {
   BULK_SELECTED.clear();
   document.querySelectorAll(".tile.bulk-selected").forEach(el => el.classList.remove("bulk-selected"));
   updateBulkToolbar();
+}
+
+async function bulkCancelOwn() {
+  const ids = [...BULK_SELECTED].filter(id => {
+    const r = REQUESTS.find(x => x.id === id);
+    return r && r.user_id === PROFILE.id && r.status === "pending";
+  });
+  if (!ids.length) return;
+  if (!await uiConfirm(`Cancel ${ids.length} selected pending request${ids.length === 1 ? "" : "s"}? This can't be undone.`)) return;
+
+  let okCount = 0;
+  const failures = [];
+  for (const id of ids) {
+    const { error } = await sb.rpc("cancel_own_pending_leave", { p_leave_id: id });
+    if (error) {
+      const r = REQUESTS.find(x => x.id === id);
+      failures.push(`${r ? fmtDate(r.leave_date) : id}: ${error.message}`);
+    } else okCount++;
+  }
+
+  await refreshCalendar();
+  if (failures.length) {
+    await uiAlert(`${okCount} cancelled, ${failures.length} failed:\n${failures.join("\n")}`, "Bulk cancel results");
+  }
 }
 
 async function bulkApprove() {
