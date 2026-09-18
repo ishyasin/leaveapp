@@ -215,6 +215,17 @@
           <label>Time ranges</label>
           <input type="text" id="importToilRangesText" placeholder="e.g. 08:00-10:00, 16:00-18:00">
         </div>
+        <div id="importStudyKindWrap" style="display:none;">
+          <label>Study leave</label>
+          <select id="importStudyKind">
+            <option value="full_day">Full day</option>
+            <option value="part_day">Part day</option>
+          </select>
+          <div id="importStudyTimeWrap" style="display:none;">
+            <label>Time ranges</label>
+            <input type="text" id="importStudyRangesText" placeholder="e.g. 08:00-10:00">
+          </div>
+        </div>
 
         <label>Status</label>
         <select id="importStatus">
@@ -500,6 +511,10 @@ function setupImportForm() {
 
   document.getElementById("importType").addEventListener("change", (e) => {
     document.getElementById("importToilTimeWrap").style.display = e.target.value === "toil_part_day" ? "" : "none";
+    document.getElementById("importStudyKindWrap").style.display = e.target.value === "study_leave" ? "" : "none";
+  });
+  document.getElementById("importStudyKind").addEventListener("change", (e) => {
+    document.getElementById("importStudyTimeWrap").style.display = e.target.value === "part_day" ? "" : "none";
   });
   document.getElementById("importStatus").addEventListener("change", (e) => {
     document.getElementById("importRejectedWrap").style.display = e.target.value === "rejected" ? "" : "none";
@@ -519,6 +534,14 @@ function setupImportForm() {
     if (leaveType === "toil_part_day") {
       toilRanges = parseToilRangesText(document.getElementById("importToilRangesText").value);
       if (!toilRanges) {
+        showMsg(msg, "Please enter valid time ranges, e.g. 08:00-10:00, 16:00-18:00.", "error");
+        return;
+      }
+    }
+    let studyRanges = null;
+    if (leaveType === "study_leave" && document.getElementById("importStudyKind").value === "part_day") {
+      studyRanges = parseToilRangesText(document.getElementById("importStudyRangesText").value);
+      if (!studyRanges) {
         showMsg(msg, "Please enter valid time ranges, e.g. 08:00-10:00, 16:00-18:00.", "error");
         return;
       }
@@ -543,6 +566,7 @@ function setupImportForm() {
         p_leave_date: document.getElementById("importDate").value,
         p_leave_type: leaveType,
         p_toil_ranges: toilRanges,
+        p_study_ranges: studyRanges,
         p_status: status,
         p_requested_by: document.getElementById("importRequestedBy").value,
         p_requested_at: requestedAtRaw ? new Date(requestedAtRaw).toISOString() : null,
@@ -977,7 +1001,7 @@ async function loadLeave() {
     return `<tr>
       <td>${fmtDate(r.leave_date)}</td>
       <td>${escapeHtml(p ? `${p.full_name} (${p.initials})` : "?")}</td>
-      <td>${LEAVE_TYPE_LABEL[r.leave_type]}${r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length ? ` (${formatToilRanges(r.toil_ranges)})` : ""}${r.leave_type === "full_day_split" ? ` (AL: ${formatToilRanges(r.annual_leave_ranges)}; TOIL: ${formatToilRanges(r.toil_ranges)})` : ""}</td>
+      <td>${LEAVE_TYPE_LABEL[r.leave_type]}${r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length ? ` (${formatToilRanges(r.toil_ranges)})` : ""}${r.leave_type === "full_day_split" ? ` (AL: ${formatToilRanges(r.annual_leave_ranges)}; TOIL: ${formatToilRanges(r.toil_ranges)})` : ""}${r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length ? ` (${formatToilRanges(r.study_ranges)})` : ""}</td>
       <td><span class="badge ${r.status}">${r.status}</span></td>
       <td class="small">${fmtDateTime(r.requested_at)}</td>
       <td style="white-space:nowrap;">
@@ -1006,6 +1030,7 @@ function leaveRowsFor(status, data) {
       "Leave Type": LEAVE_TYPE_LABEL[r.leave_type] || r.leave_type,
       "Annual Leave Hours": r.leave_type === "full_day_split" && r.annual_leave_ranges && r.annual_leave_ranges.length ? formatToilRanges(r.annual_leave_ranges) : "",
       "TOIL Time Ranges": r.toil_ranges && r.toil_ranges.length ? formatToilRanges(r.toil_ranges) : "",
+      "Study Leave Hours": r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length ? formatToilRanges(r.study_ranges) : "",
       "Requested By": req ? req.full_name : "?",
       "Requested At": r.requested_at ? new Date(r.requested_at) : "",
       "Actioned By": appr ? appr.full_name : "",
@@ -1061,10 +1086,26 @@ async function editLeave(id, currentDate, currentType) {
       return;
     }
   }
+  let newStudyRanges = null;
+  if (newType === "study_leave") {
+    const text = await uiPrompt(
+      "Time ranges for a PART DAY, comma-separated (e.g. 08:00-10:00) — leave blank for a full day:", "",
+      { title: "Edit leave" }
+    );
+    if (text === null) return;
+    if (text.trim()) {
+      newStudyRanges = parseToilRangesText(text);
+      if (!newStudyRanges) {
+        await uiAlert("Couldn't parse those time ranges — please use the format 08:00-10:00, 16:00-18:00.");
+        return;
+      }
+    }
+  }
   const note = await uiPrompt("Note for the audit trail (optional):", "", { title: "Edit leave" });
   if (note === null) return;
   const { error } = await sb.rpc("edit_leave", {
-    p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note || null, p_new_toil_ranges: newToilRanges,
+    p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note || null,
+    p_new_toil_ranges: newToilRanges, p_new_study_ranges: newStudyRanges,
   });
   if (error) { await uiAlert(error.message); return; }
   await loadLeave();

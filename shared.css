@@ -115,6 +115,8 @@ th{color:var(--navy);background:#f7f8fb;}
 .cal-grid td.capacity-red{background:var(--capacity-red);}
 .cal-grid td.today{box-shadow:inset 0 0 0 2px var(--navy);}
 .cal-grid td.tile.bulk-selected{box-shadow:inset 0 0 0 3px #ffb800;cursor:pointer;}
+.cal-grid td.tile.stacked-request{box-shadow:inset 0 0 0 2px #ff8800;}
+.cal-grid td.tile.stacked-request.bulk-selected{box-shadow:inset 0 0 0 2px #ff8800, inset 0 0 0 4px #ffb800;}
 .cal-grid td.daynum.selected{background-color:var(--teal) !important;color:#fff;outline:2px solid var(--teal-light);outline-offset:-2px;}
 .cal-grid td.lanehead{
   width:100px;background:#fff;font-weight:700;text-align:left;color:var(--navy);

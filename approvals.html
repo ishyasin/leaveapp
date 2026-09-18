@@ -111,6 +111,15 @@ function restrictionLabel(flag) {
   return "";
 }
 
+// True if this person has ANOTHER live (pending/approved) request for
+// the same date — the "1hr TOIL approved, now wants the whole day"
+// scenario. ctx.sameRangeAll already covers pending+approved requests
+// across the visible date range, so a count > 1 for this user+date
+// means something besides this row itself is also on record.
+function stackedFor(r, ctx) {
+  return ctx.sameRangeAll.filter(x => x.user_id === r.user_id && x.leave_date === r.leave_date).length > 1;
+}
+
 async function load() {
   const { data, error } = await sb
     .from("leave_requests")
@@ -180,16 +189,17 @@ async function load() {
     const blocked = !canProcessLeaveForRole(PROFILE, targetProfile);
     const clashCount = byDate[r.leave_date].length;
     r._restrictionFlag = restrictionFlagFor(r, ctx);
+    r._stacked = stackedFor(r, ctx);
     const tr = document.createElement("tr");
     if (clashCount > 1) tr.className = "clash-row";
     tr.innerHTML = `
       <td><span class="badge study">${ordinalLabel(index + 1)}</span></td>
       <td>${fmtDateTime(r.requested_at)}</td>
-      <td>${escapeHtml(nameFor(r.user_id))}</td>
+      <td>${escapeHtml(nameFor(r.user_id))}${r._stacked ? `<br><span class="badge pending" title="This person has another live request for the same date.">Additional request</span>` : ""}</td>
       <td>${fmtDate(r.leave_date)}${clashCount > 1 ? ` <span class="badge pending">${clashCount}&times;</span>` : ""}
         ${r._restrictionFlag ? `<br><span class="badge rejected" title="${escapeHtml(restrictionLabel(r._restrictionFlag))}">&#9888; Restricted day</span>` : ""}
       </td>
-      <td>${LEAVE_TYPE_LABEL[r.leave_type]}${r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length ? ` (${formatToilRanges(r.toil_ranges)})` : ""}</td>
+      <td>${LEAVE_TYPE_LABEL[r.leave_type]}${r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length ? ` (${formatToilRanges(r.toil_ranges)})` : ""}${r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length ? ` (${formatToilRanges(r.study_ranges)})` : ""}</td>
       <td>${escapeHtml(nameFor(r.requested_by))}</td>
       <td style="white-space:nowrap;">
         ${blocked

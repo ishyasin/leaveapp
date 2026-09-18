@@ -98,6 +98,19 @@
         </div>
       </div>
 
+      <div id="studyWrap" style="display:none;">
+        <label>Study leave</label>
+        <select id="studyKind">
+          <option value="full_day">Full day</option>
+          <option value="part_day">Part day</option>
+        </select>
+        <div id="studyPartWrap" style="display:none;">
+          <label>Time(s)</label>
+          <p class="small" style="margin:2px 0 6px;">Click a start point on the dial, then click again for the end — repeat for as many separate time ranges as needed. Edit or remove any range in the list below.</p>
+          <div id="studyRangePicker"></div>
+        </div>
+      </div>
+
       <div class="modal-actions">
         <button type="button" class="secondary" onclick="closeRequestModal()">Cancel</button>
         <button type="submit" class="primary" id="reqSubmitBtn">Submit request</button>
@@ -249,16 +262,22 @@ function leaveTypeLine(r) {
     const toil = formatToilRanges(r.toil_ranges);
     return `${category} — Split with TOIL${al ? ` (AL: ${al}` : ""}${toil ? `; TOIL: ${toil})` : al ? ")" : ""}`;
   }
+  if (r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length) {
+    return `${category} — Part day (${formatToilRanges(r.study_ranges)})`;
+  }
   return category;
 }
 
 // Same requested-by visibility rule as the detail modal: plain
 // Pharmacists don't see who/when it was requested unless it's already
 // been approved or rejected — everyone sees the approve/reject line.
-function tileTooltip(r, ownerProfile) {
+function tileTooltip(r, ownerProfile, stacked) {
   const lines = [];
   lines.push(ownerProfile ? ownerProfile.full_name : "Unknown");
   lines.push(`${leaveTypeLine(r)} — ${fmtDate(r.leave_date)}`);
+  if (stacked) {
+    lines.push("Additional request — this person has another live request for the same date.");
+  }
 
   const showRequestAudit = PROFILE.role !== "pharmacist";
   if (showRequestAudit) {
@@ -532,6 +551,8 @@ function renderSiteGrid(site) {
             suffix = ` <span style="font-size:9px;">Part day</span>`;
           } else if (r.leave_type === "full_day_split") {
             suffix = ` <span style="font-size:9px;">Split</span>`;
+          } else if (r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length) {
+            suffix = ` <span style="font-size:9px;">Part day</span>`;
           }
           // Study leave keeps its blue "study" colour throughout — pending
           // or approved — rather than only turning blue once approved.
@@ -549,12 +570,18 @@ function renderSiteGrid(site) {
             statusClass = r.status;
           }
           const pendingModifier = statusClass === "study" && r.status === "pending" ? " study-pending" : "";
-          const tooltip = tileTooltip(r, p);
+          // An "additional" request — someone already has a live TOIL
+          // or study-leave request for this same date (see the relaxed
+          // one-request-per-day rule in request_leave()), so flag it
+          // distinctly for the approver rather than letting it blend in.
+          const stacked = REQUESTS.some(x =>
+            x.id !== r.id && x.user_id === r.user_id && x.leave_date === r.leave_date && x.status !== "rejected");
+          const tooltip = tileTooltip(r, p, stacked);
           // Colour goes on the cell itself (not a nested span) so the
           // fill is guaranteed by the table cell's own background rather
           // than a percentage-height flex child, which some browsers
           // fail to size correctly inside a table row.
-          rows += `<td class="${cls} tile ${statusClass}${pendingModifier}${BULK_SELECTED.has(r.id) ? " bulk-selected" : ""}" style="${bg.style}" title="${escapeHtml(tooltip)}" onclick="handleTileClick(event, '${r.id}')">${escapeHtml(initials)}${suffix}</td>`;
+          rows += `<td class="${cls} tile ${statusClass}${pendingModifier}${BULK_SELECTED.has(r.id) ? " bulk-selected" : ""}${stacked ? " stacked-request" : ""}" style="${bg.style}" title="${escapeHtml(tooltip)}" onclick="handleTileClick(event, '${r.id}')">${escapeHtml(initials)}${suffix}</td>`;
         } else {
           rows += `<td class="${cls}" style="${bg.style}"></td>`;
         }
@@ -644,6 +671,7 @@ document.addEventListener("click", (e) => {
 
 /* ---------------- Request modal ---------------- */
 let REQ_TOIL_PICKER = null;
+let REQ_STUDY_PICKER = null;
 
 function openRequestModal() {
   document.getElementById("reqMsg").innerHTML = "";
@@ -657,12 +685,18 @@ function openRequestModal() {
   document.getElementById("toilPartWrap").style.display = "none";
   REQ_TOIL_PICKER = null;
   document.getElementById("toilRangePicker").innerHTML = "";
+  document.getElementById("studyWrap").style.display = "none";
+  document.getElementById("studyKind").value = "full_day";
+  document.getElementById("studyPartWrap").style.display = "none";
+  REQ_STUDY_PICKER = null;
+  document.getElementById("studyRangePicker").innerHTML = "";
   document.getElementById("reqOverlay").style.display = "flex";
 }
 function closeRequestModal() { document.getElementById("reqOverlay").style.display = "none"; }
 
 document.getElementById("reqType").addEventListener("change", (e) => {
   document.getElementById("toilWrap").style.display = e.target.value === "toil" ? "" : "none";
+  document.getElementById("studyWrap").style.display = e.target.value === "study_leave" ? "" : "none";
   const wrap = document.getElementById("userPickerWrap");
   if (e.target.value === "study_leave") {
     wrap.style.display = isLeadPlus(PROFILE) ? "" : "none";
@@ -677,21 +711,36 @@ document.getElementById("toilKind").addEventListener("change", (e) => {
     REQ_TOIL_PICKER = createTimeRangePicker(document.getElementById("toilRangePicker"), []);
   }
 });
+document.getElementById("studyKind").addEventListener("change", (e) => {
+  const showPart = e.target.value === "part_day";
+  document.getElementById("studyPartWrap").style.display = showPart ? "" : "none";
+  if (showPart) {
+    REQ_STUDY_PICKER = createTimeRangePicker(document.getElementById("studyRangePicker"), []);
+  }
+});
 
 // Resolves the modal's selections down to a single leave_type + optional
-// TOIL time ranges to send to the backend.
+// TOIL/study time ranges to send to the backend.
 function computeLeaveSelection() {
   const typeSel = document.getElementById("reqType").value;
-  if (typeSel === "full_day" || typeSel === "study_leave") {
-    return { leaveType: typeSel, toilRanges: null };
+  if (typeSel === "full_day") {
+    return { leaveType: "full_day", toilRanges: null, studyRanges: null };
+  }
+  if (typeSel === "study_leave") {
+    const kind = document.getElementById("studyKind").value;
+    if (kind === "full_day") {
+      return { leaveType: "study_leave", toilRanges: null, studyRanges: null };
+    }
+    const ranges = REQ_STUDY_PICKER ? REQ_STUDY_PICKER.getRanges() : [];
+    return { leaveType: "study_leave", toilRanges: null, studyRanges: ranges.length ? ranges : null };
   }
   // TOIL
   const kind = document.getElementById("toilKind").value;
   if (kind === "toil_full_day") {
-    return { leaveType: "toil_full_day", toilRanges: null };
+    return { leaveType: "toil_full_day", toilRanges: null, studyRanges: null };
   }
   const ranges = REQ_TOIL_PICKER ? REQ_TOIL_PICKER.getRanges() : [];
-  return { leaveType: "toil_part_day", toilRanges: ranges.length ? ranges : null };
+  return { leaveType: "toil_part_day", toilRanges: ranges.length ? ranges : null, studyRanges: null };
 }
 
 document.getElementById("reqForm").addEventListener("submit", async (e) => {
@@ -700,7 +749,7 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
   const btn = document.getElementById("reqSubmitBtn");
   const startDate = document.getElementById("reqStartDate").value;
   const endDate = document.getElementById("reqEndDate").value;
-  const { leaveType, toilRanges } = computeLeaveSelection();
+  const { leaveType, toilRanges, studyRanges } = computeLeaveSelection();
   const targetUser = (isLeadPlus(PROFILE) && document.getElementById("userPickerWrap").style.display !== "none")
     ? document.getElementById("reqUser").value
     : PROFILE.id;
@@ -710,6 +759,10 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
     return;
   }
   if (leaveType === "toil_part_day" && !toilRanges) {
+    showMsg(msg, "Please select at least one time range on the dial.", "error");
+    return;
+  }
+  if (leaveType === "study_leave" && document.getElementById("studyKind").value === "part_day" && !studyRanges) {
     showMsg(msg, "Please select at least one time range on the dial.", "error");
     return;
   }
@@ -734,7 +787,8 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
   try {
     if (startDate === endDate) {
       const { error } = await sb.rpc("request_leave", {
-        p_user_id: targetUser, p_leave_date: startDate, p_leave_type: leaveType, p_toil_ranges: toilRanges,
+        p_user_id: targetUser, p_leave_date: startDate, p_leave_type: leaveType,
+        p_toil_ranges: toilRanges, p_study_ranges: studyRanges,
       });
       if (error) throw error;
       closeRequestModal();
@@ -742,7 +796,7 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
     } else {
       const { data: count, error } = await sb.rpc("request_leave_range", {
         p_user_id: targetUser, p_start_date: startDate, p_end_date: endDate,
-        p_leave_type: leaveType, p_toil_ranges: toilRanges,
+        p_leave_type: leaveType, p_toil_ranges: toilRanges, p_study_ranges: studyRanges,
       });
       if (error) throw error;
       showMsg(msg, `${count} tile${count === 1 ? "" : "s"} created (weekends skipped).`, "ok");
@@ -1053,12 +1107,29 @@ async function doEdit(id) {
       return;
     }
   }
+  let newStudyRanges = null;
+  if (newType === "study_leave") {
+    const text = await uiPrompt(
+      "Time ranges for a PART DAY, comma-separated (e.g. 08:00-10:00) — leave blank for a full day:",
+      formatToilRanges(r.study_ranges).replace(/\u2013/g, "-"),
+      { title: "Edit leave" }
+    );
+    if (text === null) return;
+    if (text.trim()) {
+      newStudyRanges = parseToilRangesText(text);
+      if (!newStudyRanges) {
+        await uiAlert("Couldn't parse those time ranges — please use the format 08:00-10:00, 16:00-18:00.");
+        return;
+      }
+    }
+  }
   const note = await uiPrompt("Note for the audit trail (optional):", "", { title: "Edit leave" });
   if (note === null) return;
   const msg = document.getElementById("detMsg");
   try {
     const { error } = await sb.rpc("edit_leave", {
-      p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note || null, p_new_toil_ranges: newToilRanges,
+      p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note || null,
+      p_new_toil_ranges: newToilRanges, p_new_study_ranges: newStudyRanges,
     });
     if (error) throw error;
     closeDetailModal(); await refreshCalendar();
