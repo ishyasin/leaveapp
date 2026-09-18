@@ -71,7 +71,7 @@
       <div id="userPickerWrap" style="display:none;">
         <label>For</label>
         <select id="reqUser"></select>
-        <p class="small" style="margin:2px 0 0;">Study leave can be raised for someone else. Full Day and TOIL can only be requested for yourself.</p>
+        <p class="small" id="userPickerNote" style="margin:2px 0 0;"></p>
       </div>
       <label>Start date</label>
       <input type="date" id="reqStartDate" required>
@@ -242,9 +242,10 @@ function requestInSite(r, site) {
 }
 
 function leaveCategoryLabel(r) {
-  if (r.leave_type === "study_leave") return "Study Leave";
-  if (r.leave_type.startsWith("toil")) return "TOIL";
-  return "Annual Leave";
+  const prefix = r.requested_by && r.requested_by !== r.user_id ? "Allocated " : "";
+  if (r.leave_type === "study_leave") return `${prefix}Study Leave`;
+  if (r.leave_type.startsWith("toil")) return `${prefix}TOIL`;
+  return `${prefix}Annual Leave`;
 }
 
 // Used for both the hover tooltip and the click-through detail modal —
@@ -544,17 +545,15 @@ function renderSiteGrid(site) {
         if (r) {
           const p = profileById(r.user_id);
           const initials = p ? p.initials : "?";
-          // Narrow tile — just a small marker rather than trying to
-          // cram the actual times in (the full range list is in the
+          // Narrow tile — just small markers rather than trying to
+          // cram the actual times in (the full detail is in the
           // tooltip/detail popup, where there's room for it).
-          let suffix = "";
-          if (r.leave_type === "toil_part_day") {
-            suffix = ` <span style="font-size:9px;">Part day</span>`;
-          } else if (r.leave_type === "full_day_split") {
-            suffix = ` <span style="font-size:9px;">Split</span>`;
-          } else if (r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length) {
-            suffix = ` <span style="font-size:9px;">Part day</span>`;
-          }
+          const tags = [];
+          if (r.leave_type === "toil_part_day") tags.push("Part day");
+          else if (r.leave_type === "full_day_split") tags.push("Split");
+          else if (r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length) tags.push("Part day");
+          if (r.requested_by && r.requested_by !== r.user_id) tags.push("Alloc");
+          const suffix = tags.length ? ` <span style="font-size:9px;">${tags.join(" \u00b7 ")}</span>` : "";
           // Study leave keeps its blue "study" colour throughout — pending
           // or approved — rather than only turning blue once approved.
           // TOIL similarly gets its own purple identity: light purple
@@ -674,9 +673,43 @@ document.addEventListener("click", (e) => {
 let REQ_TOIL_PICKER = null;
 let REQ_STUDY_PICKER = null;
 
+// Who the current actor is allowed to allocate leave for, given a
+// leave type — mirrors can_process_leave_for()/the approval hierarchy
+// exactly, so "who I can allocate for" always matches "who I can
+// approve for": Lead Pharmacist -> Pharmacist only; Clinical Team
+// Lead -> Pharmacist/Lead Pharmacist/self; Developer -> anyone. Study
+// leave keeps its own broader, pre-existing rule (any active user).
+function allocatableUsersFor(leaveType) {
+  if (!isLeadPlus(PROFILE)) return [PROFILE];
+  if (leaveType === "study_leave") {
+    return PROFILES.filter(p => p.active);
+  }
+  if (isDeveloper(PROFILE)) return PROFILES.filter(p => p.active);
+  if (isSuperuserPlus(PROFILE)) {
+    return PROFILES.filter(p => p.active && (p.id === PROFILE.id || p.role === "pharmacist" || p.role === "lead_pharmacist"));
+  }
+  // lead_pharmacist
+  return PROFILES.filter(p => p.active && (p.id === PROFILE.id || p.role === "pharmacist"));
+}
+
+function refreshUserPicker() {
+  const typeSel = document.getElementById("reqType").value;
+  const wrap = document.getElementById("userPickerWrap");
+  if (!isLeadPlus(PROFILE)) { wrap.style.display = "none"; return; }
+  wrap.style.display = "";
+  const users = allocatableUsersFor(typeSel);
+  const sel = document.getElementById("reqUser");
+  const previous = sel.value;
+  sel.innerHTML = users.map(p =>
+    `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})${p.id === PROFILE.id ? " — me" : ""}</option>`).join("");
+  sel.value = users.some(p => p.id === previous) ? previous : PROFILE.id;
+  document.getElementById("userPickerNote").textContent = typeSel === "study_leave"
+    ? "Study leave can be raised for anyone."
+    : "Requesting for someone else allocates it on their behalf — it still needs approving, and is tagged \u201cAllocated\u201d so it's clear it wasn't self-requested. Retrospective (past-dated) allocation is Clinical Team Lead/Developer only.";
+}
+
 function openRequestModal() {
   document.getElementById("reqMsg").innerHTML = "";
-  document.getElementById("userPickerWrap").style.display = isLeadPlus(PROFILE) ? "" : "none";
   const defaultDate = isoDate(VIEW_YEAR, VIEW_MONTH, 1);
   document.getElementById("reqStartDate").value = defaultDate;
   document.getElementById("reqEndDate").value = defaultDate;
@@ -691,6 +724,7 @@ function openRequestModal() {
   document.getElementById("studyPartWrap").style.display = "none";
   REQ_STUDY_PICKER = null;
   document.getElementById("studyRangePicker").innerHTML = "";
+  refreshUserPicker();
   document.getElementById("reqOverlay").style.display = "flex";
 }
 function closeRequestModal() { document.getElementById("reqOverlay").style.display = "none"; }
@@ -698,12 +732,7 @@ function closeRequestModal() { document.getElementById("reqOverlay").style.displ
 document.getElementById("reqType").addEventListener("change", (e) => {
   document.getElementById("toilWrap").style.display = e.target.value === "toil" ? "" : "none";
   document.getElementById("studyWrap").style.display = e.target.value === "study_leave" ? "" : "none";
-  const wrap = document.getElementById("userPickerWrap");
-  if (e.target.value === "study_leave") {
-    wrap.style.display = isLeadPlus(PROFILE) ? "" : "none";
-  } else if (!isLeadPlus(PROFILE)) {
-    wrap.style.display = "none";
-  }
+  refreshUserPicker();
 });
 document.getElementById("toilKind").addEventListener("change", (e) => {
   const showPart = e.target.value === "part_day";

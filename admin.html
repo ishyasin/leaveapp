@@ -56,7 +56,7 @@
     </div>
     <div class="card">
       <h2>Existing users</h2>
-      <p class="small">A Clinical Team Lead can only hide an unused account (reversible, list-only — but it does also revoke access immediately). A Developer can additionally delete an account permanently: access is revoked for good and their password invalidated, though leave history stays on record. Developer accounts can never be suspended, hidden, or deleted from the app by anyone — that's Supabase-dashboard-only. A Clinical Team Lead additionally can't reset the password or edit the site of another Clinical Team Lead or a Developer.</p>
+      <p class="small">A Clinical Team Lead can only hide an unused account (reversible, list-only — but it does also revoke access immediately). A Developer can additionally delete an account permanently: access is revoked for good and their password invalidated, though leave history stays on record. A Developer can also rename anyone's Display Name — including another Clinical Team Lead's or Developer's. Developer accounts can never be suspended, hidden, or deleted from the app by anyone — that's Supabase-dashboard-only. A Clinical Team Lead additionally can't reset the password or edit the site of another Clinical Team Lead or a Developer.</p>
       <div id="usersMsg"></div>
       <table>
         <thead><tr><th>Name</th><th>Initials</th><th>User ID</th><th>Role</th><th>Site</th><th>Status</th><th></th></tr></thead>
@@ -430,6 +430,8 @@ async function loadUsers() {
     const canEditSite = !superuserBlocked;
     const canDelete = isDeveloper(PROFILE) && p.role !== "developer" && !p.deleted_by_developer;
     const canEditRole = !superuserBlocked && p.role !== "developer";
+    // Developer only, and no target restriction — see set_user_display_name() in schema.sql.
+    const canEditName = isDeveloper(PROFILE);
     const siteText = p.cross_site
       ? "Cross site"
       : SITE_LABEL[p.primary_site] || p.primary_site;
@@ -449,10 +451,18 @@ async function loadUsers() {
         ${canResetPw ? `<button class="secondary" onclick="resetPw('${p.id}')">Reset password</button>` : ""}
         ${canEditSite ? `<button class="secondary" onclick="openSiteModal('${p.id}')">Edit site</button>` : ""}
         ${canEditRole ? `<button class="secondary" onclick="openRoleModal('${p.id}')">Edit role</button>` : ""}
+        ${canEditName ? `<button class="secondary" data-editname-btn>Edit name</button>` : ""}
         ${canSuspendHide ? `<button class="danger" onclick="toggleHidden('${p.id}', ${!p.hidden_by_superuser})">${p.hidden_by_superuser ? "Unhide account" : "Hide account"}</button>` : ""}
         ${canDelete ? `<button class="danger" data-delete-btn>Delete account</button>` : ""}
-        ${!canSuspendHide && !canResetPw && !canEditSite && !canEditRole && !canDelete ? '<span class="small">locked</span>' : ""}
+        ${!canSuspendHide && !canResetPw && !canEditSite && !canEditRole && !canDelete && !canEditName ? '<span class="small">locked</span>' : ""}
       </td>`;
+    if (canEditName) {
+      // p.full_name never touches an HTML/JS string here — same
+      // reasoning as the Delete button below: passed as a real JS
+      // closure value, not interpolated into markup, so a name
+      // containing a quote can't break out of an inline onclick.
+      tr.querySelector("[data-editname-btn]").addEventListener("click", () => editDisplayName(p.id, p.full_name));
+    }
     if (canDelete) {
       // p.full_name never touches an HTML/JS string here — passed as a
       // real JS value via closure, not interpolated into markup, so a
@@ -652,6 +662,17 @@ async function resetPw(id) {
   try {
     await callEdgeFunction("admin-reset-password", { target_user_id: id, temp_password: pw });
     showMsg(msg, "Password reset. The user will be asked to set their own on next sign-in.", "ok");
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+async function editDisplayName(id, currentName) {
+  const newName = await uiPrompt("Display name:", currentName, { required: true, title: "Edit name" });
+  if (!newName || newName.trim() === currentName) return;
+  const msg = document.getElementById("usersMsg");
+  try {
+    const { error } = await sb.rpc("set_user_display_name", { p_user_id: id, p_full_name: newName.trim() });
+    if (error) throw error;
+    await loadUsers();
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
 
@@ -1001,7 +1022,7 @@ async function loadLeave() {
     return `<tr>
       <td>${fmtDate(r.leave_date)}</td>
       <td>${escapeHtml(p ? `${p.full_name} (${p.initials})` : "?")}</td>
-      <td>${LEAVE_TYPE_LABEL[r.leave_type]}${r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length ? ` (${formatToilRanges(r.toil_ranges)})` : ""}${r.leave_type === "full_day_split" ? ` (AL: ${formatToilRanges(r.annual_leave_ranges)}; TOIL: ${formatToilRanges(r.toil_ranges)})` : ""}${r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length ? ` (${formatToilRanges(r.study_ranges)})` : ""}</td>
+      <td>${LEAVE_TYPE_LABEL[r.leave_type]}${r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length ? ` (${formatToilRanges(r.toil_ranges)})` : ""}${r.leave_type === "full_day_split" ? ` (AL: ${formatToilRanges(r.annual_leave_ranges)}; TOIL: ${formatToilRanges(r.toil_ranges)})` : ""}${r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length ? ` (${formatToilRanges(r.study_ranges)})` : ""}${r.requested_by && r.requested_by !== r.user_id ? ` <span class="badge study">Allocated</span>` : ""}</td>
       <td><span class="badge ${r.status}">${r.status}</span></td>
       <td class="small">${fmtDateTime(r.requested_at)}</td>
       <td style="white-space:nowrap;">
@@ -1032,6 +1053,7 @@ function leaveRowsFor(status, data) {
       "TOIL Time Ranges": r.toil_ranges && r.toil_ranges.length ? formatToilRanges(r.toil_ranges) : "",
       "Study Leave Hours": r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length ? formatToilRanges(r.study_ranges) : "",
       "Requested By": req ? req.full_name : "?",
+      "Allocated": r.requested_by && r.requested_by !== r.user_id ? "Yes" : "",
       "Requested At": r.requested_at ? new Date(r.requested_at) : "",
       "Actioned By": appr ? appr.full_name : "",
       "Actioned At": r.approved_at ? new Date(r.approved_at) : "",

@@ -363,7 +363,14 @@ async function getCurrentProfile() {
 }
 
 async function signOut() {
-  await sb.auth.signOut();
+  try {
+    await sb.auth.signOut();
+  } catch (e) {
+    // Even if the remote sign-out call fails (an already-expired or
+    // already-rotated token, a network blip), we still want to clear
+    // the local session and get back to the login page — a failed
+    // network call here should never leave someone stuck unable to log out.
+  }
   window.location.href = "login.html";
 }
 
