@@ -64,7 +64,7 @@
 
 <!-- Request Leave modal -->
 <div class="overlay" id="reqOverlay" style="display:none;">
-  <div class="modal">
+  <div class="modal modal-wide">
     <h3>Request Leave</h3>
     <div id="reqMsg"></div>
     <form id="reqForm">
@@ -94,6 +94,7 @@
         <div id="toilPartWrap" style="display:none;">
           <label>Time(s)</label>
           <p class="small" style="margin:2px 0 6px;">Click a start point on the dial, then click again for the end — repeat for as many separate time ranges as needed (e.g. 08:00–10:00 and 16:00–18:00 in the same request). Edit or remove any range in the list below.</p>
+          <p class="small" style="margin:2px 0 6px;">This can be submitted even on a day you already have full-day leave (of any kind) approved — useful for putting in writing that you'd like part of it converted to TOIL. It won't change the existing day on its own; an approver still needs to sort that out with you directly.</p>
           <div id="toilRangePicker"></div>
         </div>
       </div>
@@ -129,7 +130,7 @@
 
 <!-- Split Full Day: Annual Leave + TOIL modal -->
 <div class="overlay" id="splitLeaveOverlay" style="display:none;">
-  <div class="modal">
+  <div class="modal modal-wide">
     <h3>Split: Annual Leave + TOIL</h3>
     <p class="small">For when this person doesn't have enough annual leave to cover the whole day — mark exactly which hours are annual leave and which are TOIL. This approves the request as a split day; the date and person stay the same.</p>
     <div id="splitLeaveMsg"></div>
@@ -151,7 +152,7 @@
 
 <!-- Amend TOIL times modal -->
 <div class="overlay" id="amendToilOverlay" style="display:none;">
-  <div class="modal">
+  <div class="modal modal-wide">
     <h3>Amend TOIL times</h3>
     <p class="small">Correcting a mistyped time — the date and leave type stay the same.</p>
     <div id="amendToilMsg"></div>

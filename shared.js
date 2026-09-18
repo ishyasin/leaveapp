@@ -170,20 +170,24 @@ function createTimeRangePicker(container, initialRanges) {
   }
 
   container.innerHTML = `
-    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:#f8fafc;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;">
-      <div>
-        <div class="trp-instruction" style="font-weight:700;font-size:13px;"></div>
-        <div class="small">Click once for start, then click again for end.</div>
+    <div class="trp-layout" style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
+      <div class="trp-dial-col" style="flex:0 0 auto;margin:0 auto;">
+        <svg class="trp-svg" viewBox="0 0 310 310" style="width:100%;max-width:230px;touch-action:manipulation;"></svg>
       </div>
-      <div class="trp-current" style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;"></div>
-    </div>
-    <div style="display:flex;justify-content:center;margin:8px 0;">
-      <svg class="trp-svg" viewBox="0 0 310 310" style="width:100%;max-width:280px;touch-action:manipulation;"></svg>
-    </div>
-    <div class="trp-ranges"></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-      <button type="button" class="secondary trp-undo">Undo last range</button>
-      <button type="button" class="secondary trp-clear">Clear all</button>
+      <div class="trp-info-col" style="flex:1 1 220px;min-width:220px;">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:#f8fafc;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;">
+          <div>
+            <div class="trp-instruction" style="font-weight:700;font-size:13px;"></div>
+            <div class="small">Click once for start, then click again for end.</div>
+          </div>
+          <div class="trp-current" style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;"></div>
+        </div>
+        <div class="trp-ranges" style="max-height:150px;overflow-y:auto;"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+          <button type="button" class="secondary trp-undo">Undo last range</button>
+          <button type="button" class="secondary trp-clear">Clear all</button>
+        </div>
+      </div>
     </div>`;
 
   const svg = container.querySelector(".trp-svg");
