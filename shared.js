@@ -222,6 +222,34 @@ function createTimeRangePicker(container, initialRanges) {
   epText.textContent = "07:00 / 19:00";
   svg.appendChild(epText);
 
+  // A single wide, invisible ring sits under the dots and is the REAL
+  // click target for most of the dial — clicking anywhere in this
+  // band computes the angle from the centre and picks the nearest
+  // 5-minute time, rather than requiring a precise hit on one of the
+  // 144 individual dots (which, packed this tightly, would just cause
+  // mis-clicks if each dot's own hit-area were simply made bigger —
+  // adjacent dots are only a few pixels apart). A click landing
+  // exactly on a dot still uses that dot's own handler underneath, so
+  // both paths agree.
+  const hitRing = E("circle", { cx, cy, r, fill: "none", stroke: "transparent", "stroke-width": 26, "pointer-events": "stroke" });
+  hitRing.style.cursor = "pointer";
+  hitRing.addEventListener("click", (evt) => {
+    const rect = svg.getBoundingClientRect();
+    const vb = svg.viewBox.baseVal;
+    const scaleX = vb.width / rect.width;
+    const scaleY = vb.height / rect.height;
+    const clickX = (evt.clientX - rect.left) * scaleX + vb.x;
+    const clickY = (evt.clientY - rect.top) * scaleY + vb.y;
+    let a = Math.atan2(clickY - cy, clickX - cx) + Math.PI / 2; // 0 = 07:00 position (top)
+    if (a < 0) a += 2 * Math.PI;
+    const f = a / (2 * Math.PI);
+    let m = START + f * (END - START);
+    m = Math.round(m / STEP) * STEP;
+    m = Math.max(START, Math.min(END, m));
+    choose(m);
+  });
+  svg.appendChild(hitRing);
+
   const dots = [];
   for (let m = START; m < END; m += STEP) {
     const p = point(m);
@@ -365,14 +393,21 @@ async function getCurrentProfile() {
 
 async function signOut() {
   try {
-    await sb.auth.signOut();
+    // 'local' scope only clears THIS browser's session — it doesn't
+    // need to revoke every other session tied to the account, which
+    // is less work and less likely to hit a snag than the default
+    // 'global' scope. Combined with the try/catch below, this makes
+    // sign-out work even if the remote call has any trouble at all.
+    await sb.auth.signOut({ scope: "local" });
   } catch (e) {
     // Even if the remote sign-out call fails (an already-expired or
     // already-rotated token, a network blip), we still want to clear
     // the local session and get back to the login page — a failed
     // network call here should never leave someone stuck unable to log out.
   }
-  window.location.href = "login.html";
+  // replace(), not href — so the browser's back button can't land on
+  // a cached, still-"logged-in"-looking page after signing out.
+  window.location.replace("login.html");
 }
 
 /** Call at the top of every protected page. Redirects if not logged in,

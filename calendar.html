@@ -71,7 +71,6 @@
       <div id="userPickerWrap" style="display:none;">
         <label>For</label>
         <select id="reqUser"></select>
-        <p class="small" id="userPickerNote" style="margin:2px 0 0;"></p>
       </div>
       <label>Start date</label>
       <input type="date" id="reqStartDate" required>
@@ -743,7 +742,7 @@ function allocatableUsersFor(leaveType) {
   return PROFILES.filter(p => p.active && (p.id === PROFILE.id || p.role === "pharmacist"));
 }
 
-function refreshUserPicker() {
+function refreshUserPicker(forceSelf) {
   const typeSel = document.getElementById("reqType").value;
   const wrap = document.getElementById("userPickerWrap");
   if (!isLeadPlus(PROFILE)) { wrap.style.display = "none"; return; }
@@ -753,13 +752,12 @@ function refreshUserPicker() {
   const previous = sel.value;
   sel.innerHTML = users.map(p =>
     `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})${p.id === PROFILE.id ? " — me" : ""}</option>`).join("");
-  sel.value = users.some(p => p.id === previous) ? previous : PROFILE.id;
-  document.getElementById("userPickerNote").textContent =
-    `Requesting for someone else allocates it on their behalf — it still needs approving, and is tagged \u201cAllocated\u201d so it's clear it wasn't self-requested.${
-      isDeveloper(PROFILE) || isSuperuserPlus(PROFILE)
-        ? " Retrospective (past-dated) allocation is allowed for anyone you can allocate for."
-        : " Retrospective (past-dated) allocation is allowed when it's for a Pharmacist — never for your own past-dated leave."
-    }`;
+  // Every fresh open of the modal defaults back to yourself — so if
+  // you allocated leave for someone else last time, opening the modal
+  // again for your OWN leave doesn't require remembering to switch it
+  // back. Only preserve the in-progress pick when just switching leave
+  // TYPE within an already-open modal (forceSelf is false then).
+  sel.value = (!forceSelf && users.some(p => p.id === previous)) ? previous : PROFILE.id;
 }
 
 function openRequestModal() {
@@ -788,7 +786,7 @@ function openRequestModal() {
   document.getElementById("studyPartWrap").style.display = "none";
   REQ_STUDY_PICKER = null;
   document.getElementById("studyRangePicker").innerHTML = "";
-  refreshUserPicker();
+  refreshUserPicker(true);
   document.getElementById("reqOverlay").style.display = "flex";
 }
 function closeRequestModal() { document.getElementById("reqOverlay").style.display = "none"; }
@@ -882,6 +880,19 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
   if (leaveType === "study_leave" && document.getElementById("studyKind").value === "part_day" && !studyRanges) {
     showMsg(msg, "Please select at least one time range on the dial.", "error");
     return;
+  }
+
+  // Clear, hard-to-miss confirmation whenever this isn't a self-request
+  // — allocating for someone else is a deliberate, less-common action,
+  // so it's worth a dedicated "are you sure" separate from the general
+  // wrong-year check below.
+  if (targetUser !== PROFILE.id) {
+    const target = PROFILES.find(p => p.id === targetUser);
+    const proceed = await uiConfirm(
+      `You're requesting leave for ${target ? target.full_name : "someone else"}, not yourself. Continue?`,
+      "Requesting for someone else"
+    );
+    if (!proceed) return;
   }
 
   // Sanity-check for a wrong year picked by mistake (e.g. a date-picker
@@ -981,7 +992,15 @@ async function openDetail(id) {
   const canProcess = r.status === "pending" && canProcessLeaveForRole(PROFILE, owner);
   const isOwnPending = r.status === "pending" && (r.requested_by === PROFILE.id || r.user_id === PROFILE.id);
   const canSuperAdmin = isSuperuserPlus(PROFILE);
-  const canDelete = isLeadPlus(PROFILE); // lead_pharmacist and above — a note is required
+  // Clinical Team Lead+ can always delete. The one exception: whoever
+  // both allocated (requested_by) AND approved (approved_by) this
+  // specific piece of leave for someone else can delete it themselves
+  // once it's approved — see delete_leave() in schema.sql for the
+  // full reasoning. Anyone else gets no Delete button at all, matching
+  // what the database will actually allow.
+  const canDeleteAsAllocatorApprover = r.status === "approved"
+    && r.requested_by === PROFILE.id && r.approved_by === PROFILE.id && r.user_id !== PROFILE.id;
+  const canDelete = canSuperAdmin || canDeleteAsAllocatorApprover;
   const canAmendToil = isLeadPlus(PROFILE) && r.leave_type === "toil_part_day";
   const canSplitLeave = canProcess && r.leave_type === "full_day";
 
