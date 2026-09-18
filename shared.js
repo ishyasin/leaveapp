@@ -1,6 +1,6 @@
 /* =====================================================================
    Leave Manager — shared.js
-   GD&G Special Projects™
+   by ED&G™
 
    Fill in SUPABASE_URL / SUPABASE_ANON_KEY below before deploying.
    ===================================================================== */
@@ -434,7 +434,7 @@ function renderTopbar(profile) {
 
   el.innerHTML = `
     <div class="brand">
-      <div>Leave Manager<small>GD&amp;G Special Projects&trade;</small></div>
+      <div>Leave Manager<small>by ED&amp;G&trade;</small></div>
     </div>
     <div class="nav">${links.map(([href,label]) =>
       `<a href="${href}" class="${page===href?'active':''}">${label}</a>`).join("")}</div>

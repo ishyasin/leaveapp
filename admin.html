@@ -1027,7 +1027,7 @@ async function loadLeave() {
       <td class="small">${fmtDateTime(r.requested_at)}</td>
       <td style="white-space:nowrap;">
         <button class="secondary" onclick="editLeave('${r.id}','${r.leave_date}','${r.leave_type}')">Edit</button>
-        ${r.status !== "pending" ? `<button class="secondary" onclick="unapproveLeave('${r.id}')">Unapprove</button>` : ""}
+        ${r.status !== "pending" ? `<button class="secondary" onclick="unapproveLeave('${r.id}','${r.status}')">${r.status === "rejected" ? "Unreject" : "Unapprove"}</button>` : ""}
         <button class="danger" onclick="deleteLeave('${r.id}')">Delete</button>
       </td>
     </tr>`;
@@ -1132,8 +1132,8 @@ async function editLeave(id, currentDate, currentType) {
   if (error) { await uiAlert(error.message); return; }
   await loadLeave();
 }
-async function unapproveLeave(id) {
-  const note = await uiPrompt("Optional note for the audit trail:", "", { title: "Unapprove leave" });
+async function unapproveLeave(id, status) {
+  const note = await uiPrompt("Optional note for the audit trail:", "", { title: status === "rejected" ? "Unreject leave" : "Unapprove leave" });
   if (note === null) return;
   const { error } = await sb.rpc("unapprove_leave", { p_leave_id: id, p_note: note || null });
   if (error) { await uiAlert(error.message); return; }

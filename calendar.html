@@ -704,8 +704,12 @@ function refreshUserPicker() {
     `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})${p.id === PROFILE.id ? " — me" : ""}</option>`).join("");
   sel.value = users.some(p => p.id === previous) ? previous : PROFILE.id;
   document.getElementById("userPickerNote").textContent = typeSel === "study_leave"
-    ? "Study leave can be raised for anyone."
-    : "Requesting for someone else allocates it on their behalf — it still needs approving, and is tagged \u201cAllocated\u201d so it's clear it wasn't self-requested. Retrospective (past-dated) allocation is Clinical Team Lead/Developer only.";
+    ? "Study leave can be raised for anyone. Retrospective (past-dated) study leave is Clinical Team Lead/Developer only."
+    : `Requesting for someone else allocates it on their behalf — it still needs approving, and is tagged \u201cAllocated\u201d so it's clear it wasn't self-requested.${
+        isDeveloper(PROFILE) || isSuperuserPlus(PROFILE)
+          ? " Retrospective (past-dated) allocation is allowed for anyone you can allocate for."
+          : " Retrospective (past-dated) allocation is allowed when it's for a Pharmacist — never for your own past-dated leave."
+      }`;
 }
 
 function openRequestModal() {
@@ -886,7 +890,7 @@ async function openDetail(id) {
   if (canSuperAdmin) {
     actions.innerHTML += `<button class="secondary" onclick="doEdit('${r.id}')">Edit</button>`;
     if (r.status !== "pending") {
-      actions.innerHTML += `<button class="secondary" onclick="doUnapprove('${r.id}')">Unapprove</button>`;
+      actions.innerHTML += `<button class="secondary" onclick="doUnapprove('${r.id}')">${r.status === "rejected" ? "Unreject" : "Unapprove"}</button>`;
     }
   }
   if (canDelete) {
@@ -1027,7 +1031,9 @@ async function doCancelOwn(id) {
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
 async function doUnapprove(id) {
-  const note = await uiPrompt("Optional note for the audit trail:", "", { title: "Unapprove leave" });
+  const r = REQUESTS.find(x => x.id === id);
+  const isReject = r && r.status === "rejected";
+  const note = await uiPrompt("Optional note for the audit trail:", "", { title: isReject ? "Unreject leave" : "Unapprove leave" });
   if (note === null) return;
   const msg = document.getElementById("detMsg");
   try {
