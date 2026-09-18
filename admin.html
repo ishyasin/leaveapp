@@ -977,7 +977,7 @@ async function loadLeave() {
     return `<tr>
       <td>${fmtDate(r.leave_date)}</td>
       <td>${escapeHtml(p ? `${p.full_name} (${p.initials})` : "?")}</td>
-      <td>${LEAVE_TYPE_LABEL[r.leave_type]}</td>
+      <td>${LEAVE_TYPE_LABEL[r.leave_type]}${r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length ? ` (${formatToilRanges(r.toil_ranges)})` : ""}${r.leave_type === "full_day_split" ? ` (AL: ${formatToilRanges(r.annual_leave_ranges)}; TOIL: ${formatToilRanges(r.toil_ranges)})` : ""}</td>
       <td><span class="badge ${r.status}">${r.status}</span></td>
       <td class="small">${fmtDateTime(r.requested_at)}</td>
       <td style="white-space:nowrap;">
@@ -1004,6 +1004,7 @@ function leaveRowsFor(status, data) {
       "Initials": p ? p.initials : "?",
       "Site": siteText,
       "Leave Type": LEAVE_TYPE_LABEL[r.leave_type] || r.leave_type,
+      "Annual Leave Hours": r.leave_type === "full_day_split" && r.annual_leave_ranges && r.annual_leave_ranges.length ? formatToilRanges(r.annual_leave_ranges) : "",
       "TOIL Time Ranges": r.toil_ranges && r.toil_ranges.length ? formatToilRanges(r.toil_ranges) : "",
       "Requested By": req ? req.full_name : "?",
       "Requested At": r.requested_at ? new Date(r.requested_at) : "",

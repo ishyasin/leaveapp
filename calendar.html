@@ -114,6 +114,28 @@
   <button type="button" class="secondary" onclick="bulkClearSelection()">Clear selection</button>
 </div>
 
+<!-- Split Full Day: Annual Leave + TOIL modal -->
+<div class="overlay" id="splitLeaveOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Split: Annual Leave + TOIL</h3>
+    <p class="small">For when this person doesn't have enough annual leave to cover the whole day — mark exactly which hours are annual leave and which are TOIL. This approves the request as a split day; the date and person stay the same.</p>
+    <div id="splitLeaveMsg"></div>
+
+    <label>Annual leave hours</label>
+    <div id="splitAlPicker"></div>
+
+    <label style="margin-top:10px;">TOIL hours</label>
+    <div id="splitToilPicker"></div>
+
+    <label>Note for the audit trail (required)</label>
+    <input type="text" id="splitLeaveNote" placeholder="e.g. Not enough AL left this year — 3h AL, rest TOIL">
+    <div class="modal-actions">
+      <button type="button" class="secondary" onclick="closeSplitLeaveModal()">Cancel</button>
+      <button type="button" class="primary" id="splitLeaveSaveBtn" onclick="saveSplitLeave()">Approve split</button>
+    </div>
+  </div>
+</div>
+
 <!-- Amend TOIL times modal -->
 <div class="overlay" id="amendToilOverlay" style="display:none;">
   <div class="modal">
@@ -221,6 +243,11 @@ function leaveTypeLine(r) {
   if (r.leave_type === "toil_part_day") {
     const ranges = formatToilRanges(r.toil_ranges);
     return `${category} — Part day${ranges ? ` (${ranges})` : ""}`;
+  }
+  if (r.leave_type === "full_day_split") {
+    const al = formatToilRanges(r.annual_leave_ranges);
+    const toil = formatToilRanges(r.toil_ranges);
+    return `${category} — Split with TOIL${al ? ` (AL: ${al}` : ""}${toil ? `; TOIL: ${toil})` : al ? ")" : ""}`;
   }
   return category;
 }
@@ -497,13 +524,14 @@ function renderSiteGrid(site) {
         if (r) {
           const p = profileById(r.user_id);
           const initials = p ? p.initials : "?";
-          // Narrow tile — show the first range's start time, plus a
-          // "+N" if there's more than one range, rather than trying to
-          // cram every range in (the full list is in the tooltip/detail popup).
+          // Narrow tile — just a small marker rather than trying to
+          // cram the actual times in (the full range list is in the
+          // tooltip/detail popup, where there's room for it).
           let suffix = "";
-          if (r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length) {
-            suffix = ` ${r.toil_ranges[0].start}`;
-            if (r.toil_ranges.length > 1) suffix += `+${r.toil_ranges.length - 1}`;
+          if (r.leave_type === "toil_part_day") {
+            suffix = ` <span style="font-size:9px;">Part day</span>`;
+          } else if (r.leave_type === "full_day_split") {
+            suffix = ` <span style="font-size:9px;">Split</span>`;
           }
           // Study leave keeps its blue "study" colour throughout — pending
           // or approved — rather than only turning blue once approved.
@@ -537,7 +565,7 @@ function renderSiteGrid(site) {
   }
 
   grid.innerHTML = headHtml
-    + laneRows("Annual Leave", r => r.leave_type === "full_day")
+    + laneRows("Annual Leave", r => r.leave_type === "full_day" || r.leave_type === "full_day_split")
     + laneRows("TOIL", r => r.leave_type === "toil_full_day" || r.leave_type === "toil_part_day")
     + laneRows("Study Leave", r => r.leave_type === "study_leave");
 }
@@ -756,10 +784,14 @@ async function openDetail(id) {
   const canSuperAdmin = isSuperuserPlus(PROFILE);
   const canDelete = isLeadPlus(PROFILE); // lead_pharmacist and above — a note is required
   const canAmendToil = isLeadPlus(PROFILE) && r.leave_type === "toil_part_day";
+  const canSplitLeave = canProcess && r.leave_type === "full_day";
 
   if (canProcess) {
     actions.innerHTML += `<button class="primary" onclick="doApprove('${r.id}')">Approve</button>
                            <button class="danger" onclick="doReject('${r.id}')">Reject</button>`;
+  }
+  if (canSplitLeave) {
+    actions.innerHTML += `<button class="secondary" onclick="doSplitLeave('${r.id}')">Split: AL + TOIL</button>`;
   }
   if (isOwnPending && !canSuperAdmin) {
     actions.innerHTML += `<button class="secondary" onclick="doCancelOwn('${r.id}')">Cancel request</button>`;
@@ -919,6 +951,46 @@ async function doUnapprove(id) {
     if (error) throw error;
     closeDetailModal(); await refreshCalendar();
   } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+/* ---------------- Split Full Day: Annual Leave + TOIL modal ---------------- */
+let SPLIT_AL_PICKER = null;
+let SPLIT_TOIL_PICKER = null;
+let SPLIT_LEAVE_ID = null;
+function doSplitLeave(id) {
+  const r = REQUESTS.find(x => x.id === id);
+  if (!r) return;
+  SPLIT_LEAVE_ID = id;
+  document.getElementById("splitLeaveMsg").innerHTML = "";
+  document.getElementById("splitLeaveNote").value = "";
+  SPLIT_AL_PICKER = createTimeRangePicker(document.getElementById("splitAlPicker"), []);
+  SPLIT_TOIL_PICKER = createTimeRangePicker(document.getElementById("splitToilPicker"), []);
+  document.getElementById("splitLeaveOverlay").style.display = "flex";
+}
+function closeSplitLeaveModal() { document.getElementById("splitLeaveOverlay").style.display = "none"; }
+
+async function saveSplitLeave() {
+  const msg = document.getElementById("splitLeaveMsg");
+  const btn = document.getElementById("splitLeaveSaveBtn");
+  const alRanges = SPLIT_AL_PICKER ? SPLIT_AL_PICKER.getRanges() : [];
+  const toilRanges = SPLIT_TOIL_PICKER ? SPLIT_TOIL_PICKER.getRanges() : [];
+  if (!alRanges.length) { showMsg(msg, "Please mark at least one annual leave time range.", "error"); return; }
+  if (!toilRanges.length) { showMsg(msg, "Please mark at least one TOIL time range.", "error"); return; }
+  const note = document.getElementById("splitLeaveNote").value.trim();
+  if (!note) { showMsg(msg, "A note explaining the split is required.", "error"); return; }
+
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const { error } = await sb.rpc("split_leave_with_toil", {
+      p_leave_id: SPLIT_LEAVE_ID, p_annual_leave_ranges: alRanges, p_toil_ranges: toilRanges, p_note: note,
+    });
+    if (error) throw error;
+    closeSplitLeaveModal(); closeDetailModal(); await refreshCalendar();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Approve split";
+  }
 }
 
 /* ---------------- Amend TOIL times modal ---------------- */

@@ -17,6 +17,7 @@ const LEAVE_TYPE_LABEL = {
   study_leave: "Study Leave",
   toil_full_day: "TOIL (Full Day)",
   toil_part_day: "TOIL (Part Day)",
+  full_day_split: "Full Day (Split AL/TOIL)",
 };
 
 const ROLE_LABEL = {

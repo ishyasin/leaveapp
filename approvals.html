@@ -25,6 +25,28 @@
   </div>
 </div>
 
+<!-- Split Full Day: Annual Leave + TOIL modal -->
+<div class="overlay" id="splitLeaveOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Split: Annual Leave + TOIL</h3>
+    <p class="small">For when this person doesn't have enough annual leave to cover the whole day — mark exactly which hours are annual leave and which are TOIL. This approves the request as a split day; the date and person stay the same.</p>
+    <div id="splitLeaveMsg"></div>
+
+    <label>Annual leave hours</label>
+    <div id="splitAlPicker"></div>
+
+    <label style="margin-top:10px;">TOIL hours</label>
+    <div id="splitToilPicker"></div>
+
+    <label>Note for the audit trail (required)</label>
+    <input type="text" id="splitLeaveNote" placeholder="e.g. Not enough AL left this year — 3h AL, rest TOIL">
+    <div class="modal-actions">
+      <button type="button" class="secondary" onclick="closeSplitLeaveModal()">Cancel</button>
+      <button type="button" class="primary" id="splitLeaveSaveBtn" onclick="saveSplitLeave()">Approve split</button>
+    </div>
+  </div>
+</div>
+
 <script src="shared.js"></script>
 <script>
 let PROFILE = null;
@@ -173,7 +195,8 @@ async function load() {
         ${blocked
           ? '<span class="small">Awaiting another approver</span>'
           : `<button class="primary" onclick="approve('${r.id}')">Approve</button>
-             <button class="danger" onclick="reject('${r.id}')">Reject</button>`}
+             <button class="danger" onclick="reject('${r.id}')">Reject</button>
+             ${r.leave_type === "full_day" ? `<button class="secondary" onclick="doSplitLeave('${r.id}')">Split: AL + TOIL</button>` : ""}`}
       </td>`;
     tbody.appendChild(tr);
   });
@@ -233,6 +256,47 @@ async function reject(id) {
     if (error) throw error;
     await load();
   } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+/* ---------------- Split Full Day: Annual Leave + TOIL modal ---------------- */
+let SPLIT_AL_PICKER = null;
+let SPLIT_TOIL_PICKER = null;
+let SPLIT_LEAVE_ID = null;
+function doSplitLeave(id) {
+  const r = PENDING.find(x => x.id === id);
+  if (!r) return;
+  SPLIT_LEAVE_ID = id;
+  document.getElementById("splitLeaveMsg").innerHTML = "";
+  document.getElementById("splitLeaveNote").value = "";
+  SPLIT_AL_PICKER = createTimeRangePicker(document.getElementById("splitAlPicker"), []);
+  SPLIT_TOIL_PICKER = createTimeRangePicker(document.getElementById("splitToilPicker"), []);
+  document.getElementById("splitLeaveOverlay").style.display = "flex";
+}
+function closeSplitLeaveModal() { document.getElementById("splitLeaveOverlay").style.display = "none"; }
+
+async function saveSplitLeave() {
+  const msg = document.getElementById("splitLeaveMsg");
+  const btn = document.getElementById("splitLeaveSaveBtn");
+  const alRanges = SPLIT_AL_PICKER ? SPLIT_AL_PICKER.getRanges() : [];
+  const toilRanges = SPLIT_TOIL_PICKER ? SPLIT_TOIL_PICKER.getRanges() : [];
+  if (!alRanges.length) { showMsg(msg, "Please mark at least one annual leave time range.", "error"); return; }
+  if (!toilRanges.length) { showMsg(msg, "Please mark at least one TOIL time range.", "error"); return; }
+  const note = document.getElementById("splitLeaveNote").value.trim();
+  if (!note) { showMsg(msg, "A note explaining the split is required.", "error"); return; }
+
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const { error } = await sb.rpc("split_leave_with_toil", {
+      p_leave_id: SPLIT_LEAVE_ID, p_annual_leave_ranges: alRanges, p_toil_ranges: toilRanges, p_note: note,
+    });
+    if (error) throw error;
+    closeSplitLeaveModal();
+    await load();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Approve split";
+  }
 }
 </script>
 </body>
