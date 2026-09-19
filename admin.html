@@ -18,6 +18,7 @@
     <button id="tabBtn-holidays" onclick="showTab('holidays')">Bank Holidays</button>
     <button id="tabBtn-restricted" onclick="showTab('restricted')">Restricted Days</button>
     <button id="tabBtn-capacity" onclick="showTab('capacity')">Leave Capacity</button>
+    <button id="tabBtn-backup" onclick="showTab('backup')">Daily Backup</button>
     <button id="tabBtn-leave" onclick="showTab('leave')">Leave Records</button>
     <button id="tabBtn-import" onclick="showTab('import')" style="display:none;">Import Historical Leave</button>
     <button id="tabBtn-reset" onclick="showTab('reset')" style="display:none;">Reset Data</button>
@@ -171,6 +172,29 @@
         <thead><tr><th>Site</th><th>Date</th><th></th></tr></thead>
         <tbody id="capOverrideRows"></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- DAILY BACKUP -->
+  <div id="tab-backup" style="display:none;">
+    <div class="card">
+      <h2>Daily backup email</h2>
+      <p class="small">A full Excel workbook of every leave request on record — one calendar-styled tab per month, plus summary tabs (All Approved, All Pending, All Rejected, TOIL, Study Leave, Annual Leave) — is emailed automatically every day at the scheduled time. Set who receives it below; this takes priority over the <code>BACKUP_TO_EMAIL</code> command-line secret if that was set up separately.</p>
+      <div id="backupMsg"></div>
+      <form id="backupForm">
+        <label>Recipient email address(es)</label>
+        <input type="text" id="backupRecipients" placeholder="e.g. lead1@edandg.com, lead2@edandg.com">
+        <p class="small" style="margin:2px 0 0;">Comma-separated for more than one. Leave blank to fall back to the <code>BACKUP_TO_EMAIL</code> secret instead, if one is set.</p>
+        <div style="margin-top:14px;">
+          <button type="submit" class="primary" id="backupSaveBtn">Save</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Send now</h2>
+      <p class="small">Triggers the same backup immediately, to whoever's set above — useful for testing, or if you need a copy right away rather than waiting for the scheduled run. This doesn't affect the automatic daily send in any way; both just run independently.</p>
+      <div id="backupSendMsg"></div>
+      <button type="button" class="secondary" id="backupSendBtn" onclick="sendBackupNow()">Send backup now</button>
     </div>
   </div>
 
@@ -357,12 +381,13 @@ let PROFILES = [];
   await loadRestricted();
   await loadCapacity();
   await loadCapacityOverrides();
+  await loadBackupSettings();
   await loadLeave();
   setupImportForm();
 })();
 
 function showTab(name) {
-  ["users","holidays","restricted","capacity","leave","import","reset"].forEach(t => {
+  ["users","holidays","restricted","capacity","backup","leave","import","reset"].forEach(t => {
     document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
     document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);
   });
@@ -1027,6 +1052,51 @@ async function removeCapacityOverride(site, date) {
   if (!await uiConfirm("Remove this red override?")) return;
   const { error } = await sb.rpc("remove_capacity_override", { p_site: site, p_date: date });
   if (error) await uiAlert(error.message); else loadCapacityOverrides();
+}
+
+/* ---------------- daily backup recipients ---------------- */
+async function loadBackupSettings() {
+  const { data } = await sb.from("backup_settings").select("recipient_emails").eq("id", 1).maybeSingle();
+  document.getElementById("backupRecipients").value = (data && data.recipient_emails) || "";
+}
+
+document.getElementById("backupForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("backupMsg");
+  const btn = document.getElementById("backupSaveBtn");
+  const value = document.getElementById("backupRecipients").value.trim();
+
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const { error } = await sb.rpc("set_backup_recipients", { p_emails: value || null });
+    if (error) throw error;
+    showMsg(msg, value ? "Saved." : "Cleared — will fall back to the BACKUP_TO_EMAIL secret if one is set.", "ok");
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Save";
+  }
+});
+
+async function sendBackupNow() {
+  const recipients = document.getElementById("backupRecipients").value.trim();
+  if (!await uiConfirm(
+    recipients
+      ? `Send the backup right now to: ${recipients}?`
+      : "No recipients are saved above yet — this will only work if a BACKUP_TO_EMAIL secret is set instead. Send anyway?"
+  )) return;
+
+  const msg = document.getElementById("backupSendMsg");
+  const btn = document.getElementById("backupSendBtn");
+  btn.disabled = true; btn.textContent = "Sending…";
+  try {
+    const result = await callEdgeFunction("send-leave-backup", {});
+    showMsg(msg, `Sent — ${result.months} month tab${result.months === 1 ? "" : "s"}, ${result.requests} leave record${result.requests === 1 ? "" : "s"} in the workbook.`, "ok");
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Send backup now";
+  }
 }
 
 /* ---------------- leave records ---------------- */
