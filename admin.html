@@ -511,9 +511,9 @@ function renderUsersTable() {
       <td>${escapeHtml(p.initials)}</td>
       <td style="white-space:nowrap;">
         ${p.role === "developer"
-          ? `<span class="small" title="A Developer's User ID is never shown here, to anyone — including another Developer.">&#128274; Hidden</span>`
+          ? `<span class="small" title="A Developer's User ID is never shown here, to anyone — including another Developer.">Hidden</span>`
           : `<span class="user-id-blur">${escapeHtml(p.user_id)}</span>
-             <button type="button" class="eye-toggle" title="Show/hide User ID" aria-label="Show or hide User ID" onclick="toggleUserIdVisibility(this)">&#128065;</button>`
+             <button type="button" class="eye-toggle" title="Show User ID" aria-label="Show User ID" aria-pressed="false" onclick="toggleUserIdVisibility(this)">${EYE_ICON}</button>`
         }
       </td>
       <td>${ROLE_LABEL[p.role]}</td>
@@ -547,13 +547,20 @@ function renderUsersTable() {
   });
 }
 
+// Plain outline-style icons (no emoji) for the show/hide User ID toggle.
+const EYE_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const EYE_OFF_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.77 21.77 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+
 // Purely a visual privacy screen (e.g. against someone glancing at a
 // shared screen or a video call) — the User ID text is still present
 // in the page either way, this just blurs how it LOOKS until clicked.
 function toggleUserIdVisibility(btn) {
   const span = btn.previousElementSibling;
   const nowRevealed = span.classList.toggle("revealed");
-  btn.innerHTML = nowRevealed ? "&#128584;" : "&#128065;"; // closed eye vs open eye
+  btn.innerHTML = nowRevealed ? EYE_OFF_ICON : EYE_ICON;
+  btn.title = nowRevealed ? "Hide User ID" : "Show User ID";
+  btn.setAttribute("aria-label", btn.title);
+  btn.setAttribute("aria-pressed", String(nowRevealed));
 }
 
 // Generates a password nobody knows or writes down — the point isn't
