@@ -27,41 +27,48 @@
   <!-- USERS -->
   <div id="tab-users">
     <div class="card">
-      <h2>Create login</h2>
-      <p class="small" id="roleHint"></p>
-      <div id="createMsg"></div>
-      <form id="createForm">
-        <label>User ID (login)</label>
-        <input type="text" id="newUserId" required>
-        <label>Initials (shown on the calendar)</label>
-        <input type="text" id="newInitials" required maxlength="4">
-        <label>Full name</label>
-        <input type="text" id="newFullName" required>
-        <label>Role</label>
-        <select id="newRole"></select>
-        <label>Site</label>
-        <select id="newSite">
-          <option value="worthing">Worthing Hospital</option>
-          <option value="st_richards">St Richard's Hospital</option>
-        </select>
-        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
-          <input type="checkbox" id="newCrossSite" style="width:auto;">
-          Cross-site (works at both Worthing and St Richard's)
-        </label>
-        <label>Temporary password (min. 12 characters)</label>
-        <input type="text" id="newTempPw" required minlength="12">
-        <div style="margin-top:14px;">
-          <button type="submit" class="primary" id="createBtn">Create login</button>
-        </div>
-      </form>
+      <button type="button" id="createToggleBtn" onclick="toggleCreateForm()" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;padding:0;cursor:pointer;text-align:left;">
+        <h2 style="margin:0;">+ Create new login</h2>
+        <span id="createToggleIcon" style="font-size:14px;color:#667085;">&#9660;</span>
+      </button>
+      <div id="createFormWrap" style="display:none;margin-top:12px;">
+        <p class="small" id="roleHint"></p>
+        <div id="createMsg"></div>
+        <form id="createForm">
+          <label>User ID (login)</label>
+          <input type="text" id="newUserId" required>
+          <label>Initials (shown on the calendar)</label>
+          <input type="text" id="newInitials" required maxlength="4">
+          <label>Full name</label>
+          <input type="text" id="newFullName" required>
+          <label>Role</label>
+          <select id="newRole"></select>
+          <label>Site</label>
+          <select id="newSite">
+            <option value="worthing">Worthing Hospital</option>
+            <option value="st_richards">St Richard's Hospital</option>
+          </select>
+          <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+            <input type="checkbox" id="newCrossSite" style="width:auto;">
+            Cross-site (works at both Worthing and St Richard's)
+          </label>
+          <label>Temporary password (min. 12 characters)</label>
+          <input type="text" id="newTempPw" required minlength="12">
+          <div style="margin-top:14px;">
+            <button type="submit" class="primary" id="createBtn">Create login</button>
+          </div>
+        </form>
+      </div>
     </div>
     <div class="card">
       <h2>Existing users</h2>
+      <input type="text" id="usersSearch" placeholder="Search by name, initials, or User ID…" style="margin-bottom:12px;">
       <div id="usersMsg"></div>
       <table>
         <thead><tr><th>Name</th><th>Initials</th><th>User ID</th><th>Role</th><th>Site</th><th>Status</th><th></th></tr></thead>
         <tbody id="usersRows"></tbody>
       </table>
+      <p id="usersEmpty" class="small" style="display:none;">No users match that search.</p>
     </div>
   </div>
 
@@ -393,15 +400,23 @@ function showTab(name) {
   });
 }
 
+function toggleCreateForm() {
+  const wrap = document.getElementById("createFormWrap");
+  const icon = document.getElementById("createToggleIcon");
+  const nowOpen = wrap.style.display === "none";
+  wrap.style.display = nowOpen ? "" : "none";
+  icon.innerHTML = nowOpen ? "&#9650;" : "&#9660;"; // up arrow when open, down when collapsed
+}
+
 function setupRoleOptions() {
   const sel = document.getElementById("newRole");
   const options = isDeveloper(PROFILE)
     ? ["pharmacist","lead_pharmacist","superuser","developer"]
-    : ["pharmacist","lead_pharmacist"];
+    : ["pharmacist","lead_pharmacist","superuser"];
   sel.innerHTML = options.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join("");
   document.getElementById("roleHint").textContent = isDeveloper(PROFILE)
     ? "As Developer you may create any account type."
-    : "As Clinical Team Lead you may only create Pharmacist or Lead Pharmacist accounts.";
+    : "As Clinical Team Lead you may create Pharmacist, Lead Pharmacist, or another Clinical Team Lead account — never a Developer.";
 }
 
 document.getElementById("createForm").addEventListener("submit", async (e) => {
@@ -431,20 +446,42 @@ document.getElementById("createForm").addEventListener("submit", async (e) => {
 
 async function loadUsers() {
   const { data, error } = await sb.from("profiles").select("*").order("full_name");
-  const tbody = document.getElementById("usersRows");
-  tbody.innerHTML = "";
   if (error) { showMsg(document.getElementById("usersMsg"), error.message, "error"); return; }
   PROFILES = data || [];
+  renderUsersTable();
+}
+
+document.getElementById("usersSearch").addEventListener("input", () => renderUsersTable());
+
+function renderUsersTable() {
+  const tbody = document.getElementById("usersRows");
+  const empty = document.getElementById("usersEmpty");
+  tbody.innerHTML = "";
 
   // Superuser (Clinical Team Lead) never sees hidden accounts here —
   // Developer always sees everything, hidden or not.
-  const visible = isDeveloper(PROFILE) ? PROFILES : PROFILES.filter(p => !p.hidden_by_superuser);
+  let visible = isDeveloper(PROFILE) ? PROFILES : PROFILES.filter(p => !p.hidden_by_superuser);
+
+  const q = document.getElementById("usersSearch").value.trim().toLowerCase();
+  if (q) {
+    visible = visible.filter(p =>
+      p.full_name.toLowerCase().includes(q) ||
+      p.initials.toLowerCase().includes(q) ||
+      p.user_id.toLowerCase().includes(q)
+    );
+  }
+  empty.style.display = visible.length === 0 ? "" : "none";
 
   visible.forEach(p => {
-    // Three separate permission rules, matching the backend exactly:
-    //  - suspend/hide: blocked for ANY developer target (by anyone,
-    //    even another developer), and blocked for a Clinical Team Lead
-    //    acting on a Clinical Team Lead/Developer target.
+    // Permission rules, matching the backend exactly:
+    //  - deactivate/reactivate (suspend): blocked for ANY developer
+    //    target (by anyone, even another developer), and blocked on
+    //    your OWN account — otherwise a Clinical Team Lead CAN suspend
+    //    another Clinical Team Lead now, same as a Developer can.
+    //  - hide: blocked for ANY developer target, and still blocked for
+    //    a Clinical Team Lead acting on another Clinical Team
+    //    Lead/Developer target — narrower than suspend, deliberately;
+    //    only suspend was extended to cover Clinical Team Lead peers.
     //  - reset password / edit site: only blocked for a Clinical Team
     //    Lead acting on a Clinical Team Lead/Developer target — a
     //    Developer can still do these to another Developer account.
@@ -454,7 +491,8 @@ async function loadUsers() {
     //    the role TO Clinical Team Lead (only a Developer can promote
     //    that far); enforced again server-side either way.
     const superuserBlocked = !isDeveloper(PROFILE) && ["superuser","developer"].includes(p.role);
-    const canSuspendHide = p.role !== "developer" && !superuserBlocked;
+    const canToggleActive = p.role !== "developer" && p.id !== PROFILE.id;
+    const canHide = p.role !== "developer" && !superuserBlocked;
     const canResetPw = !superuserBlocked;
     const canEditSite = !superuserBlocked;
     const canDelete = isDeveloper(PROFILE) && p.role !== "developer" && !p.deleted_by_developer;
@@ -471,19 +509,25 @@ async function loadUsers() {
     tr.innerHTML = `
       <td>${escapeHtml(p.full_name)}${statusTag}</td>
       <td>${escapeHtml(p.initials)}</td>
-      <td>${escapeHtml(p.user_id)}</td>
+      <td style="white-space:nowrap;">
+        ${p.role === "developer"
+          ? `<span class="small" title="A Developer's User ID is never shown here, to anyone — including another Developer.">&#128274; Hidden</span>`
+          : `<span class="user-id-blur">${escapeHtml(p.user_id)}</span>
+             <button type="button" class="eye-toggle" title="Show/hide User ID" aria-label="Show or hide User ID" onclick="toggleUserIdVisibility(this)">&#128065;</button>`
+        }
+      </td>
       <td>${ROLE_LABEL[p.role]}</td>
       <td>${escapeHtml(siteText)}</td>
       <td>${p.active ? '<span class="badge approved">active</span>' : '<span class="badge rejected">inactive</span>'}</td>
       <td style="white-space:nowrap;">
-        ${canSuspendHide ? `<button class="secondary" onclick="toggleActive('${p.id}', ${!p.active})">${p.active ? "Deactivate" : "Reactivate"}</button>` : ""}
+        ${canToggleActive ? `<button class="secondary" onclick="toggleActive('${p.id}', ${!p.active})">${p.active ? "Deactivate" : "Reactivate"}</button>` : ""}
         ${canResetPw ? `<button class="secondary" onclick="resetPw('${p.id}')">Reset password</button>` : ""}
         ${canEditSite ? `<button class="secondary" onclick="openSiteModal('${p.id}')">Edit site</button>` : ""}
         ${canEditRole ? `<button class="secondary" onclick="openRoleModal('${p.id}')">Edit role</button>` : ""}
         ${canEditName ? `<button class="secondary" data-editname-btn>Edit name</button>` : ""}
-        ${canSuspendHide ? `<button class="danger" onclick="toggleHidden('${p.id}', ${!p.hidden_by_superuser})">${p.hidden_by_superuser ? "Unhide account" : "Hide account"}</button>` : ""}
+        ${canHide ? `<button class="danger" onclick="toggleHidden('${p.id}', ${!p.hidden_by_superuser})">${p.hidden_by_superuser ? "Unhide account" : "Hide account"}</button>` : ""}
         ${canDelete ? `<button class="danger" data-delete-btn>Delete account</button>` : ""}
-        ${!canSuspendHide && !canResetPw && !canEditSite && !canEditRole && !canDelete && !canEditName ? '<span class="small">locked</span>' : ""}
+        ${!canToggleActive && !canHide && !canResetPw && !canEditSite && !canEditRole && !canDelete && !canEditName ? '<span class="small">locked</span>' : ""}
       </td>`;
     if (canEditName) {
       // p.full_name never touches an HTML/JS string here — same
@@ -501,6 +545,15 @@ async function loadUsers() {
     }
     tbody.appendChild(tr);
   });
+}
+
+// Purely a visual privacy screen (e.g. against someone glancing at a
+// shared screen or a video call) — the User ID text is still present
+// in the page either way, this just blurs how it LOOKS until clicked.
+function toggleUserIdVisibility(btn) {
+  const span = btn.previousElementSibling;
+  const nowRevealed = span.classList.toggle("revealed");
+  btn.innerHTML = nowRevealed ? "&#128584;" : "&#128065;"; // closed eye vs open eye
 }
 
 // Generates a password nobody knows or writes down — the point isn't
@@ -1161,13 +1214,25 @@ async function exportLeaveExcel() {
       .eq("deleted", false).order("leave_date", { ascending: true }).limit(10000);
     if (error) throw error;
 
+    const now = new Date();
     const wb = XLSX.utils.book_new();
+    // Info sheet first, so anyone opening the file later — even
+    // without checking the filename — knows exactly when it was
+    // generated and by whom, not just what's in it.
+    const infoWs = XLSX.utils.json_to_sheet([
+      { "Field": "Exported At", "Value": fmtDateTime(now.toISOString()) },
+      { "Field": "Exported By", "Value": PROFILE ? `${PROFILE.full_name} (${PROFILE.initials})` : "?" },
+    ], { skipHeader: true });
+    XLSX.utils.book_append_sheet(wb, infoWs, "Info");
     [["Approved", "approved"], ["Pending", "pending"], ["Rejected", "rejected"]].forEach(([label, status]) => {
       const ws = XLSX.utils.json_to_sheet(leaveRowsFor(status, data || []));
       XLSX.utils.book_append_sheet(wb, ws, label);
     });
 
-    const stamp = new Date().toISOString().slice(0, 10);
+    // Date AND time in the filename — exporting more than once in the
+    // same day used to produce the same filename every time.
+    const pad = (n) => String(n).padStart(2, "0");
+    const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
     XLSX.writeFile(wb, `leave-export-${stamp}.xlsx`);
   } catch (err) {
     showMsg(msg, err.message || "Export failed.", "error");

@@ -13,15 +13,14 @@
 <div class="wrap">
   <div class="card">
     <h1>My Leave</h1>
-    <p class="small">Every pending or approved leave request on your own record — Annual Leave, TOIL, and Study Leave together. Rejected and deleted requests aren't shown here; see the calendar for the full history if you need it.</p>
     <div id="msg"></div>
     <table>
       <thead>
-        <tr><th>Date</th><th>Type</th><th>Status</th><th>Requested/Allocated</th><th>Approved</th></tr>
+        <tr><th>Date</th><th>Type</th><th>Status</th><th>Requested/Allocated</th><th>Actioned</th></tr>
       </thead>
       <tbody id="rows"></tbody>
     </table>
-    <p id="empty" class="small" style="display:none;">No pending or approved leave on record.</p>
+    <p id="empty" class="small" style="display:none;">No leave on record.</p>
   </div>
 </div>
 
@@ -49,7 +48,6 @@ async function load() {
     .select("*")
     .eq("user_id", PROFILE.id)
     .eq("deleted", false)
-    .in("status", ["pending", "approved"])
     .order("leave_date", { ascending: false });
 
   const tbody = document.getElementById("rows");
@@ -72,9 +70,13 @@ async function load() {
     }
 
     const requestedCell = `${isAllocated ? "Allocated by" : "Requested by"} ${escapeHtml(nameFor(r.requested_by))}<br><span class="small">${fmtDateTime(r.requested_at)}</span>`;
-    const approvedCell = r.status === "approved"
-      ? `${escapeHtml(nameFor(r.approved_by))}<br><span class="small">${fmtDateTime(r.approved_at)}</span>`
-      : "";
+    let actionedCell = "";
+    if (r.status === "approved") {
+      actionedCell = `${escapeHtml(nameFor(r.approved_by))}<br><span class="small">${fmtDateTime(r.approved_at)}</span>`;
+    } else if (r.status === "rejected") {
+      actionedCell = `${escapeHtml(nameFor(r.approved_by))}<br><span class="small">${fmtDateTime(r.approved_at)}</span>`;
+      if (r.rejected_reason) actionedCell += `<br><span class="small">Reason: ${escapeHtml(r.rejected_reason)}</span>`;
+    }
 
     return `
       <tr>
@@ -82,7 +84,7 @@ async function load() {
         <td>${escapeHtml(typeDetail)}${isAllocated ? ' <span class="badge study">Allocated</span>' : ""}</td>
         <td><span class="badge ${r.status}">${r.status}</span></td>
         <td class="small">${requestedCell}</td>
-        <td class="small">${approvedCell}</td>
+        <td class="small">${actionedCell}</td>
       </tr>`;
   }).join("");
 }
