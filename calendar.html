@@ -72,11 +72,21 @@
         <label>For</label>
         <select id="reqUser"></select>
       </div>
-      <label>Start date</label>
-      <input type="date" id="reqStartDate" required>
-      <label>End date</label>
-      <input type="date" id="reqEndDate" required>
-      <p class="small" style="margin:2px 0 0;" id="reqDateRangeHint">If the end date is after the start date, a tile is created for each weekday in between — weekends are skipped automatically.</p>
+      <label id="reqDateRangeLabel">Date(s)</label>
+      <input type="hidden" id="reqStartDate">
+      <input type="hidden" id="reqEndDate">
+      <div id="reqCalendarWrap">
+        <div id="reqCalendarPicker" style="border:1px solid var(--border);border-radius:8px;padding:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <button type="button" class="secondary" onclick="reqCalNav(-1)" style="padding:2px 10px;" aria-label="Previous month">&#8249;</button>
+            <strong id="reqCalMonthLabel"></strong>
+            <button type="button" class="secondary" onclick="reqCalNav(1)" style="padding:2px 10px;" aria-label="Next month">&#8250;</button>
+          </div>
+          <div id="reqCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;font-size:12px;"></div>
+        </div>
+        <p class="small" id="reqCalSelectedLabel" style="margin:6px 0 0;font-weight:700;"></p>
+        <p class="small" style="margin:2px 0 0;">Click a day to start a selection; click a second day to select the range between them (or the same day again for just that one day). Weekends inside a range are skipped automatically — a tile is only ever created for weekdays.</p>
+      </div>
       <p class="small" style="margin:2px 0 0;display:none;font-weight:700;" id="reqExactDatesNote"></p>
       <label>Leave type</label>
       <select id="reqType">
@@ -167,8 +177,8 @@
 <!-- Amend TOIL times modal -->
 <div class="overlay" id="amendToilOverlay" style="display:none;">
   <div class="modal modal-wide">
-    <h3>Amend TOIL times</h3>
-    <p class="small">Correcting a mistyped time — the date and leave type stay the same.</p>
+    <h3 id="amendToilTitle">Amend times</h3>
+    <p class="small">Correcting a mistyped time — the date and leave type stay the same. What was originally requested stays on record alongside the amended times.</p>
     <div id="amendToilMsg"></div>
     <div id="amendToilPicker"></div>
     <label>Note for the audit trail (optional)</label>
@@ -295,6 +305,8 @@ function tileTooltip(r, ownerProfile, stacked) {
   const lines = [];
   lines.push(ownerProfile ? ownerProfile.full_name : "Unknown");
   lines.push(`${leaveTypeLine(r)} — ${fmtDate(r.leave_date)}`);
+  const amendNote = rangesAmendmentNote(r);
+  if (amendNote) lines.push(amendNote);
   if (stacked) {
     lines.push("Additional request — this person has another live request for the same date.");
   }
@@ -686,15 +698,97 @@ function requestLeaveFromSelection() {
   EXACT_SELECTED_DATES = dates;
   document.getElementById("reqStartDate").value = dates[0];
   document.getElementById("reqEndDate").value = dates[dates.length - 1];
-  document.getElementById("reqStartDate").disabled = true;
-  document.getElementById("reqEndDate").disabled = true;
-  document.getElementById("reqDateRangeHint").style.display = "none";
+  // Dates are already fixed by the Ctrl+click selection — the
+  // calendar picker doesn't apply here, just show which exact days
+  // were chosen instead.
+  document.getElementById("reqDateRangeLabel").style.display = "none";
+  document.getElementById("reqCalendarWrap").style.display = "none";
   const note = document.getElementById("reqExactDatesNote");
   note.style.display = "";
   note.textContent = dates.length === 1
     ? `Requesting for ${fmtDate(dates[0])}.`
     : `Requesting for the ${dates.length} specific days you selected: ${dates.map(fmtDate).join(", ")}.`;
   clearDaySelection();
+}
+
+/* ---------------- inline calendar range-picker (Request Leave modal) ---------------- */
+let REQ_CAL_YEAR, REQ_CAL_MONTH;   // which month the picker is currently showing (0-indexed month)
+let REQ_CAL_START = null;          // ISO date string, or null if nothing picked yet
+let REQ_CAL_END = null;            // ISO date string, or null while only a start is picked
+
+function reqCalNav(delta) {
+  REQ_CAL_MONTH += delta;
+  if (REQ_CAL_MONTH < 0) { REQ_CAL_MONTH = 11; REQ_CAL_YEAR--; }
+  if (REQ_CAL_MONTH > 11) { REQ_CAL_MONTH = 0; REQ_CAL_YEAR++; }
+  renderReqCalendar();
+}
+
+function reqCalPickDay(y, m, d) {
+  const iso = isoDate(y, m, d);
+  if (!REQ_CAL_START || REQ_CAL_END) {
+    // Nothing picked yet, or a complete range already exists — this
+    // click starts a fresh selection.
+    REQ_CAL_START = iso;
+    REQ_CAL_END = null;
+  } else if (iso === REQ_CAL_START) {
+    // Clicking the same day again = just that one day.
+    REQ_CAL_END = iso;
+  } else if (iso < REQ_CAL_START) {
+    REQ_CAL_END = REQ_CAL_START;
+    REQ_CAL_START = iso;
+  } else {
+    REQ_CAL_END = iso;
+  }
+  document.getElementById("reqStartDate").value = REQ_CAL_START;
+  document.getElementById("reqEndDate").value = REQ_CAL_END || REQ_CAL_START;
+  renderReqCalendar();
+}
+
+function renderReqCalendar() {
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  document.getElementById("reqCalMonthLabel").textContent = `${monthNames[REQ_CAL_MONTH]} ${REQ_CAL_YEAR}`;
+
+  const first = new Date(REQ_CAL_YEAR, REQ_CAL_MONTH, 1);
+  // Monday-first grid, matching the rest of the app's calendar.
+  const leadingBlanks = (first.getDay() + 6) % 7;
+  const total = daysInMonth(REQ_CAL_YEAR, REQ_CAL_MONTH);
+
+  const rangeStart = REQ_CAL_START && REQ_CAL_END ? (REQ_CAL_START < REQ_CAL_END ? REQ_CAL_START : REQ_CAL_END) : null;
+  const rangeEnd = REQ_CAL_START && REQ_CAL_END ? (REQ_CAL_START < REQ_CAL_END ? REQ_CAL_END : REQ_CAL_START) : null;
+
+  let html = "";
+  ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].forEach(d => {
+    html += `<div class="small" style="font-weight:700;padding:2px 0;">${d}</div>`;
+  });
+  for (let i = 0; i < leadingBlanks; i++) html += `<div></div>`;
+  for (let d = 1; d <= total; d++) {
+    const iso = isoDate(REQ_CAL_YEAR, REQ_CAL_MONTH, d);
+    const weekend = isWeekend(REQ_CAL_YEAR, REQ_CAL_MONTH, d);
+    const today = isToday(REQ_CAL_YEAR, REQ_CAL_MONTH, d);
+    const isStart = iso === REQ_CAL_START;
+    const isEnd = REQ_CAL_END && iso === REQ_CAL_END;
+    const inRange = rangeStart && iso >= rangeStart && iso <= rangeEnd;
+    const isEdge = isStart || isEnd || (REQ_CAL_START && !REQ_CAL_END && iso === REQ_CAL_START);
+
+    let bg = "transparent", color = "inherit", weight = "normal";
+    if (isEdge) { bg = "var(--teal)"; color = "#fff"; weight = "700"; }
+    else if (inRange) { bg = "#d7f0ee"; }
+    else if (weekend) { bg = "var(--weekend)"; }
+
+    const border = today ? "border:2px solid var(--navy);" : "border:2px solid transparent;";
+    html += `<button type="button" onclick="reqCalPickDay(${REQ_CAL_YEAR},${REQ_CAL_MONTH},${d})"
+      style="padding:5px 0;border-radius:5px;cursor:pointer;background:${bg};color:${color};font-weight:${weight};${border}">${d}</button>`;
+  }
+  document.getElementById("reqCalGrid").innerHTML = html;
+
+  const label = document.getElementById("reqCalSelectedLabel");
+  if (!REQ_CAL_START) {
+    label.textContent = "No date selected yet — click a day to start.";
+  } else if (!REQ_CAL_END || REQ_CAL_START === REQ_CAL_END) {
+    label.textContent = `Selected: ${fmtDate(REQ_CAL_START)}`;
+  } else {
+    label.textContent = `Selected: ${fmtDate(rangeStart)} to ${fmtDate(rangeEnd)}`;
+  }
 }
 
 // The <table> element persists across re-renders (only its innerHTML
@@ -762,14 +856,15 @@ function refreshUserPicker(forceSelf) {
 
 function openRequestModal() {
   document.getElementById("reqMsg").innerHTML = "";
-  const defaultDate = isoDate(VIEW_YEAR, VIEW_MONTH, 1);
   EXACT_SELECTED_DATES = null;
-  document.getElementById("reqStartDate").value = defaultDate;
-  document.getElementById("reqEndDate").value = defaultDate;
-  document.getElementById("reqStartDate").disabled = false;
-  document.getElementById("reqEndDate").disabled = false;
-  document.getElementById("reqDateRangeHint").style.display = "";
+  document.getElementById("reqStartDate").value = "";
+  document.getElementById("reqEndDate").value = "";
+  document.getElementById("reqDateRangeLabel").style.display = "";
+  document.getElementById("reqCalendarWrap").style.display = "";
   document.getElementById("reqExactDatesNote").style.display = "none";
+  REQ_CAL_YEAR = VIEW_YEAR; REQ_CAL_MONTH = VIEW_MONTH;
+  REQ_CAL_START = null; REQ_CAL_END = null;
+  renderReqCalendar();
   document.getElementById("reqType").value = "annual";
   document.getElementById("annualWrap").style.display = "";
   document.getElementById("annualKind").value = "full_day";
@@ -859,6 +954,10 @@ document.getElementById("reqForm").addEventListener("submit", async (e) => {
     ? document.getElementById("reqUser").value
     : PROFILE.id;
 
+  if (!startDate || !endDate) {
+    showMsg(msg, "Please select a date on the calendar first.", "error");
+    return;
+  }
   if (endDate < startDate) {
     showMsg(msg, "End date must be on or after the start date.", "error");
     return;
@@ -979,6 +1078,7 @@ async function openDetail(id) {
   document.getElementById("detBody").innerHTML = `
     <p><strong>${escapeHtml(owner?.full_name || "?")}</strong> (${escapeHtml(owner?.initials || "?")})</p>
     <p>${leaveTypeLine(r)} &middot; ${fmtDate(r.leave_date)}</p>
+    ${rangesAmendmentNote(r) ? `<p class="small" style="font-weight:700;">${escapeHtml(rangesAmendmentNote(r))}</p>` : ""}
     <p>Status: <span class="badge ${r.status}">${r.status}</span></p>
     ${showRequestAudit ? `<p class="small">${isAllocated ? "Allocated" : "Requested"} by ${escapeHtml(requester?.full_name || "?")} on ${fmtDateTime(r.requested_at)}</p>` : ""}
     ${approver && r.status !== "pending" ? `<p class="small">${r.status === 'rejected' ? 'Rejected' : 'Approved'} by ${escapeHtml(approver.full_name)} on ${fmtDateTime(r.approved_at)}</p>` : ""}
@@ -1001,7 +1101,13 @@ async function openDetail(id) {
   const canDeleteAsAllocatorApprover = r.status === "approved"
     && r.requested_by === PROFILE.id && r.approved_by === PROFILE.id && r.user_id !== PROFILE.id;
   const canDelete = canSuperAdmin || canDeleteAsAllocatorApprover;
-  const canAmendToil = isLeadPlus(PROFILE) && r.leave_type === "toil_part_day";
+  // Amending times is available for any PART-DAY request — TOIL,
+  // Annual Leave, or Study Leave alike — not just TOIL any more.
+  const canAmendRanges = isLeadPlus(PROFILE) && (
+    r.leave_type === "toil_part_day" ||
+    r.leave_type === "annual_part_day" ||
+    (r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length)
+  );
   const canSplitLeave = canProcess && r.leave_type === "full_day";
 
   if (canProcess) {
@@ -1014,8 +1120,8 @@ async function openDetail(id) {
   if (isOwnPending && !canSuperAdmin) {
     actions.innerHTML += `<button class="secondary" onclick="doCancelOwn('${r.id}')">Cancel request</button>`;
   }
-  if (canAmendToil) {
-    actions.innerHTML += `<button class="secondary" onclick="doAmendToilRanges('${r.id}')">Amend TOIL times</button>`;
+  if (canAmendRanges) {
+    actions.innerHTML += `<button class="secondary" onclick="doAmendToilRanges('${r.id}')">Amend times</button>`;
   }
   if (canSuperAdmin) {
     actions.innerHTML += `<button class="secondary" onclick="doEdit('${r.id}')">Edit</button>`;
@@ -1252,13 +1358,27 @@ async function saveSplitLeave() {
 /* ---------------- Amend TOIL times modal ---------------- */
 let AMEND_TOIL_PICKER = null;
 let AMEND_TOIL_ID = null;
+// Which ranges column applies for a given part-day leave_type — used
+// both to pre-fill the picker and to know which field to read back.
+function rangesFieldFor(leaveType) {
+  if (leaveType === "toil_part_day") return "toil_ranges";
+  if (leaveType === "annual_part_day") return "annual_leave_ranges";
+  if (leaveType === "study_leave") return "study_ranges";
+  return null;
+}
+
 function doAmendToilRanges(id) {
   const r = REQUESTS.find(x => x.id === id);
   if (!r) return;
   AMEND_TOIL_ID = id;
+  const field = rangesFieldFor(r.leave_type);
+  document.getElementById("amendToilTitle").textContent =
+    r.leave_type === "toil_part_day" ? "Amend TOIL times"
+    : r.leave_type === "annual_part_day" ? "Amend Annual Leave times"
+    : "Amend Study Leave times";
   document.getElementById("amendToilMsg").innerHTML = "";
   document.getElementById("amendToilNote").value = "";
-  AMEND_TOIL_PICKER = createTimeRangePicker(document.getElementById("amendToilPicker"), r.toil_ranges || []);
+  AMEND_TOIL_PICKER = createTimeRangePicker(document.getElementById("amendToilPicker"), (field && r[field]) || []);
   document.getElementById("amendToilOverlay").style.display = "flex";
 }
 function closeAmendToilModal() { document.getElementById("amendToilOverlay").style.display = "none"; }
@@ -1274,8 +1394,8 @@ async function saveAmendToilRanges() {
   const note = document.getElementById("amendToilNote").value.trim();
   btn.disabled = true; btn.textContent = "Saving…";
   try {
-    const { error } = await sb.rpc("amend_toil_ranges", {
-      p_leave_id: AMEND_TOIL_ID, p_new_toil_ranges: ranges, p_note: note || null,
+    const { error } = await sb.rpc("amend_leave_ranges", {
+      p_leave_id: AMEND_TOIL_ID, p_new_ranges: ranges, p_note: note || null,
     });
     if (error) throw error;
     closeAmendToilModal(); closeDetailModal(); await refreshCalendar();

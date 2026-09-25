@@ -526,6 +526,27 @@ function formatToilRanges(ranges) {
   if (!ranges || !ranges.length) return "";
   return ranges.map(r => `${r.start}\u2013${r.end}`).join(", ");
 }
+// Which ranges column applies for a given part-day leave_type.
+function rangesFieldForType(leaveType) {
+  if (leaveType === "toil_part_day") return "toil_ranges";
+  if (leaveType === "annual_part_day") return "annual_leave_ranges";
+  if (leaveType === "study_leave") return "study_ranges";
+  return null;
+}
+// A note showing what was ORIGINALLY requested, when an approver has
+// since amended the times to something different — "" if there's
+// nothing to show (never amended, or not a part-day type at all).
+// original_ranges is set once at creation and never touched again by
+// amend_leave_ranges(), so any difference from the current ranges
+// means it was amended after the fact.
+function rangesAmendmentNote(r) {
+  const field = rangesFieldForType(r.leave_type);
+  if (!field || !r.original_ranges) return "";
+  const current = r[field];
+  if (!current || !current.length) return "";
+  if (JSON.stringify(r.original_ranges) === JSON.stringify(current)) return "";
+  return `Originally requested: ${formatToilRanges(r.original_ranges)}`;
+}
 // Reverse of the above, for the plain-text fallback entry points (the
 // admin Import/Edit flows use a comma-separated prompt rather than the
 // full dial picker). Returns null if any segment can't be parsed.

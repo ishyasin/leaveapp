@@ -81,7 +81,7 @@ async function load() {
     return `
       <tr>
         <td>${fmtDate(r.leave_date)}</td>
-        <td>${escapeHtml(typeDetail)}${isAllocated ? ' <span class="badge study">Allocated</span>' : ""}</td>
+        <td>${escapeHtml(typeDetail)}${isAllocated ? ' <span class="badge study">Allocated</span>' : ""}${rangesAmendmentNote(r) ? `<br><span class="small">${escapeHtml(rangesAmendmentNote(r))}</span>` : ""}</td>
         <td><span class="badge ${r.status}">${r.status}</span></td>
         <td class="small">${requestedCell}</td>
         <td class="small">${actionedCell}</td>
