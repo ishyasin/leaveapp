@@ -30,6 +30,7 @@
     <button id="tabBtn-leave" onclick="showTab('leave')">Leave Records</button>
     <button id="tabBtn-import" onclick="showTab('import')" style="display:none;">Import Historical Leave</button>
     <button id="tabBtn-reset" onclick="showTab('reset')" style="display:none;">Reset Data</button>
+    <button id="tabBtn-appearance" onclick="showTab('appearance')" style="display:none;">Appearance</button>
   </div>
 
   <!-- USERS -->
@@ -313,6 +314,30 @@
     </div>
   </div>
 
+  <!-- APPEARANCE (Developer only) -->
+  <div id="tab-appearance" style="display:none;">
+    <div class="card">
+      <h2>Apply a theme</h2>
+      <p class="small">Developer only. Sets the colour theme shown throughout the app — including the seasonal ones (Halloween/Christmas/Easter) — for one or more accounts at once. This is the same Developer-controlled palette as Admin → Users → Edit theme, just applied in bulk; it's separate from each person's own Light/Dark/Inverted display mode (their own choice, from the topbar).</p>
+      <div id="bulkThemeMsg"></div>
+      <form id="bulkThemeForm">
+        <label>Theme</label>
+        <select id="bulkThemeSelect"></select>
+        <label>Apply to</label>
+        <select id="bulkThemeTarget">
+          <option value="all">All users</option>
+          <option value="selected">Selected users only</option>
+        </select>
+        <div id="bulkThemeUserListWrap" style="display:none;margin-top:10px;max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px;">
+          <div id="bulkThemeUserList"></div>
+        </div>
+        <div style="margin-top:14px;">
+          <button type="submit" class="primary" id="bulkThemeApplyBtn">Apply theme</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
 </div>
 
 <!-- Reset-app-data confirmation modal -->
@@ -404,6 +429,8 @@ let PROFILES = [];
   if (isDeveloper(PROFILE)) {
     document.getElementById("tabBtn-import").style.display = "";
     document.getElementById("tabBtn-reset").style.display = "";
+    document.getElementById("tabBtn-appearance").style.display = "";
+    setupBulkThemeTab();
   }
   setupRoleOptions();
   await loadUsers();
@@ -420,7 +447,7 @@ let PROFILES = [];
 })();
 
 function showTab(name) {
-  ["users","holidays","restricted","capacity","backup","leave","import","reset"].forEach(t => {
+  ["users","holidays","restricted","capacity","backup","leave","import","reset","appearance"].forEach(t => {
     document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
     document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);
   });
@@ -475,6 +502,10 @@ async function loadUsers() {
   if (error) { showMsg(document.getElementById("usersMsg"), error.message, "error"); return; }
   PROFILES = data || [];
   renderUsersTable();
+  // Keeps the Appearance tab's "Selected users" checklist in sync with
+  // every other place PROFILES gets reloaded (creating/hiding/deleting
+  // a user, etc.), not just on first page load.
+  if (isDeveloper(PROFILE) && document.getElementById("bulkThemeUserList")) renderBulkThemeUserList();
 }
 
 document.getElementById("usersSearch").addEventListener("input", () => renderUsersTable());
@@ -924,6 +955,64 @@ document.getElementById("themeForm").addEventListener("submit", async (e) => {
     showMsg(msg, err.message, "error");
   } finally {
     btn.disabled = false; btn.textContent = "Save";
+  }
+});
+
+/* ---------------- Appearance: bulk theme apply (Developer only) ---------------- */
+function setupBulkThemeTab() {
+  document.getElementById("bulkThemeSelect").innerHTML =
+    Object.entries(THEMES).map(([val, label]) => `<option value="${val}">${label}</option>`).join("");
+  document.getElementById("bulkThemeTarget").addEventListener("change", (e) => {
+    document.getElementById("bulkThemeUserListWrap").style.display = e.target.value === "selected" ? "" : "none";
+  });
+}
+
+function renderBulkThemeUserList() {
+  const wrap = document.getElementById("bulkThemeUserList");
+  // Every account a Developer can already theme one at a time via Edit
+  // theme — including hidden accounts and other Developers/Clinical
+  // Team Leads — excluding only a permanently (hard-)deleted account,
+  // which has no meaningful "current theme" left to change.
+  const list = PROFILES.filter(p => !p.deleted_by_developer);
+  wrap.innerHTML = list.map(p => `
+    <label style="display:flex;align-items:center;gap:8px;font-weight:400;margin:4px 0;">
+      <input type="checkbox" class="bulk-theme-user" value="${p.id}" style="width:auto;">
+      ${escapeHtml(p.full_name)} (${escapeHtml(p.initials)}) &middot; ${ROLE_LABEL[p.role]}
+    </label>`).join("");
+}
+
+document.getElementById("bulkThemeForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("bulkThemeMsg");
+  const btn = document.getElementById("bulkThemeApplyBtn");
+  const theme = document.getElementById("bulkThemeSelect").value;
+  const target = document.getElementById("bulkThemeTarget").value;
+
+  let ids = null;
+  if (target === "selected") {
+    ids = [...document.querySelectorAll(".bulk-theme-user:checked")].map(el => el.value);
+    if (!ids.length) { showMsg(msg, "Select at least one user first.", "error"); return; }
+  }
+
+  const confirmMsg = target === "all"
+    ? `Apply the "${THEMES[theme]}" theme to ALL ${PROFILES.filter(p => !p.deleted_by_developer).length} user accounts?`
+    : `Apply the "${THEMES[theme]}" theme to ${ids.length} selected account${ids.length === 1 ? "" : "s"}?`;
+  if (!await uiConfirm(confirmMsg)) return;
+
+  btn.disabled = true; btn.textContent = "Applying…";
+  try {
+    const { error } = await sb.rpc("set_user_theme_bulk", { p_user_ids: ids, p_theme: theme });
+    if (error) throw error;
+    showMsg(msg, "Theme applied.", "ok");
+    // If this changes the Developer's OWN account (directly selected,
+    // or swept up in "All users"), reflect it immediately rather than
+    // waiting for the next page load.
+    if (target === "all" || (ids && ids.includes(PROFILE.id))) applyTheme(theme);
+    await loadUsers();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Apply theme";
   }
 });
 

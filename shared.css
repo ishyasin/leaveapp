@@ -46,6 +46,15 @@
 :root[data-theme="crimson"]{
   --navy:#3a1220; --navy-light:#4a1829; --teal:#b42318; --teal-light:#d4594e; --honey:#f5b400; --honey-dark:#c98a00;
 }
+:root[data-theme="halloween"]{
+  --navy:#1b1420; --navy-light:#2a1f33; --teal:#d2601a; --teal-light:#f0821e; --honey:#7a4fa3; --honey-dark:#5e3a82;
+}
+:root[data-theme="christmas"]{
+  --navy:#7a1621; --navy-light:#9c2430; --teal:#1f6b3a; --teal-light:#2f8f50; --honey:#d4af37; --honey-dark:#a8862b;
+}
+:root[data-theme="easter"]{
+  --navy:#5b4b8a; --navy-light:#6f5da3; --teal:#3fa796; --teal-light:#6fc9ba; --honey:#f4a6c1; --honey-dark:#e58aab;
+}
 
 /* ---- colour modes: surfaces/text only — independent of theme ---- */
 :root[data-color-mode="dark"]{

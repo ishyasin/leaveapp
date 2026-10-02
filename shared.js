@@ -45,10 +45,13 @@ const SITE_LABEL = {
    profiles_theme_check / profiles_color_mode_check in schema.sql.
    ===================================================================== */
 const THEMES = {
-  default: "Default (Navy & Teal)",
-  magenta: "GD&G (Navy & Magenta)",
-  forest:  "Forest",
-  crimson: "Crimson",
+  default:   "Default (Navy & Teal)",
+  magenta:   "GD&G (Navy & Magenta)",
+  forest:    "Forest",
+  crimson:   "Crimson",
+  halloween: "Halloween",
+  christmas: "Christmas",
+  easter:    "Easter",
 };
 const COLOR_MODES = {
   light:    "Light",
