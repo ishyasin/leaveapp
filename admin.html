@@ -207,6 +207,21 @@
       </form>
     </div>
     <div class="card">
+      <h2>Send time</h2>
+      <div id="backupScheduleMsg"></div>
+      <div id="backupScheduleNotSetUp" style="display:none;">
+        <p class="small">The automatic daily send hasn't been set up yet — this only controls <strong>when</strong> an already-scheduled send fires, it can't create the schedule itself (that needs a one-off run of <code>supabase/backup-cron-setup.sql</code> in the Supabase SQL Editor — see README §17). Once that's done, come back here to change the time any time you like, without needing the SQL Editor again.</p>
+      </div>
+      <form id="backupScheduleForm" style="display:none;">
+        <label>Send time (UTC)</label>
+        <input type="time" id="backupTimeUtc" required>
+        <p class="small" id="backupTimeLocalHint" style="margin:4px 0 0;"></p>
+        <div style="margin-top:14px;">
+          <button type="submit" class="primary" id="backupScheduleSaveBtn">Save send time</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
       <h2>Send now</h2>
       <p class="small">Triggers the same backup immediately, to whoever's set above — useful for testing, or if you need a copy right away rather than waiting for the scheduled run. This doesn't affect the automatic daily send in any way; both just run independently.</p>
       <div id="backupSendMsg"></div>
@@ -442,6 +457,7 @@ let PROFILES = [];
   await loadCapacity();
   await loadCapacityOverrides();
   await loadBackupSettings();
+  await loadBackupSchedule();
   await loadLeave();
   setupImportForm();
 })();
@@ -1291,6 +1307,79 @@ document.getElementById("backupForm").addEventListener("submit", async (e) => {
     showMsg(msg, err.message, "error");
   } finally {
     btn.disabled = false; btn.textContent = "Save";
+  }
+});
+
+/* ---------------- daily backup send time ---------------- */
+// Parses a pg_cron 5-field schedule string ("0 19 * * *") back into
+// {hour, minute} — only ever needs to handle schedules THIS app wrote
+// (via set_backup_schedule(), always a plain daily minute/hour/*/*/*),
+// not arbitrary cron syntax.
+function parseDailyCronSchedule(schedule) {
+  const parts = (schedule || "").trim().split(/\s+/);
+  if (parts.length !== 5) return null;
+  const minute = Number(parts[0]), hour = Number(parts[1]);
+  if (!Number.isInteger(minute) || !Number.isInteger(hour)) return null;
+  return { hour, minute };
+}
+
+function updateBackupTimeLocalHint() {
+  const val = document.getElementById("backupTimeUtc").value; // "HH:MM"
+  const hint = document.getElementById("backupTimeLocalHint");
+  if (!val) { hint.textContent = ""; return; }
+  const [h, m] = val.split(":").map(Number);
+  const d = new Date();
+  d.setUTCHours(h, m, 0, 0);
+  const local = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  hint.textContent = `≈ ${local} UK time right now — but pg_cron has no daylight-saving awareness, so this drifts an hour during British Summer Time. Revisit this after each clock change if you want it exact.`;
+}
+
+async function loadBackupSchedule() {
+  const msg = document.getElementById("backupScheduleMsg");
+  msg.innerHTML = "";
+  try {
+    const { data, error } = await sb.rpc("get_backup_schedule");
+    if (error) throw error;
+    if (!data.scheduled) {
+      document.getElementById("backupScheduleNotSetUp").style.display = "";
+      document.getElementById("backupScheduleForm").style.display = "none";
+      return;
+    }
+    document.getElementById("backupScheduleNotSetUp").style.display = "none";
+    document.getElementById("backupScheduleForm").style.display = "";
+    const parsed = parseDailyCronSchedule(data.schedule);
+    if (parsed) {
+      document.getElementById("backupTimeUtc").value =
+        `${String(parsed.hour).padStart(2, "0")}:${String(parsed.minute).padStart(2, "0")}`;
+      updateBackupTimeLocalHint();
+    }
+    if (data.active === false) {
+      showMsg(msg, "This schedule exists but is currently paused (inactive) — contact whoever set it up via the SQL Editor if that's unexpected.", "error");
+    }
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  }
+}
+
+document.getElementById("backupTimeUtc").addEventListener("input", updateBackupTimeLocalHint);
+
+document.getElementById("backupScheduleForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("backupScheduleMsg");
+  const btn = document.getElementById("backupScheduleSaveBtn");
+  const val = document.getElementById("backupTimeUtc").value;
+  if (!val) { showMsg(msg, "Pick a time first.", "error"); return; }
+  const [hour, minute] = val.split(":").map(Number);
+
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const { error } = await sb.rpc("set_backup_schedule", { p_hour_utc: hour, p_minute_utc: minute });
+    if (error) throw error;
+    showMsg(msg, "Saved — takes effect from the next scheduled run onwards.", "ok");
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Save send time";
   }
 });
 

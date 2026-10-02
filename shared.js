@@ -545,6 +545,20 @@ function renderTopbar(profile) {
       <button onclick="signOut()">Sign out</button>
     </div>`;
   document.getElementById("colorModeSelect").addEventListener("change", (e) => setOwnColorMode(e.target.value));
+
+  // A thin decorative strip right under the topbar — cartoon pumpkins/
+  // spiders for the Halloween theme, a tree/reindeer/snow for
+  // Christmas, nothing for every other theme (see .theme-banner in
+  // shared.css, which does the actual showing/hiding/artwork). Created
+  // once per page as a sibling of #topbar, since every protected page
+  // calls renderTopbar() exactly once.
+  if (!document.getElementById("themeBanner")) {
+    const banner = document.createElement("div");
+    banner.id = "themeBanner";
+    banner.className = "theme-banner";
+    banner.setAttribute("aria-hidden", "true");
+    el.insertAdjacentElement("afterend", banner);
+  }
 }
 
 /* ---------------- utils ---------------- */
