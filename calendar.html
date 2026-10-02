@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
 <title>Calendar — Leave Manager</title>
+<script>
+// Applies the last-known colour theme/mode (cached by applyTheme()/
+// applyColorMode() in shared.js) before first paint, so a user who
+// picked Dark or Inverted doesn't see a flash of the light page while
+// their profile loads. The profile itself (fetched in requireAuth())
+// remains the source of truth and corrects this on every page load.
+(function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
 <link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 </head>
@@ -19,6 +27,7 @@
         <strong id="yearLabel"></strong>
         <button onclick="changeYear(1)">&rarr;</button>
       </div>
+      <div class="tabs" id="siteViewTabs" style="margin:0;"></div>
       <button class="primary" onclick="openRequestModal()">+ Request Leave</button>
     </div>
     <div class="tabs" id="monthTabs"></div>
@@ -36,7 +45,7 @@
     <p class="small" id="bulkTip" style="margin:4px 0 0;">Tip: hold <strong>Ctrl</strong> and click a pending leave tile to select several at once — your own get a "Cancel selected" option; a Lead Pharmacist/Clinical Team Lead reviewing someone else's also gets "Approve/Reject selected".</p>
   </div>
 
-  <div class="card">
+  <div class="card" id="siteCard-worthing">
     <div class="site-heading-row">
       <h3 class="site-heading">Worthing Hospital</h3>
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
@@ -48,7 +57,7 @@
     <table class="cal-grid" id="calGrid-worthing"></table>
   </div>
 
-  <div class="card">
+  <div class="card" id="siteCard-st_richards">
     <div class="site-heading-row">
       <h3 class="site-heading">St Richard's Hospital</h3>
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
@@ -220,6 +229,7 @@ let BULK_SELECTED = new Set(); // pending leave_request ids, Ctrl+click-selected
   PROFILE = await requireAuth(["pharmacist","lead_pharmacist","superuser","developer"]);
   if (!PROFILE) return;
   await loadProfiles();
+  initSiteView();
   buildMonthTabs();
   document.getElementById("studyOption").style.display = "";
   await refreshCalendar();
@@ -349,6 +359,48 @@ function buildMonthTabs() {
 
 function changeYear(delta) { VIEW_YEAR += delta; buildMonthTabs(); refreshCalendar(); }
 function selectMonth(idx) { VIEW_MONTH = idx; buildMonthTabs(); refreshCalendar(); }
+
+/* ---------------- site view toggle (Worthing / St Richard's / Both) ---------------- */
+// Purely a personal display filter for this browser, not account data —
+// no server round trip, so it's cached in localStorage rather than on
+// the profile the way theme/colour-mode are. Defaults to "both".
+const SITE_VIEW_STORAGE_KEY = "lm_site_view";
+const SITE_VIEW_OPTIONS = [
+  ["both", "Both sites"],
+  ["worthing", SITE_LABEL.worthing],
+  ["st_richards", SITE_LABEL.st_richards],
+];
+let SITE_VIEW = "both";
+
+function initSiteView() {
+  try {
+    const saved = localStorage.getItem(SITE_VIEW_STORAGE_KEY);
+    if (saved === "both" || saved === "worthing" || saved === "st_richards") SITE_VIEW = saved;
+  } catch (e) {}
+  renderSiteViewTabs();
+  applySiteView();
+}
+
+function renderSiteViewTabs() {
+  const el = document.getElementById("siteViewTabs");
+  el.innerHTML = SITE_VIEW_OPTIONS.map(([val, label]) =>
+    `<button type="button" class="${SITE_VIEW === val ? "active" : ""}" onclick="setSiteView('${val}')">${label}</button>`
+  ).join("");
+}
+
+function setSiteView(view) {
+  SITE_VIEW = view;
+  try { localStorage.setItem(SITE_VIEW_STORAGE_KEY, view); } catch (e) {}
+  renderSiteViewTabs();
+  applySiteView();
+}
+
+function applySiteView() {
+  document.getElementById("siteCard-worthing").style.display =
+    (SITE_VIEW === "both" || SITE_VIEW === "worthing") ? "" : "none";
+  document.getElementById("siteCard-st_richards").style.display =
+    (SITE_VIEW === "both" || SITE_VIEW === "st_richards") ? "" : "none";
+}
 
 async function refreshCalendar() {
   // A re-render always rebuilds every tile's DOM element from scratch,
@@ -1327,6 +1379,7 @@ function doSplitLeave(id) {
   document.getElementById("splitLeaveNote").value = "";
   SPLIT_AL_PICKER = createTimeRangePicker(document.getElementById("splitAlPicker"), []);
   SPLIT_TOIL_PICKER = createTimeRangePicker(document.getElementById("splitToilPicker"), []);
+  closeDetailModal();
   document.getElementById("splitLeaveOverlay").style.display = "flex";
 }
 function closeSplitLeaveModal() { document.getElementById("splitLeaveOverlay").style.display = "none"; }

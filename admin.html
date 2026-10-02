@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
 <title>Admin — Leave Manager</title>
+<script>
+// Applies the last-known colour theme/mode (cached by applyTheme()/
+// applyColorMode() in shared.js) before first paint, so a user who
+// picked Dark or Inverted doesn't see a flash of the light page while
+// their profile loads. The profile itself (fetched in requireAuth())
+// remains the source of truth and corrects this on every page load.
+(function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
 <link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -367,6 +375,24 @@
   </div>
 </div>
 
+<!-- Edit theme modal (Developer only) -->
+<div class="overlay" id="themeOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Edit theme</h3>
+    <p class="small" id="themeModalName"></p>
+    <p class="small">The colour palette this account sees throughout the app. Doesn't affect anyone else's account, and is separate from their own Light/Dark/Inverted display mode (that's their own choice, from the topbar).</p>
+    <div id="themeMsg"></div>
+    <form id="themeForm">
+      <label>Theme</label>
+      <select id="themeSelect"></select>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeThemeModal()">Cancel</button>
+        <button type="submit" class="primary" id="themeSaveBtn">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script src="shared.js"></script>
 <script>
 let PROFILE = null;
@@ -499,6 +525,8 @@ function renderUsersTable() {
     const canEditRole = !superuserBlocked && p.role !== "developer";
     // Developer only, and no target restriction — see set_user_display_name() in schema.sql.
     const canEditName = isDeveloper(PROFILE);
+    // Developer only, and no target restriction — see set_user_theme() in schema.sql.
+    const canEditTheme = isDeveloper(PROFILE);
     const siteText = p.cross_site
       ? "Cross site"
       : SITE_LABEL[p.primary_site] || p.primary_site;
@@ -525,9 +553,10 @@ function renderUsersTable() {
         ${canEditSite ? `<button class="secondary" onclick="openSiteModal('${p.id}')">Edit site</button>` : ""}
         ${canEditRole ? `<button class="secondary" onclick="openRoleModal('${p.id}')">Edit role</button>` : ""}
         ${canEditName ? `<button class="secondary" data-editname-btn>Edit name</button>` : ""}
+        ${canEditTheme ? `<button class="secondary" onclick="openThemeModal('${p.id}')">Edit theme</button>` : ""}
         ${canHide ? `<button class="danger" onclick="toggleHidden('${p.id}', ${!p.hidden_by_superuser})">${p.hidden_by_superuser ? "Unhide account" : "Hide account"}</button>` : ""}
         ${canDelete ? `<button class="danger" data-delete-btn>Delete account</button>` : ""}
-        ${!canToggleActive && !canHide && !canResetPw && !canEditSite && !canEditRole && !canDelete && !canEditName ? '<span class="small">locked</span>' : ""}
+        ${!canToggleActive && !canHide && !canResetPw && !canEditSite && !canEditRole && !canDelete && !canEditName && !canEditTheme ? '<span class="small">locked</span>' : ""}
       </td>`;
     if (canEditName) {
       // p.full_name never touches an HTML/JS string here — same
@@ -852,6 +881,44 @@ document.getElementById("roleForm").addEventListener("submit", async (e) => {
     });
     if (error) throw error;
     closeRoleModal();
+    await loadUsers();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Save";
+  }
+});
+
+/* ---------------- edit theme (Developer only) ---------------- */
+let THEME_MODAL_USER_ID = null;
+function openThemeModal(id) {
+  const p = PROFILES.find(x => x.id === id);
+  if (!p) return;
+  THEME_MODAL_USER_ID = id;
+  document.getElementById("themeMsg").innerHTML = "";
+  document.getElementById("themeModalName").textContent = `${p.full_name} (${p.initials})`;
+  const sel = document.getElementById("themeSelect");
+  sel.innerHTML = Object.entries(THEMES).map(([val, label]) => `<option value="${val}">${label}</option>`).join("");
+  sel.value = THEMES[p.theme] ? p.theme : "default";
+  document.getElementById("themeOverlay").style.display = "flex";
+}
+function closeThemeModal() { document.getElementById("themeOverlay").style.display = "none"; }
+
+document.getElementById("themeForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("themeMsg");
+  const btn = document.getElementById("themeSaveBtn");
+  const newTheme = document.getElementById("themeSelect").value;
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const { error } = await sb.rpc("set_user_theme", {
+      p_user_id: THEME_MODAL_USER_ID, p_theme: newTheme,
+    });
+    if (error) throw error;
+    closeThemeModal();
+    // If a Developer just re-themes their OWN account, reflect it
+    // immediately rather than waiting for the next page load.
+    if (THEME_MODAL_USER_ID === PROFILE.id) applyTheme(newTheme);
     await loadUsers();
   } catch (err) {
     showMsg(msg, err.message, "error");

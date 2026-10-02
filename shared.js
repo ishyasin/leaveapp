@@ -33,6 +33,62 @@ const SITE_LABEL = {
   st_richards: "St Richard's Hospital",
 };
 
+/* =====================================================================
+   Colour themes (Developer-settable per user, via set_user_theme() —
+   see admin.html) and Light/Dark/Inverted colour modes (each user's own
+   choice, via set_own_color_mode() — see the topbar). A theme is just
+   the brand accent palette (navy/teal/honey); a colour mode is the
+   light-vs-dark surface/text treatment it's drawn on top of. The two
+   are independent and combine via the data-theme / data-color-mode
+   attributes shared.css reads on <html> — see that file for the actual
+   colour values. Keep the key lists here in sync with
+   profiles_theme_check / profiles_color_mode_check in schema.sql.
+   ===================================================================== */
+const THEMES = {
+  default: "Default (Navy & Teal)",
+  magenta: "GD&G (Navy & Magenta)",
+  forest:  "Forest",
+  crimson: "Crimson",
+};
+const COLOR_MODES = {
+  light:    "Light",
+  dark:     "Dark",
+  inverted: "Inverted",
+};
+const THEME_STORAGE_KEY = "lm_theme";
+const COLOR_MODE_STORAGE_KEY = "lm_color_mode";
+
+// Applies instantly (so the UI never has to wait on a round trip) and
+// caches to localStorage purely so the next page load's inline
+// bootstrap snippet (see the top of every page's <head>) can set the
+// attribute before first paint, avoiding a flash of the wrong palette.
+// The database profile row remains the source of truth — requireAuth()
+// re-applies from it, and corrects the cache, on every page load.
+function applyTheme(theme) {
+  if (!THEMES[theme]) theme = "default";
+  document.documentElement.setAttribute("data-theme", theme);
+  try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (e) {}
+}
+function applyColorMode(mode) {
+  if (!COLOR_MODES[mode]) mode = "light";
+  document.documentElement.setAttribute("data-color-mode", mode);
+  try { localStorage.setItem(COLOR_MODE_STORAGE_KEY, mode); } catch (e) {}
+}
+
+// Called from the topbar's own mode picker — a personal display
+// preference, so no confirmation dialog, just apply-and-save.
+async function setOwnColorMode(mode) {
+  applyColorMode(mode);
+  try {
+    const { error } = await sb.rpc("set_own_color_mode", { p_mode: mode });
+    if (error) throw error;
+  } catch (e) {
+    // Best-effort: it still applies for this browser even if saving it
+    // to the account fails (e.g. a dropped connection), so a flaky
+    // network never blocks switching modes.
+  }
+}
+
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const WEEKDAY_ABBR = ["Sun","Mon","Tue","Wed","Thur","Fri","Sat"];
 function weekdayAbbr(y, mIdx, d) { return WEEKDAY_ABBR[new Date(y, mIdx, d).getDay()]; }
@@ -176,7 +232,7 @@ function createTimeRangePicker(container, initialRanges) {
         <svg class="trp-svg" viewBox="0 0 310 310" style="width:100%;max-width:230px;touch-action:manipulation;"></svg>
       </div>
       <div class="trp-info-col" style="flex:1 1 220px;min-width:220px;">
-        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:#f8fafc;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:var(--surface-subtle);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;">
           <div>
             <div class="trp-instruction" style="font-weight:700;font-size:13px;"></div>
             <div class="small">Click once for start, then click again for end.</div>
@@ -288,7 +344,7 @@ function createTimeRangePicker(container, initialRanges) {
     }
     ranges.forEach((q, i) => {
       const row = document.createElement("div");
-      row.style.cssText = "display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;margin:4px 0;border:1px solid var(--border);border-radius:6px;background:#f8fafc;flex-wrap:wrap;";
+      row.style.cssText = "display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;margin:4px 0;border:1px solid var(--border);border-radius:6px;background:var(--surface-subtle);flex-wrap:wrap;";
 
       function makeSelect(value, min, max) {
         const sel = document.createElement("select");
@@ -422,6 +478,8 @@ async function requireAuth(allowedRoles) {
     window.location.href = "login.html?err=inactive";
     return null;
   }
+  applyTheme(profile.theme);
+  applyColorMode(profile.color_mode);
   if (profile.must_reset_password && !window.location.pathname.endsWith("reset-password.html")) {
     window.location.href = "reset-password.html";
     return null;
@@ -468,6 +526,10 @@ function renderTopbar(profile) {
   if (isLeadPlus(profile)) links.push(["approvals.html", "Approvals"]);
   if (isSuperuserPlus(profile)) { links.push(["admin.html", "Admin"]); links.push(["audit.html", "Audit Trail"]); }
 
+  const modeOptions = Object.entries(COLOR_MODES)
+    .map(([val, label]) => `<option value="${val}"${profile.color_mode === val ? " selected" : ""}>${label}</option>`)
+    .join("");
+
   el.innerHTML = `
     <div class="brand">
       <div>Leave Manager<small>by ED&amp;G&trade;</small></div>
@@ -475,9 +537,11 @@ function renderTopbar(profile) {
     <div class="nav">${links.map(([href,label]) =>
       `<a href="${href}" class="${page===href?'active':''}">${label}</a>`).join("")}</div>
     <div class="userbox">
+      <select id="colorModeSelect" class="mode-select" aria-label="Display mode">${modeOptions}</select>
       <span>${escapeHtml(profile.full_name)} (${escapeHtml(profile.initials)}) &middot; ${ROLE_LABEL[profile.role]}</span>
       <button onclick="signOut()">Sign out</button>
     </div>`;
+  document.getElementById("colorModeSelect").addEventListener("change", (e) => setOwnColorMode(e.target.value));
 }
 
 /* ---------------- utils ---------------- */
