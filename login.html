@@ -14,9 +14,95 @@
 (function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
 <link rel="stylesheet" href="shared.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<style>
+  /* ---- ED&G splash dressing for the sign-in screen only ---- */
+  body{
+    position:relative;
+    min-height:100vh;
+    margin:0;
+    overflow-x:hidden;
+    background:#eaf2fb;
+  }
+  .edg-backdrop{position:fixed;inset:0;z-index:0;}
+  .edg-backdrop svg{position:absolute;inset:0;width:100%;height:100%;}
+  :root[data-color-mode="dark"] .edg-backdrop,
+  :root[data-color-mode="inverted"] .edg-backdrop{display:none;}
+
+  .edg-brand{
+    position:fixed;right:40px;bottom:28px;z-index:1;text-align:right;
+    pointer-events:none;
+  }
+  .edg-brand .mark{font-size:30px;font-weight:800;color:#1a2744;line-height:1;}
+  .edg-brand .mark .amp{color:#12a0ad;}
+  .edg-brand .mark .tm{font-size:12px;font-weight:700;vertical-align:super;margin-left:1px;}
+  .edg-brand .name{margin-top:3px;font-size:12.5px;font-weight:700;color:#1a2744;}
+  .edg-brand .rule{height:3px;margin:7px 0 0;border-radius:2px;overflow:hidden;display:flex;}
+  .edg-brand .rule span{flex:1;}
+  .edg-brand .rule span:nth-child(1){background:#1a2744;}
+  .edg-brand .rule span:nth-child(2){background:#12a0ad;}
+  .edg-brand .rule span:nth-child(3){background:#4caf50;}
+
+  .login-wrap{
+    position:relative;z-index:2;
+    max-width:380px;margin:0 auto;
+    min-height:100vh;
+    display:flex;flex-direction:column;justify-content:center;
+    padding:24px 16px;
+  }
+  .login-card{
+    background:rgba(255,255,255,.9);
+    backdrop-filter:blur(6px);
+    border:1px solid rgba(26,39,68,.08);
+    border-radius:14px;
+    border-top:4px solid #12a0ad;
+    box-shadow:0 20px 50px rgba(26,39,68,.14);
+    padding:30px 28px 26px;
+    animation:edg-rise .45s ease-out;
+  }
+  :root[data-color-mode="dark"] .login-card,
+  :root[data-color-mode="inverted"] .login-card{
+    background:var(--surface);backdrop-filter:none;box-shadow:none;
+  }
+  @keyframes edg-rise{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+
+  .login-card .logo-row h2{color:#1a2744;}
+  :root[data-color-mode="dark"] .login-card .logo-row h2,
+  :root[data-color-mode="inverted"] .login-card .logo-row h2{color:var(--heading-color);}
+
+  .login-card button.primary{background:#1a2744;}
+  .login-card button.primary:hover{background:#12a0ad;}
+
+  @media (max-width:480px){
+    .edg-brand{right:20px;bottom:18px;}
+    .edg-brand .mark{font-size:24px;}
+  }
+</style>
 </head>
 <body>
+
+<div class="edg-backdrop" aria-hidden="true">
+  <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="edgG1" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#bfe0f7"/>
+        <stop offset="1" stop-color="#eaf2fb"/>
+      </linearGradient>
+    </defs>
+    <rect width="1600" height="900" fill="url(#edgG1)"/>
+    <path d="M0,620 C280,520 480,760 820,660 C1140,565 1340,700 1600,580 L1600,900 L0,900 Z" fill="#cfe7f8" opacity="0.9"/>
+    <path d="M0,700 C260,640 520,820 860,720 C1180,630 1380,780 1600,680 L1600,900 L0,900 Z" fill="#9fd0ee" opacity="0.85"/>
+    <path d="M0,780 C300,860 560,700 900,790 C1220,870 1400,760 1600,820 L1600,900 L0,900 Z" fill="#5fb6e0" opacity="0.9"/>
+    <path d="M1600,0 L1600,260 C1500,300 1460,200 1380,230 L1500,0 Z" fill="#4caf50" opacity="0.5"/>
+    <path d="M1600,0 L1600,300 C1480,350 1430,230 1330,260 L1460,0 Z" fill="#eaf2fb" opacity="0.6"/>
+  </svg>
+</div>
+
+<div class="edg-brand">
+  <div class="mark">ED<span class="amp">&amp;</span>G<span class="tm">&trade;</span></div>
+  <div class="name">Evolve Digital &amp; Governance</div>
+  <div class="rule"><span></span><span></span><span></span></div>
+</div>
+
 <div class="login-wrap">
   <div class="login-card">
     <div class="logo-row">
