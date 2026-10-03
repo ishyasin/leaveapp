@@ -464,6 +464,25 @@ async function signOut() {
     // the local session and get back to the login page — a failed
     // network call here should never leave someone stuck unable to log out.
   }
+  // Belt-and-braces: sb.auth.signOut() above can itself bail out
+  // *without* clearing the stored session — it first calls
+  // getSession(), which can try to silently refresh an expired/invalid
+  // token, and if THAT fails, the client returns an error instead of
+  // throwing and skips clearing localStorage entirely. When that
+  // happened, this function still redirected to login.html believing
+  // sign-out had worked, but login.html's own getSession() check found
+  // the still-present session and bounced straight back into the app —
+  // "signed out" in appearance only, with no way to actually log out.
+  // Wiping every sb-*-auth-token key directly guarantees the session is
+  // gone regardless of what the SDK call above did or didn't manage.
+  try {
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith("sb-") && k.endsWith("-auth-token"))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch (e) {
+    // localStorage can throw in rare cases (private browsing, storage
+    // disabled) — never let that stop the redirect below.
+  }
   // replace(), not href — so the browser's back button can't land on
   // a cached, still-"logged-in"-looking page after signing out.
   window.location.replace("login.html");
