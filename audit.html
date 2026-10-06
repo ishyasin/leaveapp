@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
-<title>Audit Trail — Pharmacy Rota</title>
+<title>Audit Trail — Pharmacy Portal</title>
 <script>
 // Applies the last-known colour theme/mode (cached by applyTheme()/
 // applyColorMode() in shared.js) before first paint, so a user who
@@ -53,6 +53,32 @@
         <option value="remove_bank_holiday">Remove bank holiday</option>
         <option value="clear_audit_log">Clear audit log</option>
         <option value="reset_app_data">Reset app data</option>
+        <option value="set_oncall_eligibility">Set on-call eligibility</option>
+        <option value="set_oncall_swap_mode">Set swap approval mode</option>
+        <option value="set_oncall_assignment">Set on-call assignment</option>
+        <option value="clear_oncall_assignment">Clear on-call assignment</option>
+        <option value="bulk_set_oncall_assignments">Bulk-fill on-call assignments</option>
+        <option value="annotate_oncall_assignments">Annotate on-call shifts</option>
+        <option value="request_oncall_swap">Request on-call swap</option>
+        <option value="accept_oncall_swap">Accept on-call swap</option>
+        <option value="decline_oncall_swap">Decline on-call swap</option>
+        <option value="cancel_oncall_swap">Cancel on-call swap</option>
+        <option value="apply_oncall_swap">Apply on-call swap</option>
+        <option value="approve_oncall_swap">Approve on-call swap</option>
+        <option value="reject_oncall_swap">Reject on-call swap</option>
+        <option value="set_oncall_bank_holiday">Set on-call bank holiday</option>
+        <option value="remove_oncall_bank_holiday">Remove on-call bank holiday</option>
+        <option value="create_oncall_rota_period">Create rota period</option>
+        <option value="archive_oncall_rota_period">Archive rota period</option>
+        <option value="reopen_oncall_rota_period">Reopen rota period</option>
+        <option value="create_huddle_post">Create huddle post</option>
+        <option value="edit_huddle_post">Edit huddle post</option>
+        <option value="pin_huddle_post">Pin huddle post</option>
+        <option value="unpin_huddle_post">Unpin huddle post</option>
+        <option value="delete_huddle_post">Delete huddle post</option>
+        <option value="create_quick_link">Create quick link</option>
+        <option value="update_quick_link">Update quick link</option>
+        <option value="delete_quick_link">Delete quick link</option>
       </select>
       <button class="secondary" onclick="load()">Filter</button>
     </div>

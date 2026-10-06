@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
-<title>Sign in — Pharmacy Rota</title>
+<title>Sign in — Pharmacy Portal</title>
 <script>
 // Applies the last-known colour theme/mode (cached by applyTheme()/
 // applyColorMode() in shared.js) before first paint, so a user who
@@ -166,7 +166,7 @@
 
   <div class="login-wrap">
     <div class="brand-mark">
-      <div class="name">Pharmacy Rota</div>
+      <div class="name">Pharmacy Portal</div>
       <div class="sub">by ED&amp;G&trade;</div>
     </div>
 
@@ -225,7 +225,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     });
     if (error) throw error;
 
-    window.location.href = "calendar.html";
+    window.location.href = "portal.html";
   } catch (err) {
     showMsg(msg, "Sign in failed — check your User ID and password.", "error");
   } finally {
@@ -235,7 +235,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
 (async () => {
   const session = await getSession();
-  if (session) window.location.href = "calendar.html";
+  if (session) window.location.href = "portal.html";
 })();
 </script>
 </body>

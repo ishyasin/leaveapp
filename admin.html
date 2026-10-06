@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
-<title>Admin — Pharmacy Rota</title>
+<title>Admin — Pharmacy Portal</title>
 <script>
 // Applies the last-known colour theme/mode (cached by applyTheme()/
 // applyColorMode() in shared.js) before first paint, so a user who
@@ -26,6 +26,7 @@
     <button id="tabBtn-holidays" onclick="showTab('holidays')">Bank Holidays</button>
     <button id="tabBtn-restricted" onclick="showTab('restricted')">Restricted Days</button>
     <button id="tabBtn-capacity" onclick="showTab('capacity')">Leave Capacity</button>
+    <button id="tabBtn-oncall" onclick="showTab('oncall')">On-Call Settings</button>
     <button id="tabBtn-backup" onclick="showTab('backup')">Daily Backup</button>
     <button id="tabBtn-leave" onclick="showTab('leave')">Leave Records</button>
     <button id="tabBtn-import" onclick="showTab('import')" style="display:none;">Import Historical Leave</button>
@@ -188,6 +189,20 @@
         <thead><tr><th>Site</th><th>Date</th><th></th></tr></thead>
         <tbody id="capOverrideRows"></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- ON-CALL SETTINGS -->
+  <div id="tab-oncall" style="display:none;">
+    <div class="card">
+      <h2>On-call pool &amp; colours</h2>
+      <p class="small">Tick which Pharmacists/Lead Pharmacists are in each site's on-call pool from the <strong>Users</strong> tab above — look for the "Edit on-call" button on their row. Only people ticked for a site can be assigned the main on-call or onsite shift there (anyone active can still be given a one-off "Volunteer cover" day, pool or not). The full rota itself lives on the <a href="oncall.html">On-Call</a> page.</p>
+    </div>
+    <div class="card">
+      <h2>Swap confirmation mode</h2>
+      <p class="small">Once both people in a swap have agreed, this controls what happens next. <strong>Automatic</strong> applies the swap immediately. <strong>Requires approval</strong> queues it for a Lead Pharmacist, Clinical Team Lead, or Developer to approve or reject on the On-Call page first. Developer only to change.</p>
+      <div id="oncallSettingsMsg"></div>
+      <div id="oncallSettingsRows"></div>
     </div>
   </div>
 
@@ -433,6 +448,32 @@
   </div>
 </div>
 
+<!-- Edit on-call eligibility modal -->
+<div class="overlay" id="oncallOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Edit on-call</h3>
+    <p class="small" id="oncallModalName"></p>
+    <p class="small">Only people ticked here can be given the main on-call or onsite shift at that site. Unticking someone doesn't remove any shifts already on the rota — clear those from the <a href="oncall.html" target="_blank">On-Call</a> page if needed.</p>
+    <div id="oncallMsg"></div>
+    <form id="oncallForm">
+      <label style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="oncallWorthing" style="width:auto;">
+        Worthing Hospital on-call pool
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+        <input type="checkbox" id="oncallStRichards" style="width:auto;">
+        St Richard's Hospital on-call pool
+      </label>
+      <label style="margin-top:12px;">Rota colour</label>
+      <input type="color" id="oncallColor" style="width:70px;height:36px;padding:2px;cursor:pointer;">
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeOncallModal()">Cancel</button>
+        <button type="submit" class="primary" id="oncallSaveBtn">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script src="shared.js"></script>
 <script>
 let PROFILE = null;
@@ -456,6 +497,7 @@ let PROFILES = [];
   await loadRestricted();
   await loadCapacity();
   await loadCapacityOverrides();
+  await loadOncallSettings();
   await loadBackupSettings();
   await loadBackupSchedule();
   await loadLeave();
@@ -463,7 +505,7 @@ let PROFILES = [];
 })();
 
 function showTab(name) {
-  ["users","holidays","restricted","capacity","backup","leave","import","reset","appearance"].forEach(t => {
+  ["users","holidays","restricted","capacity","oncall","backup","leave","import","reset","appearance"].forEach(t => {
     document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
     document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);
   });
@@ -574,6 +616,10 @@ function renderUsersTable() {
     const canEditName = isDeveloper(PROFILE);
     // Developer only, and no target restriction — see set_user_theme() in schema.sql.
     const canEditTheme = isDeveloper(PROFILE);
+    // On-call eligibility only ever makes sense for Pharmacist/Lead
+    // Pharmacist — a Clinical Team Lead/Developer manage the rota,
+    // they aren't on it. Both Clinical Team Lead and Developer may set it.
+    const canEditOnCall = ["pharmacist","lead_pharmacist"].includes(p.role);
     const siteText = p.cross_site
       ? "Cross site"
       : SITE_LABEL[p.primary_site] || p.primary_site;
@@ -601,9 +647,10 @@ function renderUsersTable() {
         ${canEditRole ? `<button class="secondary" onclick="openRoleModal('${p.id}')">Edit role</button>` : ""}
         ${canEditName ? `<button class="secondary" data-editname-btn>Edit name</button>` : ""}
         ${canEditTheme ? `<button class="secondary" onclick="openThemeModal('${p.id}')">Edit theme</button>` : ""}
+        ${canEditOnCall ? `<button class="secondary" onclick="openOncallModal('${p.id}')">Edit on-call</button>` : ""}
         ${canHide ? `<button class="danger" onclick="toggleHidden('${p.id}', ${!p.hidden_by_superuser})">${p.hidden_by_superuser ? "Unhide account" : "Hide account"}</button>` : ""}
         ${canDelete ? `<button class="danger" data-delete-btn>Delete account</button>` : ""}
-        ${!canToggleActive && !canHide && !canResetPw && !canEditSite && !canEditRole && !canDelete && !canEditName && !canEditTheme ? '<span class="small">locked</span>' : ""}
+        ${!canToggleActive && !canHide && !canResetPw && !canEditSite && !canEditRole && !canDelete && !canEditName && !canEditTheme && !canEditOnCall ? '<span class="small">locked</span>' : ""}
       </td>`;
     if (canEditName) {
       // p.full_name never touches an HTML/JS string here — same
@@ -1246,6 +1293,78 @@ async function saveThreshold(site) {
     const { error } = await sb.rpc("set_capacity_threshold", { p_site: site, p_threshold: value });
     if (error) throw error;
     showMsg(msg, "Threshold saved.", "ok");
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+/* ---------------- edit on-call eligibility ---------------- */
+let ONCALL_MODAL_USER_ID = null;
+const DEFAULT_ONCALL_COLORS = ["#2b6cb0","#2f855a","#b7791f","#9b2c2c","#6b46c1","#047481","#c05621","#3182ce"];
+function openOncallModal(id) {
+  const p = PROFILES.find(x => x.id === id);
+  if (!p) return;
+  ONCALL_MODAL_USER_ID = id;
+  document.getElementById("oncallMsg").innerHTML = "";
+  document.getElementById("oncallModalName").textContent = `${p.full_name} (${p.initials})`;
+  document.getElementById("oncallWorthing").checked = !!p.oncall_worthing;
+  document.getElementById("oncallStRichards").checked = !!p.oncall_st_richards;
+  // Pick a stable default colour from the person's own id so two people
+  // without a colour yet don't default to the exact same shade.
+  const fallback = DEFAULT_ONCALL_COLORS[Math.abs(p.id.split("-")[0].split("").reduce((a,c)=>a+c.charCodeAt(0),0)) % DEFAULT_ONCALL_COLORS.length];
+  document.getElementById("oncallColor").value = p.oncall_color || fallback;
+  document.getElementById("oncallOverlay").style.display = "flex";
+}
+function closeOncallModal() { document.getElementById("oncallOverlay").style.display = "none"; }
+
+document.getElementById("oncallForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("oncallMsg");
+  const btn = document.getElementById("oncallSaveBtn");
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const { error } = await sb.rpc("set_user_oncall_eligibility", {
+      p_user_id: ONCALL_MODAL_USER_ID,
+      p_worthing: document.getElementById("oncallWorthing").checked,
+      p_st_richards: document.getElementById("oncallStRichards").checked,
+      p_color: document.getElementById("oncallColor").value,
+    });
+    if (error) throw error;
+    closeOncallModal();
+    await loadUsers();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Save";
+  }
+});
+
+/* ---------------- on-call settings ---------------- */
+async function loadOncallSettings() {
+  const msg = document.getElementById("oncallSettingsMsg");
+  const { data, error } = await sb.from("oncall_settings").select("*").order("site");
+  if (error) { showMsg(msg, error.message, "error"); return; }
+
+  const wrap = document.getElementById("oncallSettingsRows");
+  wrap.innerHTML = (data || []).map(s => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <label style="margin:0;min-width:140px;">${SITE_LABEL[s.site] || s.site}</label>
+      ${isDeveloper(PROFILE)
+        ? `<select id="oncallMode-${s.site}" style="width:220px;">
+             <option value="auto"${s.swap_approval_mode==='auto'?' selected':''}>Automatic</option>
+             <option value="lead_approval"${s.swap_approval_mode==='lead_approval'?' selected':''}>Requires approval</option>
+           </select>
+           <button class="secondary" onclick="saveOncallMode('${s.site}')">Save</button>`
+        : `<span>${s.swap_approval_mode === 'auto' ? 'Automatic' : 'Requires approval'}</span>`
+      }
+    </div>`).join("");
+}
+
+async function saveOncallMode(site) {
+  const msg = document.getElementById("oncallSettingsMsg");
+  const mode = document.getElementById(`oncallMode-${site}`).value;
+  try {
+    const { error } = await sb.rpc("set_oncall_swap_mode", { p_site: site, p_mode: mode });
+    if (error) throw error;
+    showMsg(msg, "Saved.", "ok");
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
 

@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
+<title>On-Call — Pharmacy Portal</title>
+<script>
+// Applies the last-known colour theme/mode (cached by applyTheme()/
+// applyColorMode() in shared.js) before first paint, so a user who
+// picked Dark or Inverted doesn't see a flash of the light page while
+// their profile loads. The profile itself (fetched in requireAuth())
+// remains the source of truth and corrects this on every page load.
+(function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<style>
+  .oncall-weekgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px;margin-top:14px;}
+  @media (max-width:420px){.oncall-weekgrid{grid-template-columns:1fr;}}
+  .week-block{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface);}
+  .week-block h4{background:var(--navy);color:#fff;margin:0;padding:6px 10px;font-size:12.5px;display:flex;justify-content:space-between;}
+  .week-block table{width:100%;font-size:11.5px;border-collapse:collapse;}
+  .week-block th{background:var(--surface-alt);color:var(--text-muted);font-weight:600;padding:4px 5px;text-align:left;border-bottom:1px solid var(--border);}
+  .week-block td{padding:3px 5px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  /* Fixed pastel fills with dark text in every colour mode, so the rota reads the same for everyone. */
+  .week-block tr td{color:#1f2430;}
+  .week-block tr.grp-a td{background:#cdeccf;}   /* Sun-Tue: light green */
+  .week-block tr.grp-b td{background:#f8d4e1;}   /* Wed-Sat: light pink */
+  .week-block td.na{color:#6b7280;}
+  .legend-sw{display:inline-flex;align-items:center;gap:6px;font-size:12px;margin-right:14px;}
+  .legend-sw i{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.25);display:inline-block;}
+  .week-block tr.today-row td{box-shadow:inset 0 0 0 2px var(--teal);}
+  .daycell{white-space:nowrap;font-size:11.5px;font-weight:600;}
+  .datecell{white-space:nowrap;font-size:11.5px;}
+  .person-chip{display:inline-block;padding:1px 4px;font-weight:700;font-size:11.5px;max-width:100%;color:#1f2430;}
+  .person-chip.empty{background:transparent;color:#4b5563;border:1px dashed rgba(0,0,0,.3);border-radius:10px;font-weight:400;padding:1px 7px;}
+  .person-chip.clickable{cursor:pointer;}
+  .person-chip.clickable:hover{text-decoration:underline;}
+  .person-chip.picked{box-shadow:0 0 0 2px #ffb800;}
+  .note-line{display:block;margin-top:2px;font-size:10px;color:#374151;font-style:italic;}
+  .oncall-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px;}
+  .oncall-controls .spacer{flex:1;}
+  .legend-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;margin-right:12px;}
+  .legend-chip i{width:12px;height:12px;border-radius:50%;display:inline-block;}
+  .swap-pick-list{max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;margin-top:6px;}
+  .swap-pick-list label{display:flex;align-items:center;gap:8px;font-weight:400;margin:0 0 6px;}
+  .swap-pick-list input[type="checkbox"]{width:auto;}
+  .bh-tag{display:inline-block;font-size:9px;font-weight:700;color:#7f1d1d;border:1px solid #7f1d1d;border-radius:4px;padding:0 3px;margin-left:4px;vertical-align:middle;}
+  .person-chip.warn{background:rgba(255,255,255,.6);color:#7f1d1d;border:1px dashed #7f1d1d;font-weight:700;}
+  .period-rows{margin-top:8px;}
+  .period-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+  .holiday-rows{margin-top:8px;max-height:200px;overflow-y:auto;}
+  .holiday-row{display:flex;align-items:center;gap:10px;padding:4px 0;border-bottom:1px solid var(--border);}
+</style>
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="wrap">
+
+  <div class="tabs" id="oncallTabs">
+    <button class="active" id="tabBtn-rota" onclick="showOncallTab('rota')">Rota</button>
+    <button id="tabBtn-mydates" style="display:none;" onclick="showOncallTab('mydates')">My On-Call Dates</button>
+    <button id="tabBtn-swaps" style="display:none;" onclick="showOncallTab('swaps')">Swaps</button>
+    <button id="tabBtn-approvals" style="display:none;" onclick="showOncallTab('approvals')">Swap Approvals</button>
+  </div>
+
+  <!-- ROTA -->
+  <div id="tab-rota">
+    <div class="card">
+      <div class="oncall-controls">
+        <label style="margin:0;">Site</label>
+        <select id="siteSelect" style="width:200px;">
+          <option value="worthing">Worthing Hospital</option>
+          <option value="st_richards">St Richard's Hospital</option>
+        </select>
+        <label style="margin:0;">Rota period</label>
+        <select id="periodSelect" style="width:200px;"></select>
+        <button class="secondary" id="periodArchiveBtn" style="display:none;" onclick="toggleArchivePeriod()">Archive</button>
+        <button class="secondary" id="periodNewBtn" style="display:none;" onclick="openPeriodModal()">+ New period</button>
+        <span class="spacer"></span>
+        <button class="secondary" onclick="shiftWeeks(-12)">&larr; Previous</button>
+        <button class="secondary" onclick="jumpToToday()">Today</button>
+        <button class="secondary" onclick="shiftWeeks(12)">Next &rarr;</button>
+      </div>
+      <p class="small" id="editModeHint" style="display:none;">Weeks run Sunday to Saturday. Click a name cell to assign, clear, or annotate it. Onsite shifts are only used on Saturdays, Sundays and bank holidays. Bank holidays appear in their own colour and expect an onsite shift.</p>
+      <div id="rotaLegend"></div>
+      <div id="rotaMsg"></div>
+      <div id="rotaGrid" class="oncall-weekgrid"></div>
+    </div>
+
+    <div class="card" id="bankHolidayCard" style="display:none;">
+      <h2>On-call bank holidays</h2>
+      <p class="small">Mark which days are bank holidays for the on-call rota (separate from the leave calendar's bank holidays). A bank holiday is shown on the rota in the colour you pick (light blue by default) and flags if its onsite shift is still unfilled. Click a colour swatch below to change it later.</p>
+      <div id="bhMsg"></div>
+      <form id="bhForm" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div>
+          <label>Date</label>
+          <input type="date" id="bhDate" required>
+        </div>
+        <div style="flex:1;min-width:160px;">
+          <label>Label (optional)</label>
+          <input type="text" id="bhLabel" placeholder="e.g. Christmas Day">
+        </div>
+        <div>
+          <label>Colour</label>
+          <input type="color" id="bhColor" value="#bfe3f7" style="width:60px;height:38px;padding:2px;cursor:pointer;">
+        </div>
+        <button type="submit" class="secondary">Add</button>
+      </form>
+      <div class="holiday-rows" id="bhRows"></div>
+    </div>
+
+    <div class="card" id="buildCard" style="display:none;">
+      <h2>Build / quick-fill</h2>
+      <p class="small">Assign the same person to the same shift across a block of dates in one go — e.g. Sunday to Tuesday for one pharmacist, then Wednesday to Saturday for another. Days outside the ticked weekdays are skipped, and onsite only fills Saturdays, Sundays and bank holidays. Use the grid above to tweak individual days afterwards.</p>
+      <div id="buildMsg"></div>
+      <form id="buildForm">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:160px;">
+            <label>Duty type</label>
+            <select id="buildDutyType">
+              <option value="on_call">Overnight</option>
+              <option value="onsite">Onsite (Sat, Sun &amp; bank holidays only)</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:160px;">
+            <label>Person</label>
+            <select id="buildPerson"></select>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:140px;">
+            <label>From</label>
+            <input type="date" id="buildFrom" required>
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <label>To</label>
+            <input type="date" id="buildTo" required>
+          </div>
+        </div>
+        <label>Days of the week to include</label>
+        <div id="buildWeekdays" style="display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 10px;"></div>
+        <label>Note (optional, shown on the rota and on hover)</label>
+        <input type="text" id="buildNote" placeholder="e.g. First on call">
+        <div style="margin-top:14px;">
+          <button type="submit" class="primary" id="buildSubmitBtn">Fill dates</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MY ON-CALL DATES -->
+  <div id="tab-mydates" style="display:none;">
+    <div class="card">
+      <h2>My on-call dates</h2>
+      <p class="small">Every shift assigned to you, upcoming first.</p>
+      <div id="myDatesMsg"></div>
+      <table>
+        <thead><tr><th>Date</th><th>Site</th><th>Duty</th><th>Note</th></tr></thead>
+        <tbody id="myDatesRows"></tbody>
+      </table>
+      <p id="myDatesEmpty" class="small" style="display:none;">No on-call shifts on record for you yet.</p>
+    </div>
+  </div>
+
+  <!-- SWAPS -->
+  <div id="tab-swaps" style="display:none;">
+    <div class="card">
+      <h2>Request a swap</h2>
+      <p class="small">Offer any of your own upcoming shifts, and optionally ask for some of theirs in return — it doesn't need to be an even trade. Both of you need to agree before anything changes, and depending on this site's settings a Lead Pharmacist/Clinical Team Lead may need to approve it too.</p>
+      <div id="swapReqMsg"></div>
+      <form id="swapReqForm">
+        <label>Swap with</label>
+        <select id="swapCounterparty"></select>
+        <label>Your shifts to offer (optional)</label>
+        <div class="swap-pick-list" id="swapGiveList"></div>
+        <label>Their shifts you'd like (optional)</label>
+        <div class="swap-pick-list" id="swapTakeList"></div>
+        <label>Note (optional)</label>
+        <input type="text" id="swapNote" placeholder="e.g. clashes with a family thing">
+        <div style="margin-top:14px;">
+          <button type="submit" class="primary" id="swapReqBtn">Send swap request</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>My swap requests</h2>
+      <div id="mySwapsMsg"></div>
+      <table>
+        <thead><tr><th>With</th><th>Status</th><th>Offered</th><th>Requested</th><th>Note</th><th></th></tr></thead>
+        <tbody id="mySwapsRows"></tbody>
+      </table>
+      <p id="mySwapsEmpty" class="small" style="display:none;">No swap requests yet.</p>
+    </div>
+  </div>
+
+  <!-- SWAP APPROVALS (Lead Pharmacist+) -->
+  <div id="tab-approvals" style="display:none;">
+    <div class="card">
+      <h2>Swaps awaiting approval</h2>
+      <p class="small">Both people have already agreed to these — this site just requires sign-off before they take effect.</p>
+      <div id="approvalsMsg"></div>
+      <table>
+        <thead><tr><th>Site</th><th>From</th><th>To</th><th>Offered</th><th>Requested</th><th>Note</th><th></th></tr></thead>
+        <tbody id="approvalsRows"></tbody>
+      </table>
+      <p id="approvalsEmpty" class="small" style="display:none;">Nothing waiting on you right now.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Assign / clear / annotate a single cell -->
+<div class="overlay" id="cellOverlay" style="display:none;">
+  <div class="modal">
+    <h3 id="cellModalTitle">Assign shift</h3>
+    <p class="small" id="cellModalSub"></p>
+    <div id="cellMsg"></div>
+    <form id="cellForm">
+      <label>Person</label>
+      <select id="cellPerson"></select>
+      <label>Note (optional, shown on the rota and on hover)</label>
+      <input type="text" id="cellNote" placeholder="e.g. Replaced with J Smith due to sickness">
+      <div class="modal-actions">
+        <button type="button" class="danger" id="cellClearBtn" onclick="clearCell()">Clear</button>
+        <button type="button" class="secondary" onclick="closeCellModal()">Cancel</button>
+        <button type="submit" class="primary" id="cellSaveBtn">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- New rota period -->
+<div class="overlay" id="periodOverlay" style="display:none;">
+  <div class="modal">
+    <h3>New rota period</h3>
+    <p class="small">A named date range to build the rota within — typically a calendar year, e.g. "2027" running 1 Jan to 31 Dec. Archive it once it's done and start a new one for the next year; archiving blocks further edits to anything inside it without deleting anything.</p>
+    <div id="periodMsg"></div>
+    <form id="periodForm">
+      <label>Label</label>
+      <input type="text" id="periodLabel" placeholder="e.g. 2027" required>
+      <label>From</label>
+      <input type="date" id="periodStart" required>
+      <label>To</label>
+      <input type="date" id="periodEnd" required>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closePeriodModal()">Cancel</button>
+        <button type="submit" class="primary" id="periodSaveBtn">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Respond to a swap (accept/decline) -->
+<div class="overlay" id="respondOverlay" style="display:none;">
+  <div class="modal">
+    <h3 id="respondTitle">Respond to swap</h3>
+    <p class="small" id="respondSub"></p>
+    <div id="respondMsg"></div>
+    <form id="respondForm">
+      <label>Note (optional)</label>
+      <input type="text" id="respondNote">
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeRespondModal()">Cancel</button>
+        <button type="submit" class="primary" id="respondSaveBtn">Confirm</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+let PROFILE = null;
+let PROFILES = [];
+let ASSIGNMENTS = [];
+let RANGE_START = null;      // Date — Sunday of the first displayed week
+const WEEKS_SHOWN = 12;
+let SELECTED_SITE = "worthing";
+let MY_SWAPS = [];
+let APPROVAL_QUEUE = [];
+let BANK_HOLIDAYS = [];      // ["YYYY-MM-DD", ...]
+let ROTA_PERIODS = [];
+let SELECTED_PERIOD = null;  // the chosen oncall_rota_periods row, or null for free browsing
+
+const DUTY_LABEL = { on_call: "Overnight", onsite: "Onsite" };
+const DEFAULT_BH_COLOR = "#bfe3f7";
+// Sunday-first, matching JS's own Date.getDay() (0=Sun..6=Sat) — the
+// usual pattern is one pharmacist covering Sun-Tue and a second
+// covering Wed-Sat within the same week block.
+const WEEKDAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const DEFAULT_ONCALL_COLORS = ["#2b6cb0","#2f855a","#b7791f","#9b2c2c","#6b46c1","#047481","#c05621","#3182ce"];
+
+(async () => {
+  PROFILE = await requireAuth(null); // any authenticated, active user can view
+  if (!PROFILE) return;
+
+  if (isLeadPlus(PROFILE)) {
+    document.getElementById("editModeHint").style.display = "";
+    document.getElementById("buildCard").style.display = "";
+    document.getElementById("bankHolidayCard").style.display = "";
+    document.getElementById("periodNewBtn").style.display = "";
+    setupBuildWeekdays();
+    setupBankHolidayForm();
+    setupPeriodForm();
+  }
+  if (isOncallPoolMember(PROFILE)) {
+    document.getElementById("tabBtn-mydates").style.display = "";
+    document.getElementById("tabBtn-swaps").style.display = "";
+  }
+  if (isLeadPlus(PROFILE)) {
+    document.getElementById("tabBtn-approvals").style.display = "";
+  }
+
+  SELECTED_SITE = PROFILE.oncall_st_richards && !PROFILE.oncall_worthing ? "st_richards" : "worthing";
+  document.getElementById("siteSelect").value = SELECTED_SITE;
+  document.getElementById("siteSelect").addEventListener("change", async (e) => {
+    SELECTED_SITE = e.target.value;
+    await loadProfiles();
+    await loadAssignments();
+    renderRota();
+    renderLegend();
+    if (isLeadPlus(PROFILE)) populateBuildPersonSelect();
+  });
+  document.getElementById("periodSelect").addEventListener("change", onPeriodSelected);
+
+  RANGE_START = sundayOf(new Date());
+
+  await loadProfiles();
+  await loadBankHolidays();
+  await loadPeriods();
+  await loadAssignments();
+  renderRota();
+  renderLegend();
+  populateBuildPersonSelect();
+
+  if (isOncallPoolMember(PROFILE)) {
+    await loadMyDates();
+    await setupSwapsTab();
+  }
+  if (isLeadPlus(PROFILE)) {
+    await loadApprovals();
+  }
+})();
+
+/* ---------------- tabs ---------------- */
+function showOncallTab(name) {
+  ["rota","mydates","swaps","approvals"].forEach(t => {
+    const el = document.getElementById("tab-" + t);
+    if (el) el.style.display = t === name ? "" : "none";
+    const btn = document.getElementById("tabBtn-" + t);
+    if (btn) btn.classList.toggle("active", t === name);
+  });
+}
+
+/* ---------------- date helpers ---------------- */
+function sundayOf(d) {
+  const x = new Date(d);
+  x.setDate(x.getDate() - x.getDay()); // getDay(): 0=Sun..6=Sat
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function ymd(d) {
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, "0"), day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function isoWeekNumber(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = (t.getUTCDay() + 6) % 7;
+  t.setUTCDate(t.getUTCDate() - dayNum + 3);
+  const firstThursday = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+  const diff = t - firstThursday;
+  return 1 + Math.round(diff / (7 * 24 * 3600 * 1000));
+}
+function sameDate(d) { const t = new Date(); return ymd(d) === ymd(t); }
+
+/* ---------------- data loading ---------------- */
+async function loadProfiles() {
+  const { data } = await sb.from("profiles").select("id, full_name, initials, role, active, oncall_worthing, oncall_st_richards, oncall_color");
+  PROFILES = data || [];
+}
+function poolFor(site) {
+  const field = site === "worthing" ? "oncall_worthing" : "oncall_st_richards";
+  return PROFILES.filter(p => p.active && p[field]);
+}
+function profileById(id) { return PROFILES.find(p => p.id === id); }
+function colorFor(p) {
+  if (!p) return "#888";
+  return p.oncall_color || DEFAULT_ONCALL_COLORS[Math.abs((p.id || "").split("-")[0].split("").reduce((a, c) => a + c.charCodeAt(0), 0)) % DEFAULT_ONCALL_COLORS.length];
+}
+
+async function loadAssignments() {
+  const msg = document.getElementById("rotaMsg");
+  const start = ymd(RANGE_START);
+  const end = ymd(addDays(RANGE_START, WEEKS_SHOWN * 7 - 1));
+  const { data, error } = await sb.from("oncall_assignments").select("*")
+    .eq("site", SELECTED_SITE).gte("shift_date", start).lte("shift_date", end);
+  if (error) { showMsg(msg, error.message, "error"); return; }
+  ASSIGNMENTS = data || [];
+  msg.innerHTML = "";
+}
+
+function assignmentFor(date, dutyType) {
+  const d = ymd(date);
+  return ASSIGNMENTS.find(a => a.shift_date === d && a.duty_type === dutyType);
+}
+
+async function loadBankHolidays() {
+  const { data, error } = await sb.from("oncall_bank_holidays").select("*").order("holiday_date");
+  if (error) { showMsg(document.getElementById("bhMsg") || document.getElementById("rotaMsg"), error.message, "error"); return; }
+  BANK_HOLIDAYS = data || [];
+  if (isLeadPlus(PROFILE)) renderBankHolidayRows();
+}
+function bankHolidayFor(day) { return BANK_HOLIDAYS.find(h => h.holiday_date === ymd(day)); }
+function isBankHoliday(day) { return !!bankHolidayFor(day); }
+
+function setupBankHolidayForm() {
+  document.getElementById("bhForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById("bhMsg");
+    const date = document.getElementById("bhDate").value;
+    const label = document.getElementById("bhLabel").value.trim() || null;
+    if (!date) { showMsg(msg, "Pick a date.", "error"); return; }
+    try {
+      const { error } = await sb.rpc("set_oncall_bank_holiday", { p_date: date, p_label: label, p_color: document.getElementById("bhColor").value });
+      if (error) throw error;
+      document.getElementById("bhForm").reset();
+      document.getElementById("bhColor").value = DEFAULT_BH_COLOR;
+      await loadBankHolidays();
+      renderRota();
+    } catch (err) { showMsg(msg, err.message, "error"); }
+  });
+}
+
+function renderBankHolidayRows() {
+  const wrap = document.getElementById("bhRows");
+  wrap.innerHTML = BANK_HOLIDAYS.map(h => `
+    <div class="holiday-row">
+      <input type="color" value="${escapeHtml(h.color || DEFAULT_BH_COLOR)}" style="width:44px;height:30px;padding:2px;cursor:pointer;" title="Change colour" aria-label="Colour for ${escapeHtml(h.holiday_date)}" onchange="changeBhColor('${h.holiday_date}', this.value)">
+      <strong>${fmtDate(h.holiday_date)}</strong>
+      <span class="small">${escapeHtml(h.label || "")}</span>
+      <span class="spacer"></span>
+      <button class="danger" onclick="removeBankHoliday('${h.holiday_date}')">Remove</button>
+    </div>`).join("") || `<p class="small">No on-call bank holidays set yet.</p>`;
+}
+
+async function changeBhColor(dateStr, color) {
+  const msg = document.getElementById("bhMsg");
+  const h = BANK_HOLIDAYS.find(x => x.holiday_date === dateStr);
+  try {
+    const { error } = await sb.rpc("set_oncall_bank_holiday", { p_date: dateStr, p_label: h ? h.label : null, p_color: color });
+    if (error) throw error;
+    await loadBankHolidays();
+    renderRota();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+async function removeBankHoliday(dateStr) {
+  const msg = document.getElementById("bhMsg");
+  if (!await uiConfirm("Remove this bank holiday?")) return;
+  try {
+    const { error } = await sb.rpc("remove_oncall_bank_holiday", { p_date: dateStr });
+    if (error) throw error;
+    await loadBankHolidays();
+    renderRota();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+/* ---------------- rota periods ---------------- */
+async function loadPeriods() {
+  const { data, error } = await sb.from("oncall_rota_periods").select("*").order("start_date", { ascending: false });
+  if (error) { showMsg(document.getElementById("rotaMsg"), error.message, "error"); return; }
+  ROTA_PERIODS = data || [];
+  renderPeriodSelect();
+}
+
+function renderPeriodSelect() {
+  const sel = document.getElementById("periodSelect");
+  const prevValue = sel.value;
+  sel.innerHTML = `<option value="">Browse freely (no period)</option>` + ROTA_PERIODS
+    .map(p => `<option value="${p.id}">${escapeHtml(p.label)}${p.status === "archived" ? " (archived)" : ""}</option>`).join("");
+  // Default to the period covering today, if there is one, the first time this renders.
+  if (!prevValue && !SELECTED_PERIOD) {
+    const todayStr = ymd(new Date());
+    const current = ROTA_PERIODS.find(p => p.start_date <= todayStr && p.end_date >= todayStr);
+    if (current) sel.value = current.id;
+  } else {
+    sel.value = prevValue;
+  }
+  applyPeriodSelection();
+}
+
+// Updates SELECTED_PERIOD/RANGE_START/the Archive button from the
+// dropdown's current value, but doesn't itself fetch or redraw —
+// callers do that afterwards (so loadPeriods(), called once during
+// page load, doesn't race the rest of the init sequence's own
+// loadAssignments()/renderRota() call).
+function applyPeriodSelection() {
+  const id = document.getElementById("periodSelect").value;
+  SELECTED_PERIOD = ROTA_PERIODS.find(p => p.id === id) || null;
+  const archiveBtn = document.getElementById("periodArchiveBtn");
+  if (SELECTED_PERIOD && isLeadPlus(PROFILE)) {
+    archiveBtn.style.display = "";
+    archiveBtn.textContent = SELECTED_PERIOD.status === "archived" ? "Reopen" : "Archive";
+  } else {
+    archiveBtn.style.display = "none";
+  }
+  if (SELECTED_PERIOD) {
+    RANGE_START = sundayOf(new Date(SELECTED_PERIOD.start_date + "T00:00:00"));
+  }
+}
+
+// The dropdown's own change handler — here a fetch+redraw is correct,
+// since nothing else is about to do it.
+async function onPeriodSelected() {
+  applyPeriodSelection();
+  await loadAssignments();
+  renderRota();
+}
+
+function openPeriodModal() {
+  document.getElementById("periodMsg").innerHTML = "";
+  document.getElementById("periodForm").reset();
+  document.getElementById("periodOverlay").style.display = "flex";
+}
+function closePeriodModal() { document.getElementById("periodOverlay").style.display = "none"; }
+
+function setupPeriodForm() {
+  document.getElementById("periodForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById("periodMsg");
+    const btn = document.getElementById("periodSaveBtn");
+    const label = document.getElementById("periodLabel").value.trim();
+    const start = document.getElementById("periodStart").value;
+    const end = document.getElementById("periodEnd").value;
+    if (!label || !start || !end) { showMsg(msg, "Fill in every field.", "error"); return; }
+    if (end < start) { showMsg(msg, "End date must be on or after the start date.", "error"); return; }
+    btn.disabled = true; btn.textContent = "Creating…";
+    try {
+      const { data, error } = await sb.rpc("create_oncall_rota_period", { p_label: label, p_start_date: start, p_end_date: end });
+      if (error) throw error;
+      closePeriodModal();
+      await loadPeriods();
+      const sel = document.getElementById("periodSelect");
+      sel.value = data.id;
+      await onPeriodSelected();
+    } catch (err) {
+      showMsg(msg, err.message, "error");
+    } finally {
+      btn.disabled = false; btn.textContent = "Create";
+    }
+  });
+}
+
+async function toggleArchivePeriod() {
+  if (!SELECTED_PERIOD) return;
+  const archiving = SELECTED_PERIOD.status !== "archived";
+  if (!await uiConfirm(archiving
+    ? `Archive "${SELECTED_PERIOD.label}"? No further changes can be made to shifts inside it until it's reopened.`
+    : `Reopen "${SELECTED_PERIOD.label}" for editing?`)) return;
+  try {
+    const fn = archiving ? "archive_oncall_rota_period" : "reopen_oncall_rota_period";
+    const { error } = await sb.rpc(fn, { p_period_id: SELECTED_PERIOD.id });
+    if (error) throw error;
+    await loadPeriods();
+  } catch (err) { showMsg(document.getElementById("rotaMsg"), err.message, "error"); }
+}
+
+/* ---------------- rota rendering ---------------- */
+function renderLegend() {
+  const wrap = document.getElementById("rotaLegend");
+  const pool = poolFor(SELECTED_SITE);
+  let html = `<div style="margin:6px 0;">
+    <span class="legend-sw"><i style="background:#cdeccf"></i>Sunday &ndash; Tuesday</span>
+    <span class="legend-sw"><i style="background:#f8d4e1"></i>Wednesday &ndash; Saturday</span>
+    <span class="legend-sw"><i style="background:${DEFAULT_BH_COLOR}"></i>Bank holiday (colour set per day)</span>
+  </div>`;
+  if (!pool.length) html += `<p class="small">Nobody is in this site's on-call pool yet — set it up from Admin &rarr; Users &rarr; Edit on-call.</p>`;
+  wrap.innerHTML = html;
+}
+
+function renderRota() {
+  const grid = document.getElementById("rotaGrid");
+  const blocks = [];
+  for (let w = 0; w < WEEKS_SHOWN; w++) {
+    const weekStart = addDays(RANGE_START, w * 7);
+    blocks.push(renderWeekBlock(weekStart));
+  }
+  grid.innerHTML = blocks.join("");
+}
+
+function renderWeekBlock(weekStart) {
+  // Weeks run Sunday-Saturday; the label uses the ISO week of the Monday inside the block.
+  const weekNum = isoWeekNumber(addDays(weekStart, 1));
+  let rows = "";
+  for (let i = 0; i < 7; i++) {
+    const day = addDays(weekStart, i);
+    const dow = day.getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const isToday = sameDate(day);
+    const bh = bankHolidayFor(day);
+    const onCall = assignmentFor(day, "on_call");
+    const onsite = assignmentFor(day, "onsite");
+    const onsiteApplies = isWeekend || !!bh;
+    const bg = bh ? (bh.color || DEFAULT_BH_COLOR) : (dow <= 2 ? "#cdeccf" : "#f8d4e1");
+    const cellStyle = `style="background:${escapeHtml(bg)};"`;
+    const onsiteCell = onsiteApplies
+      ? renderChip(day, "onsite", onsite, !!bh)
+      : `<span class="na" title="Onsite cover is only used on weekends and bank holidays">&mdash;</span>`;
+    rows += `
+      <tr class="${isToday ? "today-row" : ""}">
+        <td class="daycell" ${cellStyle}>${WEEKDAY_NAMES[i]}${bh ? `<span class="bh-tag" title="${escapeHtml(bh.label || "Bank holiday")}">BH</span>` : ""}</td>
+        <td class="datecell" ${cellStyle}>${day.getDate()}/${day.getMonth() + 1}${bh && bh.label ? `<span class="note-line">${escapeHtml(bh.label)}</span>` : ""}</td>
+        <td ${cellStyle}>${renderChip(day, "on_call", onCall)}</td>
+        <td ${cellStyle}>${onsiteCell}</td>
+      </tr>`;
+  }
+  return `
+    <div class="week-block">
+      <h4><span>Week ${weekNum}</span><span>${weekStart.getDate()}/${weekStart.getMonth() + 1} &ndash; ${addDays(weekStart, 6).getDate()}/${addDays(weekStart, 6).getMonth() + 1}</span></h4>
+      <table>
+        <thead><tr><th>Day</th><th>Date</th><th>Overnight</th><th>Onsite</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderChip(day, dutyType, row, requiresOnsite) {
+  const editable = isLeadPlus(PROFILE);
+  if (!row) {
+    const flagRequired = requiresOnsite && dutyType === "onsite";
+    const label = flagRequired ? "Onsite needed" : "&mdash;";
+    const cls = "person-chip empty" + (flagRequired ? " warn" : "") + (editable ? " clickable" : "");
+    return editable
+      ? `<span class="${cls}" title="Click to assign" onclick="openCellModal('${ymd(day)}','${dutyType}')">${label}</span>`
+      : `<span class="${cls}">${label}</span>`;
+  }
+  const p = profileById(row.user_id);
+  const label = p ? p.full_name : "Unknown";
+  const title = row.note ? row.note : label;
+  const cls = "person-chip" + (editable ? " clickable" : "");
+  const onclick = editable ? ` onclick="openCellModal('${ymd(day)}','${dutyType}')"` : "";
+  const noteLine = row.note ? `<span class="note-line">${escapeHtml(row.note)}</span>` : "";
+  return `<span class="${cls}" title="${escapeHtml(title)}"${onclick}>${escapeHtml(label)}</span>${noteLine}`;
+}
+
+function shiftWeeks(n) {
+  let next = addDays(RANGE_START, n * 7);
+  if (SELECTED_PERIOD) {
+    const minStart = sundayOf(new Date(SELECTED_PERIOD.start_date + "T00:00:00"));
+    const maxStart = sundayOf(new Date(SELECTED_PERIOD.end_date + "T00:00:00"));
+    if (next < minStart) next = minStart;
+    if (next > maxStart) next = maxStart;
+  }
+  RANGE_START = next;
+  loadAssignments().then(renderRota);
+}
+function jumpToToday() {
+  RANGE_START = sundayOf(new Date());
+  if (SELECTED_PERIOD) {
+    const minStart = sundayOf(new Date(SELECTED_PERIOD.start_date + "T00:00:00"));
+    const maxStart = sundayOf(new Date(SELECTED_PERIOD.end_date + "T00:00:00"));
+    if (RANGE_START < minStart) RANGE_START = minStart;
+    if (RANGE_START > maxStart) RANGE_START = maxStart;
+  }
+  loadAssignments().then(renderRota);
+}
+
+/* ---------------- single-cell assign/clear/annotate ---------------- */
+let CELL_DATE = null, CELL_DUTY = null;
+function openCellModal(dateStr, dutyType) {
+  CELL_DATE = dateStr; CELL_DUTY = dutyType;
+  const existing = ASSIGNMENTS.find(a => a.shift_date === dateStr && a.duty_type === dutyType);
+  document.getElementById("cellMsg").innerHTML = "";
+  document.getElementById("cellModalTitle").textContent = DUTY_LABEL[dutyType];
+  document.getElementById("cellModalSub").textContent = `${SITE_LABEL[SELECTED_SITE]} — ${fmtDate(dateStr)}`;
+
+  const sel = document.getElementById("cellPerson");
+  const options = poolFor(SELECTED_SITE);
+  sel.innerHTML = `<option value="">— unassigned —</option>` + options
+    .map(p => `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})</option>`).join("");
+  sel.value = existing ? existing.user_id : "";
+
+  document.getElementById("cellNote").value = existing ? (existing.note || "") : "";
+  document.getElementById("cellClearBtn").style.display = existing ? "" : "none";
+
+  document.getElementById("cellOverlay").style.display = "flex";
+}
+function closeCellModal() { document.getElementById("cellOverlay").style.display = "none"; }
+
+document.getElementById("cellForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("cellMsg");
+  const btn = document.getElementById("cellSaveBtn");
+  const personId = document.getElementById("cellPerson").value;
+  if (!personId) { showMsg(msg, "Pick a person, or use Clear to remove this shift.", "error"); return; }
+  const note = document.getElementById("cellNote").value.trim() || null;
+  const color = null;
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const { error } = await sb.rpc("set_oncall_assignment", {
+      p_site: SELECTED_SITE, p_shift_date: CELL_DATE, p_duty_type: CELL_DUTY,
+      p_user_id: personId, p_note: note, p_highlight_color: color,
+    });
+    if (error) throw error;
+    closeCellModal();
+    await loadAssignments();
+    renderRota();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Save";
+  }
+});
+
+async function clearCell() {
+  const msg = document.getElementById("cellMsg");
+  if (!await uiConfirm("Clear this shift?")) return;
+  try {
+    const { error } = await sb.rpc("clear_oncall_assignment", { p_site: SELECTED_SITE, p_shift_date: CELL_DATE, p_duty_type: CELL_DUTY });
+    if (error) throw error;
+    closeCellModal();
+    await loadAssignments();
+    renderRota();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+/* ---------------- build / quick-fill (superuser+) ---------------- */
+function setupBuildWeekdays() {
+  const wrap = document.getElementById("buildWeekdays");
+  wrap.innerHTML = WEEKDAY_NAMES.map((name, i) => `
+    <label style="display:flex;align-items:center;gap:6px;font-weight:400;">
+      <input type="checkbox" class="build-wd" value="${i}" checked style="width:auto;"> ${name}
+    </label>`).join("");
+}
+function fillBuildPersonOptions() {
+  const sel = document.getElementById("buildPerson");
+  const options = poolFor(SELECTED_SITE);
+  sel.innerHTML = options.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})</option>`).join("");
+}
+let BUILD_PERSON_LISTENER_ADDED = false;
+function populateBuildPersonSelect() {
+  if (!BUILD_PERSON_LISTENER_ADDED) {
+    document.getElementById("buildDutyType").addEventListener("change", fillBuildPersonOptions);
+    BUILD_PERSON_LISTENER_ADDED = true;
+  }
+  fillBuildPersonOptions();
+}
+
+document.getElementById("buildForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("buildMsg");
+  const btn = document.getElementById("buildSubmitBtn");
+  const from = document.getElementById("buildFrom").value;
+  const to = document.getElementById("buildTo").value;
+  const person = document.getElementById("buildPerson").value;
+  const dutyType = document.getElementById("buildDutyType").value;
+  const note = document.getElementById("buildNote").value.trim() || null;
+  const color = null;
+  const allowedWeekdays = new Set(Array.from(document.querySelectorAll(".build-wd:checked")).map(el => parseInt(el.value, 10)));
+
+  if (!person) { showMsg(msg, "Pick a person.", "error"); return; }
+  if (!from || !to || from > to) { showMsg(msg, "Pick a valid date range.", "error"); return; }
+
+  const dates = [];
+  let cur = new Date(from + "T00:00:00");
+  const last = new Date(to + "T00:00:00");
+  while (cur <= last) {
+    const wd = cur.getDay(); // 0=Sun..6=Sat, matching WEEKDAY_NAMES
+    if (allowedWeekdays.has(wd) && (dutyType !== "onsite" || wd === 0 || wd === 6 || isBankHoliday(cur))) dates.push(ymd(cur));
+    cur = addDays(cur, 1);
+  }
+  if (!dates.length) { showMsg(msg, "No dates matched the selected weekdays (onsite only applies to Sat, Sun and bank holidays).", "error"); return; }
+
+  btn.disabled = true; btn.textContent = "Filling…";
+  try {
+    const { error } = await sb.rpc("bulk_set_oncall_assignments", {
+      p_site: SELECTED_SITE, p_duty_type: dutyType, p_user_id: person,
+      p_dates: dates, p_note: note, p_highlight_color: color,
+    });
+    if (error) throw error;
+    showMsg(msg, `Filled ${dates.length} date(s).`, "ok");
+    await loadAssignments();
+    renderRota();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Fill dates";
+  }
+});
+
+/* ---------------- my on-call dates ---------------- */
+async function loadMyDates() {
+  const msg = document.getElementById("myDatesMsg");
+  const today = ymd(new Date());
+  const { data, error } = await sb.from("oncall_assignments").select("*")
+    .eq("user_id", PROFILE.id).gte("shift_date", today).order("shift_date");
+  if (error) { showMsg(msg, error.message, "error"); return; }
+  const rows = data || [];
+  const tbody = document.getElementById("myDatesRows");
+  document.getElementById("myDatesEmpty").style.display = rows.length ? "none" : "";
+  tbody.innerHTML = rows.map(a => `
+    <tr>
+      <td>${fmtDate(a.shift_date)}</td>
+      <td>${escapeHtml(SITE_LABEL[a.site] || a.site)}</td>
+      <td>${escapeHtml(DUTY_LABEL[a.duty_type] || a.duty_type)}</td>
+      <td class="small">${escapeHtml(a.note || "")}</td>
+    </tr>`).join("");
+}
+
+/* ---------------- swaps ---------------- */
+function myPoolSites() {
+  const sites = [];
+  if (PROFILE.oncall_worthing) sites.push("worthing");
+  if (PROFILE.oncall_st_richards) sites.push("st_richards");
+  return sites;
+}
+
+async function setupSwapsTab() {
+  await populateCounterpartySelect();
+  document.getElementById("swapCounterparty").addEventListener("change", refreshSwapPickLists);
+  await refreshSwapPickLists();
+  await loadMySwaps();
+}
+
+async function populateCounterpartySelect() {
+  const sel = document.getElementById("swapCounterparty");
+  const sites = myPoolSites();
+  const peers = PROFILES.filter(p => p.active && p.id !== PROFILE.id &&
+    sites.some(s => p[s === "worthing" ? "oncall_worthing" : "oncall_st_richards"]));
+  sel.innerHTML = peers.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})</option>`).join("");
+}
+
+async function refreshSwapPickLists() {
+  const counterpartyId = document.getElementById("swapCounterparty").value;
+  const today = ymd(new Date());
+
+  const { data: mine } = await sb.from("oncall_assignments").select("*")
+    .eq("user_id", PROFILE.id).gte("shift_date", today).order("shift_date");
+  document.getElementById("swapGiveList").innerHTML = (mine || []).map(a => `
+    <label><input type="checkbox" class="give-pick" value="${a.id}">
+      ${fmtDate(a.shift_date)} &mdash; ${escapeHtml(SITE_LABEL[a.site] || a.site)} &mdash; ${escapeHtml(DUTY_LABEL[a.duty_type] || a.duty_type)}
+    </label>`).join("") || `<p class="small">You have no upcoming shifts to offer.</p>`;
+
+  if (!counterpartyId) {
+    document.getElementById("swapTakeList").innerHTML = `<p class="small">Pick who you're swapping with first.</p>`;
+    return;
+  }
+  const { data: theirs } = await sb.from("oncall_assignments").select("*")
+    .eq("user_id", counterpartyId).gte("shift_date", today).order("shift_date");
+  document.getElementById("swapTakeList").innerHTML = (theirs || []).map(a => `
+    <label><input type="checkbox" class="take-pick" value="${a.id}">
+      ${fmtDate(a.shift_date)} &mdash; ${escapeHtml(SITE_LABEL[a.site] || a.site)} &mdash; ${escapeHtml(DUTY_LABEL[a.duty_type] || a.duty_type)}
+    </label>`).join("") || `<p class="small">They have no upcoming shifts.</p>`;
+}
+
+document.getElementById("swapReqForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("swapReqMsg");
+  const btn = document.getElementById("swapReqBtn");
+  const counterpartyId = document.getElementById("swapCounterparty").value;
+  const giveIds = Array.from(document.querySelectorAll(".give-pick:checked")).map(el => el.value);
+  const takeIds = Array.from(document.querySelectorAll(".take-pick:checked")).map(el => el.value);
+  if (!counterpartyId) { showMsg(msg, "Pick who you're swapping with.", "error"); return; }
+  if (!giveIds.length && !takeIds.length) { showMsg(msg, "Pick at least one shift to offer or request.", "error"); return; }
+
+  btn.disabled = true; btn.textContent = "Sending…";
+  try {
+    const { error } = await sb.rpc("request_oncall_swap", {
+      p_counterparty_id: counterpartyId,
+      p_give_assignment_ids: giveIds,
+      p_take_assignment_ids: takeIds,
+      p_note: document.getElementById("swapNote").value.trim() || null,
+    });
+    if (error) throw error;
+    showMsg(msg, "Swap request sent.", "ok");
+    document.getElementById("swapReqForm").reset();
+    await refreshSwapPickLists();
+    await loadMySwaps();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Send swap request";
+  }
+});
+
+async function loadMySwaps() {
+  const msg = document.getElementById("mySwapsMsg");
+  const { data, error } = await sb.from("oncall_swap_requests").select("*, oncall_swap_items(*)")
+    .or(`requested_by.eq.${PROFILE.id},counterparty_id.eq.${PROFILE.id}`)
+    .order("created_at", { ascending: false });
+  if (error) { showMsg(msg, error.message, "error"); return; }
+  MY_SWAPS = data || [];
+  renderMySwaps();
+}
+
+async function assignmentSummary(items, direction) {
+  const ids = items.filter(i => i.direction === direction).map(i => i.assignment_id);
+  if (!ids.length) return "—";
+  const { data } = await sb.from("oncall_assignments").select("shift_date, duty_type").in("id", ids);
+  return (data || []).map(a => `${fmtDate(a.shift_date)} (${DUTY_LABEL[a.duty_type] || a.duty_type})`).join(", ") || "—";
+}
+
+async function renderMySwaps() {
+  const tbody = document.getElementById("mySwapsRows");
+  document.getElementById("mySwapsEmpty").style.display = MY_SWAPS.length ? "none" : "";
+  const rowsHtml = await Promise.all(MY_SWAPS.map(async (r) => {
+    const isRequester = r.requested_by === PROFILE.id;
+    const otherId = isRequester ? r.counterparty_id : r.requested_by;
+    const other = profileById(otherId);
+    // From this viewer's own point of view: what THEY offered vs what THEY'RE asking for.
+    const offered = await assignmentSummary(r.oncall_swap_items, isRequester ? "from_requester" : "from_counterparty");
+    const requested = await assignmentSummary(r.oncall_swap_items, isRequester ? "from_counterparty" : "from_requester");
+    let actions = "";
+    if (r.status === "pending" && !isRequester) {
+      actions = `<button class="secondary" onclick="openRespondModal('${r.id}', true)">Accept</button>
+                 <button class="danger" onclick="openRespondModal('${r.id}', false)">Decline</button>`;
+    } else if (r.status === "pending" && isRequester) {
+      actions = `<button class="danger" onclick="cancelSwap('${r.id}')">Cancel</button>`;
+    }
+    return `<tr>
+      <td>${escapeHtml(other ? `${other.full_name} (${other.initials})` : "—")}</td>
+      <td>${swapStatusBadge(r.status)}</td>
+      <td class="small">${offered}</td>
+      <td class="small">${requested}</td>
+      <td class="small">${escapeHtml(r.note || "")}</td>
+      <td style="white-space:nowrap;">${actions}</td>
+    </tr>`;
+  }));
+  tbody.innerHTML = rowsHtml.join("");
+}
+
+function swapStatusBadge(status) {
+  const map = { pending: "pending", awaiting_approval: "pending", completed: "approved", declined: "rejected", cancelled: "rejected", rejected: "rejected" };
+  const label = { pending: "Pending", awaiting_approval: "Awaiting approval", completed: "Completed", declined: "Declined", cancelled: "Cancelled", rejected: "Rejected" };
+  return `<span class="badge ${map[status] || "pending"}">${label[status] || status}</span>`;
+}
+
+let RESPOND_REQUEST_ID = null, RESPOND_ACCEPT = null;
+function openRespondModal(requestId, accept) {
+  RESPOND_REQUEST_ID = requestId; RESPOND_ACCEPT = accept;
+  document.getElementById("respondMsg").innerHTML = "";
+  document.getElementById("respondNote").value = "";
+  document.getElementById("respondTitle").textContent = accept ? "Accept swap" : "Decline swap";
+  document.getElementById("respondSub").textContent = accept
+    ? "This confirms you're happy with the shifts listed. Depending on this site's settings it may still need a Lead Pharmacist/Clinical Team Lead to approve."
+    : "The other person will be able to see this was declined.";
+  document.getElementById("respondSaveBtn").textContent = accept ? "Accept" : "Decline";
+  document.getElementById("respondOverlay").style.display = "flex";
+}
+function closeRespondModal() { document.getElementById("respondOverlay").style.display = "none"; }
+
+document.getElementById("respondForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("respondMsg");
+  const btn = document.getElementById("respondSaveBtn");
+  btn.disabled = true;
+  try {
+    const { error } = await sb.rpc("respond_oncall_swap", {
+      p_request_id: RESPOND_REQUEST_ID, p_accept: RESPOND_ACCEPT,
+      p_note: document.getElementById("respondNote").value.trim() || null,
+    });
+    if (error) throw error;
+    closeRespondModal();
+    await loadMySwaps();
+    await loadAssignments(); renderRota();
+    if (isOncallPoolMember(PROFILE)) await loadMyDates();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function cancelSwap(requestId) {
+  if (!await uiConfirm("Cancel this swap request?")) return;
+  try {
+    const { error } = await sb.rpc("cancel_oncall_swap", { p_request_id: requestId });
+    if (error) throw error;
+    await loadMySwaps();
+  } catch (err) { showMsg(document.getElementById("mySwapsMsg"), err.message, "error"); }
+}
+
+/* ---------------- swap approvals (Lead Pharmacist+) ---------------- */
+async function loadApprovals() {
+  const msg = document.getElementById("approvalsMsg");
+  const { data, error } = await sb.from("oncall_swap_requests").select("*, oncall_swap_items(*)")
+    .eq("status", "awaiting_approval").order("created_at");
+  if (error) { showMsg(msg, error.message, "error"); return; }
+  APPROVAL_QUEUE = data || [];
+  await renderApprovals();
+}
+
+async function renderApprovals() {
+  const tbody = document.getElementById("approvalsRows");
+  document.getElementById("approvalsEmpty").style.display = APPROVAL_QUEUE.length ? "none" : "";
+  const rowsHtml = await Promise.all(APPROVAL_QUEUE.map(async (r) => {
+    const from = profileById(r.requested_by), to = profileById(r.counterparty_id);
+    const offered = await assignmentSummary(r.oncall_swap_items, "from_requester");
+    const requested = await assignmentSummary(r.oncall_swap_items, "from_counterparty");
+    return `<tr>
+      <td>${escapeHtml(SITE_LABEL[r.site] || r.site)}</td>
+      <td>${escapeHtml(from ? `${from.full_name} (${from.initials})` : "—")}</td>
+      <td>${escapeHtml(to ? `${to.full_name} (${to.initials})` : "—")}</td>
+      <td class="small">${offered}</td>
+      <td class="small">${requested}</td>
+      <td class="small">${escapeHtml(r.note || "")}</td>
+      <td style="white-space:nowrap;">
+        <button class="secondary" onclick="reviewSwap('${r.id}', true)">Approve</button>
+        <button class="danger" onclick="reviewSwap('${r.id}', false)">Reject</button>
+      </td>
+    </tr>`;
+  }));
+  tbody.innerHTML = rowsHtml.join("");
+}
+
+async function reviewSwap(requestId, approve) {
+  const msg = document.getElementById("approvalsMsg");
+  if (!await uiConfirm(approve ? "Approve this swap? It will apply immediately." : "Reject this swap?")) return;
+  try {
+    const { error } = await sb.rpc("review_oncall_swap", { p_request_id: requestId, p_approve: approve });
+    if (error) throw error;
+    await loadApprovals();
+    await loadAssignments(); renderRota();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+</script>
+</body>
+</html>

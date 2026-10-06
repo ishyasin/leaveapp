@@ -114,6 +114,10 @@ a{color:var(--teal-light);}
   font-size:14px;
 }
 .nav a.active,.nav a:hover{background:var(--teal);color:#fff;}
+.subnav{display:flex;gap:6px;flex-wrap:wrap;padding:8px 20px;background:var(--surface);border-bottom:1px solid var(--border);}
+.subnav a{color:var(--text);text-decoration:none;padding:6px 12px;border-radius:6px;font-size:13px;border:1px solid var(--border);}
+.subnav a:hover{border-color:var(--navy);}
+.subnav a.active{background:var(--navy);color:#fff;border-color:var(--navy);}
 .userbox{display:flex;align-items:center;gap:10px;font-size:13px;color:#dfe2ec;}
 .userbox button{
   background:transparent;border:1px solid #566;color:#fff;border-radius:6px;

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
+<title>Huddle Board — Pharmacy Portal</title>
+<script>
+// Applies the last-known colour theme/mode before first paint (see shared.js).
+(function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<style>
+  .hb-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .hb-toolbar .tabs{margin:0;}
+  .hb-toolbar .spacer{flex:1;}
+  .hb-search{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+  .hb-search input{flex:1;min-width:220px;}
+  .post{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:14px;}
+  .post.pinned{border-left:5px solid var(--honey);}
+  .post h3{margin:0 0 6px;font-size:18px;}
+  .post-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text-muted);margin-bottom:10px;}
+  .site-tag{display:inline-block;padding:1px 8px;border-radius:12px;font-size:11px;font-weight:600;background:var(--navy);color:#fff;}
+  .site-tag.st_richards{background:var(--teal);}
+  .pin-tag{display:inline-block;padding:1px 8px;border-radius:12px;font-size:11px;font-weight:700;background:var(--honey);color:#1f2430;}
+  .post-body{white-space:pre-wrap;word-wrap:break-word;font-size:14px;line-height:1.55;}
+  .post-body.clamped{max-height:9.5em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 70%,transparent);mask-image:linear-gradient(#000 70%,transparent);}
+  .post-files{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+  .file-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface-alt);color:var(--text);border-radius:8px;padding:6px 10px;font-size:12.5px;cursor:pointer;}
+  .file-chip:hover{border-color:var(--navy);}
+  .file-chip svg{width:16px;height:16px;color:var(--rejected);flex:none;}
+  .post-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;border-top:1px solid var(--border);padding-top:12px;}
+  .post-actions button{padding:5px 10px;font-size:12px;}
+  .link-btn{background:none;border:none;padding:0;color:var(--teal-light);cursor:pointer;font-size:12.5px;margin-top:6px;}
+  .picked-files .row{display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border);}
+  .picked-files .row span.name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .site-checks{display:flex;gap:18px;flex-wrap:wrap;margin:4px 0;}
+  .site-checks label{display:flex;align-items:center;gap:6px;font-weight:400;margin:0;}
+  .site-checks input,.pin-check input{width:auto;}
+  .pin-check{display:flex;align-items:center;gap:6px;font-weight:400;margin-top:12px;}
+</style>
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="wrap">
+
+  <div class="card">
+    <div class="hb-toolbar">
+      <h1 style="margin:0;">Huddle Board</h1>
+      <div class="tabs" id="siteTabs" role="tablist" aria-label="Site"></div>
+      <span class="spacer"></span>
+      <button class="primary" id="newPostBtn" style="display:none;" onclick="openEditor()">+ New post</button>
+    </div>
+    <form class="hb-search" id="searchForm" role="search">
+      <input type="text" id="searchInput" placeholder="Search every post by keyword in the title or text…" aria-label="Search huddle posts" maxlength="200">
+      <button type="submit" class="primary">Search</button>
+      <button type="button" class="secondary" id="clearSearchBtn" style="display:none;">Clear</button>
+    </form>
+  </div>
+
+  <div id="listMsg"></div>
+  <p class="small" id="resultInfo" style="display:none;margin:0 0 10px;"></p>
+  <div id="posts"></div>
+  <div style="text-align:center;margin:10px 0 30px;">
+    <button class="secondary" id="moreBtn" style="display:none;">Load more</button>
+  </div>
+</div>
+
+<!-- New / edit post -->
+<div class="overlay" id="editorOverlay" style="display:none;">
+  <div class="modal modal-wide" style="max-height:92vh;overflow-y:auto;">
+    <h3 id="editorTitle">New post</h3>
+    <div id="editorMsg"></div>
+    <form id="editorForm">
+      <label for="pTitle">Title</label>
+      <input type="text" id="pTitle" maxlength="200" required>
+      <label for="pBody">Text</label>
+      <textarea id="pBody" rows="9" maxlength="20000"></textarea>
+      <label>Post to</label>
+      <div class="site-checks">
+        <label><input type="checkbox" id="pWorthing"> Worthing Hospital</label>
+        <label><input type="checkbox" id="pStRichards"> St Richard's Hospital</label>
+      </div>
+      <label class="pin-check" id="pinRow"><input type="checkbox" id="pPinned"> Pin this post to the top</label>
+
+      <label style="margin-top:14px;">PDF attachments (optional, up to 10 MB each)</label>
+      <div id="existingFiles" class="picked-files"></div>
+      <div id="pickedFiles" class="picked-files"></div>
+      <input type="file" id="pFiles" accept="application/pdf,.pdf" multiple style="margin-top:6px;">
+
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeEditor()">Cancel</button>
+        <button type="submit" class="primary" id="editorSaveBtn">Post</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+const BUCKET = "huddle-attachments";
+const PAGE = 20;
+const MAX_FILE = 10 * 1024 * 1024;
+const MAX_FILES = 10;
+const SITE_NAMES = { worthing: "Worthing", st_richards: "St Richard's" };
+const PDF_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 14h6M9 17h4"/></svg>`;
+
+let PROFILE = null;
+let DIR = [];
+let VIEW = "both";          // "both" | "worthing" | "st_richards"
+let QUERY = "";
+let POSTS = [];
+let OFFSET = 0;
+let HAS_MORE = false;
+let REQ = 0;                // guards against out-of-order responses
+
+// editor state
+let EDIT_ID = null;
+let EXISTING = [];          // attachments already on the post being edited
+let REMOVE_IDS = new Set();
+let NEW_FILES = [];         // File objects chosen but not yet uploaded
+
+(async () => {
+  PROFILE = await requireAuth(null);
+  if (!PROFILE) return;
+  if (isLeadPlus(PROFILE)) document.getElementById("newPostBtn").style.display = "";
+  VIEW = PROFILE.cross_site ? "both" : (PROFILE.primary_site || "both");
+  const { data } = await sb.rpc("get_profile_directory");
+  DIR = data || [];
+  renderTabs();
+  wireEvents();
+  await load(true);
+})();
+
+function nameFor(id) {
+  const p = DIR.find(x => x.id === id);
+  return p ? p.full_name : "Unknown";
+}
+
+/* ---------- tabs / search ---------- */
+function renderTabs() {
+  const tabs = [["both", "Both sites"], ["worthing", "Worthing"], ["st_richards", "St Richard's"]];
+  document.getElementById("siteTabs").innerHTML = tabs.map(([k, label]) =>
+    `<button type="button" role="tab" aria-selected="${VIEW === k}" data-view="${k}" class="${VIEW === k ? "active" : ""}">${label}</button>`).join("");
+}
+
+function wireEvents() {
+  document.getElementById("siteTabs").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-view]");
+    if (!b || b.dataset.view === VIEW) return;
+    VIEW = b.dataset.view;
+    renderTabs();
+    load(true);
+  });
+  document.getElementById("searchForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    QUERY = document.getElementById("searchInput").value.trim();
+    document.getElementById("clearSearchBtn").style.display = QUERY ? "" : "none";
+    load(true);
+  });
+  document.getElementById("clearSearchBtn").addEventListener("click", () => {
+    QUERY = "";
+    document.getElementById("searchInput").value = "";
+    document.getElementById("clearSearchBtn").style.display = "none";
+    load(true);
+  });
+  document.getElementById("moreBtn").addEventListener("click", () => load(false));
+  document.getElementById("posts").addEventListener("click", onPostClick);
+
+  document.getElementById("pFiles").addEventListener("change", onFilesPicked);
+  document.getElementById("pickedFiles").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-rm-new]");
+    if (!b) return;
+    NEW_FILES.splice(parseInt(b.dataset.rmNew, 10), 1);
+    renderPicked();
+  });
+  document.getElementById("existingFiles").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-rm-existing]");
+    if (!b) return;
+    REMOVE_IDS.add(b.dataset.rmExisting);
+    renderPicked();
+  });
+  document.getElementById("editorForm").addEventListener("submit", onEditorSubmit);
+}
+
+/* ---------- loading ---------- */
+async function load(reset) {
+  const msg = document.getElementById("listMsg");
+  const my = ++REQ;
+  if (reset) { OFFSET = 0; POSTS = []; }
+  msg.innerHTML = "";
+  const { data, error } = await sb.rpc("search_huddle_posts", {
+    p_query: QUERY || null,
+    p_site: VIEW === "both" ? null : VIEW,
+    p_limit: PAGE + 1,
+    p_offset: OFFSET,
+  });
+  if (my !== REQ) return;
+  if (error) { showMsg(msg, error.message, "error"); return; }
+
+  const rows = data || [];
+  HAS_MORE = rows.length > PAGE;
+  const page = rows.slice(0, PAGE);
+  const ids = page.map(p => p.id);
+  const files = {};
+  if (ids.length) {
+    const { data: att, error: aErr } = await sb.from("huddle_attachments").select("*").in("post_id", ids).order("created_at");
+    if (my !== REQ) return;
+    if (aErr) { showMsg(msg, aErr.message, "error"); return; }
+    (att || []).forEach(a => { (files[a.post_id] = files[a.post_id] || []).push(a); });
+  }
+  page.forEach(p => { p.attachments = files[p.id] || []; });
+  POSTS = POSTS.concat(page);
+  OFFSET += page.length;
+  render();
+}
+
+function render() {
+  const info = document.getElementById("resultInfo");
+  if (QUERY) {
+    info.style.display = "";
+    info.textContent = POSTS.length
+      ? `${POSTS.length}${HAS_MORE ? "+" : ""} post${POSTS.length === 1 ? "" : "s"} matching "${QUERY}"`
+      : "";
+  } else info.style.display = "none";
+
+  const wrap = document.getElementById("posts");
+  if (!POSTS.length) {
+    wrap.innerHTML = `<div class="card"><p class="small" style="margin:0;">${QUERY ? "No posts match that search." : "No posts yet for this view."}</p></div>`;
+  } else {
+    wrap.innerHTML = POSTS.map(postHtml).join("");
+  }
+  document.getElementById("moreBtn").style.display = HAS_MORE ? "" : "none";
+}
+
+function linkify(escaped) {
+  // Input is already HTML-escaped. Only http(s) URLs become links.
+  return escaped.replace(/\bhttps?:\/\/[^\s<]+/g, (u) => {
+    const trail = (u.match(/[.,;:!?)]+$/) || [""])[0];
+    const clean = trail ? u.slice(0, -trail.length) : u;
+    return `<a href="${clean}" target="_blank" rel="noopener noreferrer">${clean}</a>${trail}`;
+  });
+}
+
+function fmtSize(n) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1048576) return `${Math.round(n / 1024)} KB`;
+  return `${(n / 1048576).toFixed(1)} MB`;
+}
+
+function postHtml(p) {
+  const canManage = isLeadPlus(PROFILE) && (p.created_by === PROFILE.id || isSuperuserPlus(PROFILE));
+  const long = (p.body || "").length > 450 || (p.body || "").split("\n").length > 8;
+  const sites = (p.sites || []).map(s => `<span class="site-tag ${s}">${escapeHtml(SITE_NAMES[s] || s)}</span>`).join("");
+  const files = (p.attachments || []).map(a =>
+    `<button type="button" class="file-chip" data-act="file" data-path="${escapeHtml(a.storage_path)}">${PDF_ICON}${escapeHtml(a.file_name)} <span class="small">(${fmtSize(a.size_bytes)})</span></button>`).join("");
+  return `
+    <article class="post ${p.pinned ? "pinned" : ""}" data-id="${p.id}">
+      <h3>${escapeHtml(p.title)}</h3>
+      <div class="post-meta">
+        ${p.pinned ? '<span class="pin-tag">Pinned</span>' : ""}
+        ${sites}
+        <span>${escapeHtml(nameFor(p.created_by))} &middot; ${fmtDateTime(p.created_at)}</span>
+      </div>
+      ${p.body ? `<div class="post-body ${long ? "clamped" : ""}">${linkify(escapeHtml(p.body))}</div>` : ""}
+      ${long ? `<button type="button" class="link-btn" data-act="more">Show more</button>` : ""}
+      ${files ? `<div class="post-files">${files}</div>` : ""}
+      ${isLeadPlus(PROFILE) ? `
+        <div class="post-actions">
+          <button type="button" class="secondary" data-act="pin">${p.pinned ? "Unpin" : "Pin"}</button>
+          ${canManage ? `<button type="button" class="secondary" data-act="edit">Edit</button>
+                         <button type="button" class="danger" data-act="delete">Delete</button>` : ""}
+        </div>` : ""}
+    </article>`;
+}
+
+/* ---------- post actions ---------- */
+async function onPostClick(e) {
+  const btn = e.target.closest("[data-act]");
+  if (!btn) return;
+  const art = btn.closest(".post");
+  const id = art ? art.dataset.id : null;
+  const post = POSTS.find(p => p.id === id);
+  const act = btn.dataset.act;
+  const msg = document.getElementById("listMsg");
+
+  if (act === "more") {
+    const body = art.querySelector(".post-body");
+    const nowClamped = body.classList.toggle("clamped");
+    btn.textContent = nowClamped ? "Show more" : "Show less";
+  } else if (act === "file") {
+    await openFile(btn.dataset.path);
+  } else if (act === "pin" && post) {
+    try {
+      const { error } = await sb.rpc("set_huddle_post_pinned", { p_post_id: id, p_pinned: !post.pinned });
+      if (error) throw error;
+      await load(true);
+    } catch (err) { showMsg(msg, err.message, "error"); }
+  } else if (act === "edit" && post) {
+    openEditor(post);
+  } else if (act === "delete" && post) {
+    if (!await uiConfirm(`Delete "${post.title}"? It will no longer appear on the board.`)) return;
+    try {
+      const { error } = await sb.rpc("delete_huddle_post", { p_post_id: id });
+      if (error) throw error;
+      await load(true);
+    } catch (err) { showMsg(msg, err.message, "error"); }
+  }
+}
+
+async function openFile(path) {
+  // Open the tab straight away (inside the click) so it isn't treated as
+  // a pop-up, then point it at a short-lived signed link.
+  const w = window.open("about:blank", "_blank");
+  try {
+    const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(path, 300);
+    if (error) throw error;
+    if (w) w.location.href = data.signedUrl; else window.location.href = data.signedUrl;
+  } catch (err) {
+    if (w) w.close();
+    showMsg(document.getElementById("listMsg"), err.message || "Could not open that file.", "error");
+  }
+}
+
+/* ---------- editor ---------- */
+function openEditor(post) {
+  EDIT_ID = post ? post.id : null;
+  EXISTING = post ? (post.attachments || []).slice() : [];
+  REMOVE_IDS = new Set();
+  NEW_FILES = [];
+  document.getElementById("editorMsg").innerHTML = "";
+  document.getElementById("editorTitle").textContent = post ? "Edit post" : "New post";
+  document.getElementById("editorSaveBtn").textContent = post ? "Save changes" : "Post";
+  document.getElementById("pTitle").value = post ? post.title : "";
+  document.getElementById("pBody").value = post ? post.body : "";
+  const sites = post ? post.sites : (VIEW === "both" ? ["worthing", "st_richards"] : [VIEW]);
+  document.getElementById("pWorthing").checked = sites.includes("worthing");
+  document.getElementById("pStRichards").checked = sites.includes("st_richards");
+  document.getElementById("pPinned").checked = false;
+  document.getElementById("pinRow").style.display = post ? "none" : "";
+  document.getElementById("pFiles").value = "";
+  renderPicked();
+  document.getElementById("editorOverlay").style.display = "flex";
+  document.getElementById("pTitle").focus();
+}
+function closeEditor() { document.getElementById("editorOverlay").style.display = "none"; }
+
+function onFilesPicked(e) {
+  const msg = document.getElementById("editorMsg");
+  msg.innerHTML = "";
+  const problems = [];
+  for (const f of Array.from(e.target.files)) {
+    const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+    if (!isPdf) { problems.push(`"${f.name}" is not a PDF.`); continue; }
+    if (f.size > MAX_FILE) { problems.push(`"${f.name}" is over 10 MB.`); continue; }
+    if (f.size === 0) { problems.push(`"${f.name}" is empty.`); continue; }
+    const total = EXISTING.filter(a => !REMOVE_IDS.has(a.id)).length + NEW_FILES.length;
+    if (total >= MAX_FILES) { problems.push("A post can have at most 10 attachments."); break; }
+    NEW_FILES.push(f);
+  }
+  e.target.value = "";
+  if (problems.length) showMsg(msg, problems.join(" "), "error");
+  renderPicked();
+}
+
+function renderPicked() {
+  document.getElementById("existingFiles").innerHTML = EXISTING.filter(a => !REMOVE_IDS.has(a.id)).map(a =>
+    `<div class="row"><span class="name">${escapeHtml(a.file_name)}</span><span class="small">${fmtSize(a.size_bytes)}</span>
+       <button type="button" class="secondary" data-rm-existing="${a.id}">Remove</button></div>`).join("");
+  document.getElementById("pickedFiles").innerHTML = NEW_FILES.map((f, i) =>
+    `<div class="row"><span class="name">${escapeHtml(f.name)}</span><span class="small">${fmtSize(f.size)}</span>
+       <button type="button" class="secondary" data-rm-new="${i}">Remove</button></div>`).join("");
+}
+
+async function onEditorSubmit(e) {
+  e.preventDefault();
+  const msg = document.getElementById("editorMsg");
+  const btn = document.getElementById("editorSaveBtn");
+  const sites = [];
+  if (document.getElementById("pWorthing").checked) sites.push("worthing");
+  if (document.getElementById("pStRichards").checked) sites.push("st_richards");
+  const title = document.getElementById("pTitle").value.trim();
+  if (!title) { showMsg(msg, "A title is required.", "error"); return; }
+  if (!sites.length) { showMsg(msg, "Choose Worthing, St Richard's, or both.", "error"); return; }
+
+  const label = btn.textContent;
+  btn.disabled = true;
+  const uploaded = [];
+  try {
+    // 1. Upload any new PDFs into this user's own folder.
+    for (let i = 0; i < NEW_FILES.length; i++) {
+      const f = NEW_FILES[i];
+      btn.textContent = `Uploading ${i + 1} of ${NEW_FILES.length}…`;
+      const path = `${PROFILE.id}/${crypto.randomUUID()}.pdf`;
+      const { error } = await sb.storage.from(BUCKET).upload(path, f, { contentType: "application/pdf", upsert: false });
+      if (error) throw new Error(`Could not upload "${f.name}": ${error.message}`);
+      uploaded.push({ path, name: f.name.slice(0, 200), size: f.size });
+    }
+    btn.textContent = "Saving…";
+
+    // 2. Save the post and register the uploaded files against it.
+    if (EDIT_ID) {
+      const { error } = await sb.rpc("update_huddle_post", {
+        p_post_id: EDIT_ID, p_title: title, p_body: document.getElementById("pBody").value, p_sites: sites,
+        p_add_attachments: uploaded, p_remove_attachment_ids: Array.from(REMOVE_IDS),
+      });
+      if (error) throw error;
+      // Tidy up the stored files of attachments that were removed (best effort).
+      const gone = EXISTING.filter(a => REMOVE_IDS.has(a.id)).map(a => a.storage_path);
+      if (gone.length) { try { await sb.storage.from(BUCKET).remove(gone); } catch (_) {} }
+    } else {
+      const { error } = await sb.rpc("create_huddle_post", {
+        p_title: title, p_body: document.getElementById("pBody").value, p_sites: sites,
+        p_pinned: document.getElementById("pPinned").checked, p_attachments: uploaded,
+      });
+      if (error) throw error;
+    }
+    closeEditor();
+    await load(true);
+  } catch (err) {
+    // Don't leave orphaned uploads behind if the post itself failed.
+    if (uploaded.length) { try { await sb.storage.from(BUCKET).remove(uploaded.map(u => u.path)); } catch (_) {} }
+    showMsg(msg, err.message || "Could not save the post.", "error");
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
+}
+</script>
+</body>
+</html>

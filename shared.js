@@ -1,5 +1,5 @@
 /* =====================================================================
-   Pharmacy Rota — shared.js
+   Pharmacy Portal — shared.js
    by ED&G™
 
    Fill in SUPABASE_URL / SUPABASE_ANON_KEY below before deploying.
@@ -507,7 +507,7 @@ async function requireAuth(allowedRoles) {
     return null;
   }
   if (allowedRoles && !allowedRoles.includes(profile.role)) {
-    window.location.href = "calendar.html";
+    window.location.href = "portal.html";
     return null;
   }
   renderTopbar(profile);
@@ -517,6 +517,9 @@ async function requireAuth(allowedRoles) {
 function isLeadPlus(profile) { return ["lead_pharmacist", "superuser", "developer"].includes(profile.role); }
 function isSuperuserPlus(profile) { return ["superuser", "developer"].includes(profile.role); }
 function isDeveloper(profile) { return profile.role === "developer"; }
+// In the on-call pool for at least one site — governs whether "My
+// On-Call Dates" and "Swaps" are shown on oncall.html.
+function isOncallPoolMember(profile) { return !!(profile.oncall_worthing || profile.oncall_st_richards); }
 
 // Mirrors the database's can_process_leave_for() rule — used purely to
 // show/hide Approve/Reject buttons in the UI; the real enforcement
@@ -544,9 +547,25 @@ function renderTopbar(profile) {
   const el = document.getElementById("topbar");
   if (!el) return;
   const page = window.location.pathname.split("/").pop();
-  const links = [["calendar.html", "Calendar"], ["my-leave.html", "My Leave"]];
-  if (isLeadPlus(profile)) links.push(["approvals.html", "Approvals"]);
-  if (isSuperuserPlus(profile)) { links.push(["admin.html", "Admin"]); links.push(["audit.html", "Audit Trail"]); }
+  // Pharmacy Portal: one app-level nav across every page. Leave Manager
+  // is itself a group of pages (Calendar / My Leave / Approvals), shown
+  // as a second row of links whenever one of them is open. Admin and
+  // Audit Trail are portal-wide, so they sit in the main nav.
+  const LEAVE_PAGES = ["calendar.html", "my-leave.html", "approvals.html"];
+  const inLeave = LEAVE_PAGES.includes(page);
+  const links = [
+    ["portal.html", "Home", page === "portal.html"],
+    ["calendar.html", "Leave Manager", inLeave],
+    ["huddle.html", "Huddle Board", page === "huddle.html"],
+    ["links.html", "Quick Links", page === "links.html"],
+    ["oncall.html", "On-Call Rota", page === "oncall.html"],
+  ];
+  if (isSuperuserPlus(profile)) {
+    links.push(["admin.html", "Admin", page === "admin.html"]);
+    links.push(["audit.html", "Audit Trail", page === "audit.html"]);
+  }
+  const subLinks = [["calendar.html", "Calendar"], ["my-leave.html", "My Leave"]];
+  if (isLeadPlus(profile)) subLinks.push(["approvals.html", "Approvals"]);
 
   const modeOptions = Object.entries(COLOR_MODES)
     .map(([val, label]) => `<option value="${val}"${profile.color_mode === val ? " selected" : ""}>${label}</option>`)
@@ -554,10 +573,10 @@ function renderTopbar(profile) {
 
   el.innerHTML = `
     <div class="brand">
-      <div>Pharmacy Rota<small>by ED&amp;G&trade;</small></div>
+      <div>Pharmacy Portal<small>by ED&amp;G&trade;</small></div>
     </div>
-    <div class="nav">${links.map(([href,label]) =>
-      `<a href="${href}" class="${page===href?'active':''}">${label}</a>`).join("")}</div>
+    <div class="nav">${links.map(([href,label,active]) =>
+      `<a href="${href}" class="${active?'active':''}">${label}</a>`).join("")}</div>
     <div class="userbox">
       <select id="colorModeSelect" class="mode-select" aria-label="Display mode">${modeOptions}</select>
       <span>${escapeHtml(profile.full_name)} (${escapeHtml(profile.initials)}) &middot; ${ROLE_LABEL[profile.role]}</span>
@@ -571,12 +590,20 @@ function renderTopbar(profile) {
   // shared.css, which does the actual showing/hiding/artwork). Created
   // once per page as a sibling of #topbar, since every protected page
   // calls renderTopbar() exactly once.
+  if (inLeave && !document.getElementById("subnav")) {
+    const sub = document.createElement("div");
+    sub.id = "subnav";
+    sub.className = "subnav";
+    sub.innerHTML = subLinks.map(([href,label]) =>
+      `<a href="${href}" class="${page===href?'active':''}">${label}</a>`).join("");
+    el.insertAdjacentElement("afterend", sub);
+  }
   if (!document.getElementById("themeBanner")) {
     const banner = document.createElement("div");
     banner.id = "themeBanner";
     banner.className = "theme-banner";
     banner.setAttribute("aria-hidden", "true");
-    el.insertAdjacentElement("afterend", banner);
+    (document.getElementById("subnav") || el).insertAdjacentElement("afterend", banner);
   }
 }
 

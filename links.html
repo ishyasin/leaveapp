@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
+<title>Quick Links — Pharmacy Portal</title>
+<script>
+// Applies the last-known colour theme/mode before first paint (see shared.js).
+(function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<style>
+  .ql-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px;}
+  .ql-tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+    text-decoration:none;color:var(--text);background:var(--surface);border:1px solid var(--border);
+    border-radius:12px;padding:22px 12px 16px;min-height:150px;text-align:center;transition:transform .12s, box-shadow .12s;}
+  .ql-tile:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.12);}
+  .ql-tile:focus-visible{outline:3px solid var(--teal-light);outline-offset:2px;}
+  .ql-logo{width:64px;height:64px;display:flex;align-items:center;justify-content:center;}
+  .ql-logo img{max-width:100%;max-height:100%;object-fit:contain;}
+  .ql-logo .ph{width:64px;height:64px;border-radius:14px;background:var(--navy);color:#fff;font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+  .ql-title{font-weight:600;font-size:14px;word-break:break-word;}
+  .ql-admin{display:flex;gap:6px;margin-top:4px;}
+  .ql-admin button{padding:3px 8px;font-size:11px;}
+  .logo-preview{width:64px;height:64px;border:1px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;margin:6px 0;}
+  .logo-preview img{max-width:100%;max-height:100%;object-fit:contain;}
+</style>
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="wrap">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <h1 style="margin:0;flex:1;">Quick Links</h1>
+      <button class="primary" id="addBtn" style="display:none;" onclick="openEditor()">+ Add link</button>
+    </div>
+  </div>
+  <div id="msg"></div>
+  <div id="grid" class="ql-grid"></div>
+</div>
+
+<div class="overlay" id="overlay" style="display:none;">
+  <div class="modal">
+    <h3 id="editorTitle">Add link</h3>
+    <div id="editorMsg"></div>
+    <form id="form">
+      <label for="qTitle">Name</label>
+      <input type="text" id="qTitle" maxlength="80" required>
+      <label for="qUrl">Link (https://…)</label>
+      <input type="url" id="qUrl" maxlength="2000" required placeholder="https://">
+      <label for="qLogo">Logo (PNG, JPG, WebP or GIF — optional)</label>
+      <div class="logo-preview" id="logoPreview"><span class="small">None</span></div>
+      <input type="file" id="qLogo" accept="image/png,image/jpeg,image/webp,image/gif">
+      <button type="button" class="secondary" id="clearLogoBtn" style="margin-top:6px;display:none;">Remove logo</button>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeEditor()">Cancel</button>
+        <button type="submit" class="primary" id="saveBtn">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+let PROFILE = null, LINKS = [], EDIT_ID = null;
+let LOGO = null;          // new data URI chosen this session
+let CLEAR_LOGO = false;   // remove existing logo on save
+let CURRENT_LOGO = null;  // logo already stored on the link being edited
+
+(async () => {
+  PROFILE = await requireAuth(null);
+  if (!PROFILE) return;
+  if (isDeveloper(PROFILE)) document.getElementById("addBtn").style.display = "";
+  document.getElementById("qLogo").addEventListener("change", onLogoPicked);
+  document.getElementById("clearLogoBtn").addEventListener("click", () => {
+    LOGO = null; CLEAR_LOGO = true; CURRENT_LOGO = null; renderPreview();
+  });
+  document.getElementById("form").addEventListener("submit", onSubmit);
+  document.getElementById("grid").addEventListener("click", onGridClick);
+  await load();
+})();
+
+async function load() {
+  const { data, error } = await sb.from("quick_links").select("*").order("sort_order").order("created_at");
+  if (error) { showMsg(document.getElementById("msg"), error.message, "error"); return; }
+  LINKS = data || [];
+  render();
+}
+
+function safeUrl(u) { return /^https?:\/\/[^\s]+$/i.test(u) ? u : "#"; }
+
+function render() {
+  const dev = isDeveloper(PROFILE);
+  const grid = document.getElementById("grid");
+  if (!LINKS.length) {
+    grid.innerHTML = `<div class="card" style="grid-column:1/-1;"><p class="small" style="margin:0;">${dev ? "No links yet — use “Add link” to create the first tile." : "No quick links have been added yet."}</p></div>`;
+    return;
+  }
+  grid.innerHTML = LINKS.map((l, i) => `
+    <div class="ql-tile-wrap">
+      <a class="ql-tile" href="${escapeHtml(safeUrl(l.url))}" target="_blank" rel="noopener noreferrer">
+        <div class="ql-logo">${l.logo_data
+          ? `<img src="${escapeHtml(l.logo_data)}" alt="">`
+          : `<div class="ph" aria-hidden="true">${escapeHtml((l.title || "?").trim().charAt(0).toUpperCase())}</div>`}</div>
+        <div class="ql-title">${escapeHtml(l.title)}</div>
+        ${dev ? `<div class="ql-admin" data-id="${l.id}">
+          <button type="button" class="secondary" data-act="left" ${i === 0 ? "disabled" : ""} aria-label="Move earlier">&larr;</button>
+          <button type="button" class="secondary" data-act="edit">Edit</button>
+          <button type="button" class="danger" data-act="delete">Delete</button>
+          <button type="button" class="secondary" data-act="right" ${i === LINKS.length - 1 ? "disabled" : ""} aria-label="Move later">&rarr;</button>
+        </div>` : ""}
+      </a>
+    </div>`).join("");
+}
+
+async function onGridClick(e) {
+  const b = e.target.closest("button[data-act]");
+  if (!b) return;
+  e.preventDefault(); e.stopPropagation();   // buttons sit inside the tile's <a>
+  const id = b.closest(".ql-admin").dataset.id;
+  const link = LINKS.find(l => l.id === id);
+  const msg = document.getElementById("msg");
+  msg.innerHTML = "";
+  try {
+    if (b.dataset.act === "edit") return openEditor(link);
+    if (b.dataset.act === "delete") {
+      if (!await uiConfirm(`Delete the “${link.title}” tile?`)) return;
+      const { error } = await sb.rpc("delete_quick_link", { p_id: id });
+      if (error) throw error;
+    } else {
+      const { error } = await sb.rpc("move_quick_link", { p_id: id, p_direction: b.dataset.act === "left" ? "up" : "down" });
+      if (error) throw error;
+    }
+    await load();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+function openEditor(link) {
+  EDIT_ID = link ? link.id : null;
+  LOGO = null; CLEAR_LOGO = false; CURRENT_LOGO = link ? link.logo_data : null;
+  document.getElementById("editorMsg").innerHTML = "";
+  document.getElementById("editorTitle").textContent = link ? "Edit link" : "Add link";
+  document.getElementById("qTitle").value = link ? link.title : "";
+  document.getElementById("qUrl").value = link ? link.url : "";
+  document.getElementById("qLogo").value = "";
+  renderPreview();
+  document.getElementById("overlay").style.display = "flex";
+  document.getElementById("qTitle").focus();
+}
+function closeEditor() { document.getElementById("overlay").style.display = "none"; }
+
+function renderPreview() {
+  const src = LOGO || CURRENT_LOGO;
+  document.getElementById("logoPreview").innerHTML = src ? `<img src="${escapeHtml(src)}" alt="">` : `<span class="small">None</span>`;
+  document.getElementById("clearLogoBtn").style.display = src ? "" : "none";
+}
+
+// Shrinks the chosen image to fit 128x128 and stores it as a PNG data URI,
+// so it stays small and works under the page's strict content-security policy.
+function onLogoPicked(e) {
+  const f = e.target.files[0];
+  const msg = document.getElementById("editorMsg");
+  msg.innerHTML = "";
+  if (!f) return;
+  if (!/^image\/(png|jpeg|webp|gif)$/.test(f.type)) { showMsg(msg, "Choose a PNG, JPG, WebP or GIF image.", "error"); return; }
+  if (f.size > 5 * 1024 * 1024) { showMsg(msg, "That image is over 5 MB.", "error"); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 128, scale = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.width * scale));
+      c.height = Math.max(1, Math.round(img.height * scale));
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      LOGO = c.toDataURL("image/png"); CLEAR_LOGO = false;
+      renderPreview();
+    };
+    img.onerror = () => showMsg(msg, "That image could not be read.", "error");
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(f);
+}
+
+async function onSubmit(e) {
+  e.preventDefault();
+  const msg = document.getElementById("editorMsg");
+  const btn = document.getElementById("saveBtn");
+  const title = document.getElementById("qTitle").value.trim();
+  const url = document.getElementById("qUrl").value.trim();
+  if (!/^https?:\/\/\S+$/i.test(url)) { showMsg(msg, "The link must start with http:// or https://", "error"); return; }
+  btn.disabled = true;
+  try {
+    const { error } = EDIT_ID
+      ? await sb.rpc("update_quick_link", { p_id: EDIT_ID, p_title: title, p_url: url, p_logo_data: LOGO, p_clear_logo: CLEAR_LOGO })
+      : await sb.rpc("create_quick_link", { p_title: title, p_url: url, p_logo_data: LOGO });
+    if (error) throw error;
+    closeEditor();
+    await load();
+  } catch (err) {
+    showMsg(msg, err.message || "Could not save.", "error");
+  } finally { btn.disabled = false; }
+}
+</script>
+</body>
+</html>

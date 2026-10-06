@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
+<title>Home — Pharmacy Portal</title>
+<script>
+// Applies the last-known colour theme/mode before first paint (see shared.js).
+(function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<style>
+  .portal-hero{margin:6px 0 18px;}
+  .portal-hero h1{margin:0 0 4px;}
+  .portal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;}
+  .portal-tile{
+    display:flex;flex-direction:column;gap:10px;text-decoration:none;color:var(--text);
+    background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--teal);
+    border-radius:10px;padding:20px;min-height:150px;transition:transform .12s, box-shadow .12s;
+  }
+  .portal-tile:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.12);}
+  .portal-tile:focus-visible{outline:3px solid var(--teal-light);outline-offset:2px;}
+  .portal-tile svg{width:34px;height:34px;color:var(--navy);}
+  .portal-tile h2{margin:0;font-size:18px;color:var(--heading-color);}
+  .portal-tile p{margin:0;font-size:13px;color:var(--text-muted);line-height:1.45;}
+</style>
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="wrap">
+  <div class="portal-hero">
+    <h1 id="welcome">Pharmacy Portal</h1>
+    <p class="small">Choose where to go.</p>
+  </div>
+
+  <div class="portal-grid">
+    <a class="portal-tile" href="calendar.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/><path d="M8 14h3M13 14h3M8 17.5h3"/></svg>
+      <h2>Leave Manager</h2>
+      <p>Request, approve and view annual leave, TOIL and study leave for both sites.</p>
+    </a>
+    <a class="portal-tile" href="huddle.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l1.6 3.6 3.9.4-2.9 2.6.9 3.8L12 11.9l-3.5 2 .9-3.8-2.9-2.6 3.9-.4z"/><path d="M5 20.5h14M8 17.5h8"/></svg>
+      <h2>Huddle Board</h2>
+      <p>Pinned notices and updates for Worthing and St Richard's, with PDF attachments and a searchable history.</p>
+    </a>
+    <a class="portal-tile" href="links.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg>
+      <h2>Quick Links</h2>
+      <p>One-click shortcuts to the systems and references you use every day.</p>
+    </a>
+    <a class="portal-tile" href="oncall.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 13.5A8.5 8.5 0 1 1 10.5 3.5a6.5 6.5 0 0 0 10 10z"/></svg>
+      <h2>On-Call Rota</h2>
+      <p>Overnight and onsite on-call cover for each site, plus swap requests between pharmacists.</p>
+    </a>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+(async () => {
+  const profile = await requireAuth(null);
+  if (!profile) return;
+  document.getElementById("welcome").textContent = `Welcome, ${profile.full_name}`;
+})();
+</script>
+</body>
+</html>
