@@ -1,5 +1,5 @@
 /* =====================================================================
-   Leave Manager — shared.js
+   Pharmacy Rota — shared.js
    by ED&G™
 
    Fill in SUPABASE_URL / SUPABASE_ANON_KEY below before deploying.
@@ -554,7 +554,7 @@ function renderTopbar(profile) {
 
   el.innerHTML = `
     <div class="brand">
-      <div>Leave Manager<small>by ED&amp;G&trade;</small></div>
+      <div>Pharmacy Rota<small>by ED&amp;G&trade;</small></div>
     </div>
     <div class="nav">${links.map(([href,label]) =>
       `<a href="${href}" class="${page===href?'active':''}">${label}</a>`).join("")}</div>
