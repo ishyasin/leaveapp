@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <style>
-  .oncall-weekgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px;margin-top:14px;}
+  .oncall-weekgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:14px;margin-top:14px;}
   @media (max-width:420px){.oncall-weekgrid{grid-template-columns:1fr;}}
   .week-block{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface);}
   .week-block h4{background:var(--navy);color:#fff;margin:0;padding:6px 10px;font-size:12.5px;display:flex;justify-content:space-between;}
@@ -28,6 +28,19 @@
   .week-block tr.grp-a td{background:#cdeccf;}   /* Sun-Tue: light green */
   .week-block tr.grp-b td{background:#f8d4e1;}   /* Wed-Sat: light pink */
   .week-block td.na{color:#6b7280;}
+  .week-block h4{padding:4px 8px;font-size:11.5px;}
+  .week-block th,.week-block td{padding:2px 4px;}
+  .week-block tr.outside td{background:var(--surface-alt);}
+  .week-block{break-inside:avoid;}
+  @media print{
+    @page{size:A3 landscape;margin:8mm;}
+    .topbar,#subnav,#oncallTabs,.oncall-controls,#bankHolidayCard,#buildCard,#editModeHint{display:none !important;}
+    body{background:#fff;}
+    .card{border:none;box-shadow:none;padding:0;}
+    .oncall-weekgrid{grid-template-columns:repeat(6,1fr);gap:6px;}
+    .week-block h4,.week-block tr td{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .week-block{font-size:9px;}
+  }
   .legend-sw{display:inline-flex;align-items:center;gap:6px;font-size:12px;margin-right:14px;}
   .legend-sw i{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.25);display:inline-block;}
   .week-block tr.today-row td{box-shadow:inset 0 0 0 2px var(--teal);}
@@ -79,11 +92,15 @@
         <button class="secondary" id="periodArchiveBtn" style="display:none;" onclick="toggleArchivePeriod()">Archive</button>
         <button class="secondary" id="periodNewBtn" style="display:none;" onclick="openPeriodModal()">+ New period</button>
         <span class="spacer"></span>
-        <button class="secondary" onclick="shiftWeeks(-12)">&larr; Previous</button>
-        <button class="secondary" onclick="jumpToToday()">Today</button>
-        <button class="secondary" onclick="shiftWeeks(12)">Next &rarr;</button>
+        <span id="yearNav" style="display:flex;gap:6px;">
+          <button class="secondary" onclick="shiftYear(-1)">&larr; Previous year</button>
+          <button class="secondary" onclick="shiftYear(1)">Next year &rarr;</button>
+        </span>
+        <button class="secondary" onclick="window.print()">Print</button>
       </div>
-      <p class="small" id="editModeHint" style="display:none;">Weeks run Sunday to Saturday. Click a name cell to assign, clear, or annotate it. Onsite shifts are only used on Saturdays, Sundays and bank holidays. Bank holidays appear in their own colour and expect an onsite shift.</p>
+      <p class="small" id="editModeHint" style="display:none;">Weeks run Sunday to Saturday. Names are shown as initials (hover for the full name). Click a cell to assign, clear, or annotate it. Onsite shifts are only used on Saturdays, Sundays and bank holidays. Bank holidays appear in their own colour and expect an onsite shift.</p>
+      <h1 id="rotaTitle" style="margin:10px 0 2px;"></h1>
+      <p class="small" id="rotaSubtitle" style="margin:0 0 6px;"></p>
       <div id="rotaLegend"></div>
       <div id="rotaMsg"></div>
       <div id="rotaGrid" class="oncall-weekgrid"></div>
@@ -275,7 +292,9 @@ let PROFILE = null;
 let PROFILES = [];
 let ASSIGNMENTS = [];
 let RANGE_START = null;      // Date — Sunday of the first displayed week
-const WEEKS_SHOWN = 12;
+let RANGE_FIRST = null, RANGE_LAST = null;  // first/last real day of the year/period shown
+let WEEKS_SHOWN = 53;
+let VIEW_YEAR = new Date().getFullYear();  // used when no rota period is selected
 let SELECTED_SITE = "worthing";
 let MY_SWAPS = [];
 let APPROVAL_QUEUE = [];
@@ -316,6 +335,7 @@ const DEFAULT_ONCALL_COLORS = ["#2b6cb0","#2f855a","#b7791f","#9b2c2c","#6b46c1"
   document.getElementById("siteSelect").value = SELECTED_SITE;
   document.getElementById("siteSelect").addEventListener("change", async (e) => {
     SELECTED_SITE = e.target.value;
+    computeRange();
     await loadProfiles();
     await loadAssignments();
     renderRota();
@@ -324,7 +344,7 @@ const DEFAULT_ONCALL_COLORS = ["#2b6cb0","#2f855a","#b7791f","#9b2c2c","#6b46c1"
   });
   document.getElementById("periodSelect").addEventListener("change", onPeriodSelected);
 
-  RANGE_START = sundayOf(new Date());
+  computeRange();
 
   await loadProfiles();
   await loadBankHolidays();
@@ -388,6 +408,28 @@ function profileById(id) { return PROFILES.find(p => p.id === id); }
 function colorFor(p) {
   if (!p) return "#888";
   return p.oncall_color || DEFAULT_ONCALL_COLORS[Math.abs((p.id || "").split("-")[0].split("").reduce((a, c) => a + c.charCodeAt(0), 0)) % DEFAULT_ONCALL_COLORS.length];
+}
+
+// The whole year (or the chosen rota period) is shown on one page.
+function computeRange() {
+  if (SELECTED_PERIOD) {
+    RANGE_FIRST = new Date(SELECTED_PERIOD.start_date + "T00:00:00");
+    RANGE_LAST = new Date(SELECTED_PERIOD.end_date + "T00:00:00");
+  } else {
+    RANGE_FIRST = new Date(VIEW_YEAR, 0, 1);
+    RANGE_LAST = new Date(VIEW_YEAR, 11, 31);
+  }
+  RANGE_START = sundayOf(RANGE_FIRST);
+  WEEKS_SHOWN = Math.floor((RANGE_LAST - RANGE_START) / 86400000 / 7) + 1;
+  document.getElementById("yearNav").style.display = SELECTED_PERIOD ? "none" : "flex";
+  const fmt = d => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const yFirst = RANGE_FIRST.getFullYear(), yLast = RANGE_LAST.getFullYear();
+  const yearText = yFirst === yLast ? `${yFirst}` : `${yFirst}/${yLast}`;
+  const name = SELECTED_PERIOD ? SELECTED_PERIOD.label : `${yearText}`;
+  const label = SELECTED_PERIOD && !name.includes(String(yFirst)) ? `${name} (${yearText})` : name;
+  document.getElementById("rotaTitle").textContent = `On-Call Rota ${label} \u2014 ${SITE_LABEL[SELECTED_SITE] || SELECTED_SITE}`;
+  document.getElementById("rotaSubtitle").textContent =
+    `${fmt(RANGE_FIRST)} \u2013 ${fmt(RANGE_LAST)}` + (SELECTED_PERIOD && SELECTED_PERIOD.status === "archived" ? " \u00b7 archived (read-only)" : "");
 }
 
 async function loadAssignments() {
@@ -506,9 +548,7 @@ function applyPeriodSelection() {
   } else {
     archiveBtn.style.display = "none";
   }
-  if (SELECTED_PERIOD) {
-    RANGE_START = sundayOf(new Date(SELECTED_PERIOD.start_date + "T00:00:00"));
-  }
+  computeRange();
 }
 
 // The dropdown's own change handler — here a fetch+redraw is correct,
@@ -576,6 +616,7 @@ function renderLegend() {
     <span class="legend-sw"><i style="background:#f8d4e1"></i>Wednesday &ndash; Saturday</span>
     <span class="legend-sw"><i style="background:${DEFAULT_BH_COLOR}"></i>Bank holiday (colour set per day)</span>
   </div>`;
+  if (pool.length) html += `<div class="small" style="margin:4px 0;"><strong>Key:</strong> ${pool.map(p => `${escapeHtml(p.initials)} = ${escapeHtml(p.full_name)}`).join(" &middot; ")}</div>`;
   if (!pool.length) html += `<p class="small">Nobody is in this site's on-call pool yet — set it up from Admin &rarr; Users &rarr; Edit on-call.</p>`;
   wrap.innerHTML = html;
 }
@@ -603,6 +644,11 @@ function renderWeekBlock(weekStart) {
     const onCall = assignmentFor(day, "on_call");
     const onsite = assignmentFor(day, "onsite");
     const onsiteApplies = isWeekend || !!bh;
+    const outside = day < RANGE_FIRST || day > RANGE_LAST;
+    if (outside) {
+      rows += `<tr class="outside"><td class="daycell na" colspan="4">&nbsp;</td></tr>`;
+      continue;
+    }
     const bg = bh ? (bh.color || DEFAULT_BH_COLOR) : (dow <= 2 ? "#cdeccf" : "#f8d4e1");
     const cellStyle = `style="background:${escapeHtml(bg)};"`;
     const onsiteCell = onsiteApplies
@@ -637,33 +683,17 @@ function renderChip(day, dutyType, row, requiresOnsite) {
       : `<span class="${cls}">${label}</span>`;
   }
   const p = profileById(row.user_id);
-  const label = p ? p.full_name : "Unknown";
-  const title = row.note ? row.note : label;
+  const label = p ? p.initials : "?";
+  const title = row.note ? `${p ? p.full_name : "Unknown"} \u2014 ${row.note}` : (p ? p.full_name : "Unknown");
   const cls = "person-chip" + (editable ? " clickable" : "");
   const onclick = editable ? ` onclick="openCellModal('${ymd(day)}','${dutyType}')"` : "";
   const noteLine = row.note ? `<span class="note-line">${escapeHtml(row.note)}</span>` : "";
   return `<span class="${cls}" title="${escapeHtml(title)}"${onclick}>${escapeHtml(label)}</span>${noteLine}`;
 }
 
-function shiftWeeks(n) {
-  let next = addDays(RANGE_START, n * 7);
-  if (SELECTED_PERIOD) {
-    const minStart = sundayOf(new Date(SELECTED_PERIOD.start_date + "T00:00:00"));
-    const maxStart = sundayOf(new Date(SELECTED_PERIOD.end_date + "T00:00:00"));
-    if (next < minStart) next = minStart;
-    if (next > maxStart) next = maxStart;
-  }
-  RANGE_START = next;
-  loadAssignments().then(renderRota);
-}
-function jumpToToday() {
-  RANGE_START = sundayOf(new Date());
-  if (SELECTED_PERIOD) {
-    const minStart = sundayOf(new Date(SELECTED_PERIOD.start_date + "T00:00:00"));
-    const maxStart = sundayOf(new Date(SELECTED_PERIOD.end_date + "T00:00:00"));
-    if (RANGE_START < minStart) RANGE_START = minStart;
-    if (RANGE_START > maxStart) RANGE_START = maxStart;
-  }
+function shiftYear(n) {
+  VIEW_YEAR += n;
+  computeRange();
   loadAssignments().then(renderRota);
 }
 
