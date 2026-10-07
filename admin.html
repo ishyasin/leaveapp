@@ -45,12 +45,23 @@
         <p class="small" id="roleHint"></p>
         <div id="createMsg"></div>
         <form id="createForm">
-          <label>User ID (login)</label>
-          <input type="text" id="newUserId" required>
-          <label>Initials (shown on the calendar)</label>
-          <input type="text" id="newInitials" required maxlength="4">
-          <label>Full name</label>
-          <input type="text" id="newFullName" required>
+          <label for="newEmail">Email address</label>
+          <input type="email" id="newEmail" required autocomplete="off" placeholder="name@example.nhs.uk">
+          <label for="newFirstName">First name</label>
+          <input type="text" id="newFirstName" required autocomplete="off">
+          <label for="newLastName">Last name</label>
+          <input type="text" id="newLastName" required autocomplete="off">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;">
+            <div style="flex:1;min-width:200px;">
+              <label>Username (generated)</label>
+              <input type="text" id="newUserIdPreview" readonly tabindex="-1" style="background:var(--surface-alt);">
+            </div>
+            <div style="flex:1;min-width:120px;">
+              <label>Initials (generated)</label>
+              <input type="text" id="newInitialsPreview" readonly tabindex="-1" style="background:var(--surface-alt);">
+            </div>
+          </div>
+          <p class="small" style="margin:4px 0 0;">Generated from the first and last name — username <em>first.last</em>, initials first letter of each. If either is already taken a number is added (e.g. IY, IY1, IY2). The final values are confirmed when the login is created.</p>
           <label>Role</label>
           <select id="newRole"></select>
           <label>Site</label>
@@ -63,7 +74,15 @@
             Cross-site (works at both Worthing and St Richard's)
           </label>
           <label>Temporary password (min. 12 characters)</label>
-          <input type="text" id="newTempPw" required minlength="12">
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="newTempPw" required minlength="12" style="flex:1;">
+            <button type="button" class="secondary" onclick="generateTempPw()">Generate</button>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+            <input type="checkbox" id="newSendInvite" checked style="width:auto;">
+            Email the login details (username, temporary password and sign-in link) to this address
+          </label>
+          <p class="small" style="margin:4px 0 0;">The email address is only used to send this message — it isn't stored. Untick to share the details yourself.</p>
           <div style="margin-top:14px;">
             <button type="submit" class="primary" id="createBtn">Create login</button>
           </div>
@@ -511,6 +530,7 @@ let PROFILES = [];
     setupBulkThemeTab();
   }
   setupRoleOptions();
+  generateTempPw();
   await loadUsers();
   await loadHolidays();
   renderRestColorTable();
@@ -532,6 +552,37 @@ function showTab(name) {
     document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);
   });
 }
+
+// Mirrors the server's generation rules, using the accounts already
+// loaded, purely as a live preview — the server has the final say.
+function cleanNamePart(s) {
+  return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+function updateIdPreview() {
+  const f = cleanNamePart(document.getElementById("newFirstName").value);
+  const l = cleanNamePart(document.getElementById("newLastName").value);
+  const uEl = document.getElementById("newUserIdPreview"), iEl = document.getElementById("newInitialsPreview");
+  if (!f || !l) { uEl.value = ""; iEl.value = ""; return; }
+  const users = new Set(PROFILES.map(p => String(p.user_id).toLowerCase()));
+  const inits = new Set(PROFILES.map(p => String(p.initials).toUpperCase()));
+  const baseU = `${f}.${l}`, baseI = (f[0] + l[0]).toUpperCase();
+  let n = 0; while (users.has(n ? baseU + n : baseU)) n++;
+  let m = 0; while (inits.has(m ? baseI + m : baseI)) m++;
+  uEl.value = n ? baseU + n : baseU;
+  iEl.value = m ? baseI + m : baseI;
+}
+["newFirstName", "newLastName"].forEach(id => document.getElementById(id).addEventListener("input", updateIdPreview));
+
+function generateTempPw() {
+  // Unambiguous characters only (no 0/O, 1/l/I), 14 long, from the browser's CSPRNG.
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const buf = new Uint32Array(14);
+  crypto.getRandomValues(buf);
+  document.getElementById("newTempPw").value = Array.from(buf, n => chars[n % chars.length]).join("");
+}
+
+// Absolute URL of this site's sign-in page, for the invitation email's button.
+function loginPageUrl() { return new URL("login.html", window.location.href).href; }
 
 function toggleCreateForm() {
   const wrap = document.getElementById("createFormWrap");
@@ -558,17 +609,30 @@ document.getElementById("createForm").addEventListener("submit", async (e) => {
   const btn = document.getElementById("createBtn");
   btn.disabled = true; btn.textContent = "Creating…";
   try {
-    await callEdgeFunction("admin-create-user", {
-      user_id: document.getElementById("newUserId").value.trim(),
-      initials: document.getElementById("newInitials").value.trim(),
-      full_name: document.getElementById("newFullName").value.trim(),
+    const inviteEmail = document.getElementById("newEmail").value.trim();
+    const sendInvite = document.getElementById("newSendInvite").checked;
+    const res = await callEdgeFunction("admin-create-user", {
+      first_name: document.getElementById("newFirstName").value.trim(),
+      last_name: document.getElementById("newLastName").value.trim(),
       role: document.getElementById("newRole").value,
       primary_site: document.getElementById("newSite").value,
       cross_site: document.getElementById("newCrossSite").checked,
       temp_password: document.getElementById("newTempPw").value,
+      invite_email: inviteEmail,
+      send_invite: sendInvite,
+      login_url: loginPageUrl(),
     });
-    showMsg(msg, "Login created. Share the temporary password with the user — they'll be asked to change it on first sign-in.", "ok");
+    const who = `${res.full_name} — username ${res.user_id}, initials ${res.initials}`;
+    if (!sendInvite) {
+      showMsg(msg, `Login created: ${who}. Share the temporary password with them — they'll be asked to change it on first sign-in.`, "ok");
+    } else if (res.invite_sent) {
+      showMsg(msg, `Login created: ${who}. The invitation was emailed to ${inviteEmail}; they'll be asked to change the password on first sign-in.`, "ok");
+    } else {
+      showMsg(msg, `Login created: ${who}, but the invitation email could not be sent (${res.invite_error || "unknown error"}). Share the temporary password with them yourself.`, "error");
+    }
     document.getElementById("createForm").reset();
+    generateTempPw();
+    updateIdPreview();
     await loadUsers();
   } catch (err) {
     showMsg(msg, err.message, "error");
@@ -581,6 +645,7 @@ async function loadUsers() {
   const { data, error } = await sb.from("profiles").select("*").order("full_name");
   if (error) { showMsg(document.getElementById("usersMsg"), error.message, "error"); return; }
   PROFILES = data || [];
+  updateIdPreview();
   renderUsersTable();
   // Keeps the Appearance tab's "Selected users" checklist in sync with
   // every other place PROFILES gets reloaded (creating/hiding/deleting
@@ -938,10 +1003,16 @@ async function toggleActive(id, makeActive) {
 async function resetPw(id) {
   const pw = await uiPrompt("Enter a new temporary password (min. 12 characters):", "", { required: true, title: "Reset password" });
   if (!pw) return;
+  const email = await uiPrompt("Email these login details to the user? Enter their email address, or leave blank to skip:", "", { title: "Send by email (optional)" });
   const msg = document.getElementById("usersMsg");
   try {
-    await callEdgeFunction("admin-reset-password", { target_user_id: id, temp_password: pw });
-    showMsg(msg, "Password reset. The user will be asked to set their own on next sign-in.", "ok");
+    const res = await callEdgeFunction("admin-reset-password", {
+      target_user_id: id, temp_password: pw,
+      invite_email: (email || "").trim() || undefined, login_url: loginPageUrl(),
+    });
+    if (!(email || "").trim()) showMsg(msg, "Password reset. The user will be asked to set their own on next sign-in.", "ok");
+    else if (res.invite_sent) showMsg(msg, `Password reset and the login details were emailed to ${email.trim()}.`, "ok");
+    else showMsg(msg, `Password reset, but the email could not be sent (${res.invite_error || "unknown error"}). Share the temporary password yourself.`, "error");
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
 

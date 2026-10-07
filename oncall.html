@@ -41,6 +41,19 @@
     .week-block h4,.week-block tr td{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     .week-block{font-size:9px;}
   }
+  /* Fixed-size tiles and rows: nothing (notes, flags, long names) may change a tile's size, so colour always runs to the borders. */
+  .oncall-weekgrid{grid-template-columns:repeat(auto-fill,280px);justify-content:start;}
+  @media (max-width:420px){.oncall-weekgrid{grid-template-columns:280px;justify-content:center;}}
+  .week-block{width:280px;box-sizing:border-box;}
+  .week-block h4{height:26px;box-sizing:border-box;align-items:center;white-space:nowrap;}
+  .week-block table{table-layout:fixed;width:100%;}
+  .week-block th,.week-block td{height:26px;box-sizing:border-box;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 4px;}
+  .week-block th{height:24px;}
+  .week-block .person-chip{max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;}
+  .note-dot{color:#374151;font-weight:800;cursor:pointer;padding:0 3px;font-size:13px;}
+  .filter-summary{font-size:13px;margin:6px 0;}
+  .person-chip.mine{background:rgba(255,255,255,.55);border-radius:6px;box-shadow:0 0 0 1px rgba(0,0,0,.35);}
+  @media print{.oncall-weekgrid{grid-template-columns:repeat(6,1fr);gap:6px;}.week-block{width:auto;}}
   .swap-star{color:#b91c1c;font-weight:800;cursor:pointer;margin-left:1px;padding:0 3px;font-size:13px;line-height:1;}
   .person-chip.sel{outline:2px solid #1d4ed8;background:rgba(29,78,216,.22);border-radius:6px;}
   .selbar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:50;background:var(--surface);border:2px solid #1d4ed8;border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.28);padding:10px 14px;display:none;gap:10px;align-items:center;flex-wrap:wrap;max-width:94vw;}
@@ -99,16 +112,14 @@
         <button class="secondary" id="periodArchiveBtn" style="display:none;" onclick="toggleArchivePeriod()">Archive</button>
         <button class="secondary" id="periodNewBtn" style="display:none;" onclick="openPeriodModal()">+ New period</button>
         <span class="spacer"></span>
-        <span id="yearNav" style="display:flex;gap:6px;">
-          <button class="secondary" onclick="shiftYear(-1)">&larr; Previous year</button>
-          <button class="secondary" onclick="shiftYear(1)">Next year &rarr;</button>
-        </span>
+        <label style="margin:0;">Show</label>
+        <select id="personFilter" style="width:210px;" onchange="onPersonFilter()"></select>
         <button class="secondary" onclick="window.print()">Print</button>
       </div>
-      <p class="small" id="editModeHint" style="display:none;">Weeks run Sunday to Saturday. Names are shown as initials (hover for the full name). Click a cell to assign, clear, or annotate it; hold Ctrl (⌘ on Mac) and click several cells to select them, then choose a person to allocate them all at once. A red * marks a shift manually swapped to a different person — click it for details. Onsite shifts are only used on Saturdays, Sundays and bank holidays. Bank holidays appear in their own colour and expect an onsite shift.</p>
       <h1 id="rotaTitle" style="margin:10px 0 2px;"></h1>
       <p class="small" id="rotaSubtitle" style="margin:0 0 6px;"></p>
       <div id="rotaLegend"></div>
+      <div id="filterSummary" class="filter-summary" style="display:none;"></div>
       <div id="rotaMsg"></div>
       <div id="rotaGrid" class="oncall-weekgrid"></div>
     </div>
@@ -137,14 +148,14 @@
 
     <div class="card" id="buildCard" style="display:none;">
       <h2>Build / quick-fill</h2>
-      <p class="small">Assign the same person to the same shift across a block of dates in one go — e.g. Sunday to Tuesday for one pharmacist, then Wednesday to Saturday for another. Days outside the ticked weekdays are skipped, and onsite only fills Saturdays, Sundays and bank holidays. Use the grid above to tweak individual days afterwards.</p>
+      <p class="small">Assign the same person to the same shift across a block of dates in one go — e.g. Sunday to Tuesday for one pharmacist, then Wednesday to Saturday for another. Days outside the ticked weekdays are skipped. An <strong>Overnight</strong> shift on a Saturday, Sunday or bank holiday automatically puts the same person in that day's <strong>Onsite</strong> slot as well (unless onsite is already held by someone else), so a Sunday-to-Tuesday block also fills the Sunday onsite. Onsite itself only applies to Saturdays, Sundays and bank holidays. Use the grid above to tweak individual days afterwards.</p>
       <div id="buildMsg"></div>
       <form id="buildForm">
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
           <div style="flex:1;min-width:160px;">
             <label>Duty type</label>
             <select id="buildDutyType">
-              <option value="on_call">Overnight</option>
+              <option value="on_call">Overnight (Sat, Sun &amp; bank holidays also fill Onsite)</option>
               <option value="onsite">Onsite (Sat, Sun &amp; bank holidays only)</option>
             </select>
           </div>
@@ -295,12 +306,13 @@
     <p class="small">A named date range to build the rota within — typically a calendar year, e.g. "2027" running 1 Jan to 31 Dec. Archive it once it's done and start a new one for the next year; archiving blocks further edits to anything inside it without deleting anything.</p>
     <div id="periodMsg"></div>
     <form id="periodForm">
-      <label>Label</label>
-      <input type="text" id="periodLabel" placeholder="e.g. 2027" required>
+      <label>Name (must include the year)</label>
+      <input type="text" id="periodLabel" placeholder="e.g. 2027" required maxlength="40">
       <label>From</label>
       <input type="date" id="periodStart" required>
       <label>To</label>
       <input type="date" id="periodEnd" required>
+      <p class="small" id="periodDays" style="margin:4px 0 0;"></p>
       <div class="modal-actions">
         <button type="button" class="secondary" onclick="closePeriodModal()">Cancel</button>
         <button type="submit" class="primary" id="periodSaveBtn">Create</button>
@@ -334,7 +346,6 @@ let ASSIGNMENTS = [];
 let RANGE_START = null;      // Date — Sunday of the first displayed week
 let RANGE_FIRST = null, RANGE_LAST = null;  // first/last real day of the year/period shown
 let WEEKS_SHOWN = 53;
-let VIEW_YEAR = new Date().getFullYear();  // used when no rota period is selected
 let SELECTED_SITE = "worthing";
 let MY_SWAPS = [];
 let APPROVAL_QUEUE = [];
@@ -355,7 +366,6 @@ const DEFAULT_ONCALL_COLORS = ["#2b6cb0","#2f855a","#b7791f","#9b2c2c","#6b46c1"
   if (!PROFILE) return;
 
   if (isLeadPlus(PROFILE)) {
-    document.getElementById("editModeHint").style.display = "";
     document.getElementById("buildCard").style.display = "";
     document.getElementById("bankHolidayCard").style.display = "";
     document.getElementById("periodNewBtn").style.display = "";
@@ -454,28 +464,30 @@ function colorFor(p) {
 
 // The whole year (or the chosen rota period) is shown on one page.
 function computeRange() {
-  if (SELECTED_PERIOD) {
-    RANGE_FIRST = new Date(SELECTED_PERIOD.start_date + "T00:00:00");
-    RANGE_LAST = new Date(SELECTED_PERIOD.end_date + "T00:00:00");
-  } else {
-    RANGE_FIRST = new Date(VIEW_YEAR, 0, 1);
-    RANGE_LAST = new Date(VIEW_YEAR, 11, 31);
+  const title = document.getElementById("rotaTitle"), sub = document.getElementById("rotaSubtitle");
+  if (!SELECTED_PERIOD) {
+    // No rolling/free-browse view: the rota only exists inside a rota period.
+    RANGE_FIRST = RANGE_LAST = null;
+    RANGE_START = sundayOf(new Date());
+    WEEKS_SHOWN = 0;
+    title.textContent = `On-Call Rota \u2014 ${SITE_LABEL[SELECTED_SITE] || SELECTED_SITE}`;
+    sub.textContent = "";
+    return;
   }
+  RANGE_FIRST = new Date(SELECTED_PERIOD.start_date + "T00:00:00");
+  RANGE_LAST = new Date(SELECTED_PERIOD.end_date + "T00:00:00");
   RANGE_START = sundayOf(RANGE_FIRST);
-  WEEKS_SHOWN = Math.floor((RANGE_LAST - RANGE_START) / 86400000 / 7) + 1;
-  document.getElementById("yearNav").style.display = SELECTED_PERIOD ? "none" : "flex";
+  WEEKS_SHOWN = Math.floor(Math.round((RANGE_LAST - RANGE_START) / 86400000) / 7) + 1;   // round first: DST makes a "day" 23/25h
   const fmt = d => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  const yFirst = RANGE_FIRST.getFullYear(), yLast = RANGE_LAST.getFullYear();
-  const yearText = yFirst === yLast ? `${yFirst}` : `${yFirst}/${yLast}`;
-  const name = SELECTED_PERIOD ? SELECTED_PERIOD.label : `${yearText}`;
-  const label = SELECTED_PERIOD && !name.includes(String(yFirst)) ? `${name} (${yearText})` : name;
-  document.getElementById("rotaTitle").textContent = `On-Call Rota ${label} \u2014 ${SITE_LABEL[SELECTED_SITE] || SELECTED_SITE}`;
-  document.getElementById("rotaSubtitle").textContent =
-    `${fmt(RANGE_FIRST)} \u2013 ${fmt(RANGE_LAST)}` + (SELECTED_PERIOD && SELECTED_PERIOD.status === "archived" ? " \u00b7 archived (read-only)" : "");
+  const days = Math.round((RANGE_LAST - RANGE_FIRST) / 86400000) + 1;
+  title.textContent = `On-Call Rota ${SELECTED_PERIOD.label} \u2014 ${SITE_LABEL[SELECTED_SITE] || SELECTED_SITE}`;
+  sub.textContent = `${fmt(RANGE_FIRST)} \u2013 ${fmt(RANGE_LAST)} (${days} days)` +
+    (SELECTED_PERIOD.status === "archived" ? " \u00b7 archived (read-only)" : "");
 }
 
 async function loadAssignments() {
   const msg = document.getElementById("rotaMsg");
+  if (!SELECTED_PERIOD) { ASSIGNMENTS = []; populateFilter(); return; }
   const start = ymd(RANGE_START);
   const end = ymd(addDays(RANGE_START, WEEKS_SHOWN * 7 - 1));
   const { data, error } = await sb.from("oncall_assignments").select("*")
@@ -483,6 +495,7 @@ async function loadAssignments() {
   if (error) { showMsg(msg, error.message, "error"); return; }
   ASSIGNMENTS = data || [];
   msg.innerHTML = "";
+  populateFilter();
 }
 
 function assignmentFor(date, dutyType) {
@@ -562,15 +575,19 @@ async function loadPeriods() {
 function renderPeriodSelect() {
   const sel = document.getElementById("periodSelect");
   const prevValue = sel.value;
-  sel.innerHTML = `<option value="">Browse freely (no period)</option>` + ROTA_PERIODS
+  sel.innerHTML = (ROTA_PERIODS.length ? "" : `<option value="">No rota period yet</option>`) + ROTA_PERIODS
     .map(p => `<option value="${p.id}">${escapeHtml(p.label)}${p.status === "archived" ? " (archived)" : ""}</option>`).join("");
-  // Default to the period covering today, if there is one, the first time this renders.
-  if (!prevValue && !SELECTED_PERIOD) {
-    const todayStr = ymd(new Date());
-    const current = ROTA_PERIODS.find(p => p.start_date <= todayStr && p.end_date >= todayStr);
-    if (current) sel.value = current.id;
-  } else {
+  if (prevValue && ROTA_PERIODS.some(p => p.id === prevValue)) {
     sel.value = prevValue;
+  } else if (ROTA_PERIODS.length) {
+    // Default: the period covering today; otherwise the most recent one that has
+    // started; otherwise the next one to start.
+    const today = ymd(new Date());
+    const byStart = ROTA_PERIODS.slice().sort((a, b) => a.start_date.localeCompare(b.start_date));
+    const pick = byStart.find(p => p.start_date <= today && p.end_date >= today)
+      || byStart.filter(p => p.start_date <= today).pop()
+      || byStart[0];
+    sel.value = pick.id;
   }
   applyPeriodSelection();
 }
@@ -606,9 +623,26 @@ function openPeriodModal() {
   document.getElementById("periodForm").reset();
   document.getElementById("periodOverlay").style.display = "flex";
 }
+function updatePeriodDays() {
+  const s = document.getElementById("periodStart").value, e = document.getElementById("periodEnd").value;
+  const el = document.getElementById("periodDays");
+  if (!s || !e || e < s) { el.textContent = ""; return; }
+  const days = Math.round((new Date(e + "T00:00:00") - new Date(s + "T00:00:00")) / 86400000) + 1;
+  el.textContent = `${days} day${days === 1 ? "" : "s"}, from ${fmtDate(s)} to ${fmtDate(e)} inclusive.`;
+}
 function closePeriodModal() { document.getElementById("periodOverlay").style.display = "none"; }
 
 function setupPeriodForm() {
+  // Typing a year as the name pre-fills 1 Jan - 31 Dec of that year (still editable).
+  document.getElementById("periodLabel").addEventListener("input", (e) => {
+    const m = /^\s*((?:19|20)\d{2})\s*$/.exec(e.target.value);
+    if (m) {
+      document.getElementById("periodStart").value = `${m[1]}-01-01`;
+      document.getElementById("periodEnd").value = `${m[1]}-12-31`;
+      updatePeriodDays();
+    }
+  });
+  ["periodStart", "periodEnd"].forEach(id => document.getElementById(id).addEventListener("input", updatePeriodDays));
   document.getElementById("periodForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const msg = document.getElementById("periodMsg");
@@ -618,6 +652,8 @@ function setupPeriodForm() {
     const end = document.getElementById("periodEnd").value;
     if (!label || !start || !end) { showMsg(msg, "Fill in every field.", "error"); return; }
     if (end < start) { showMsg(msg, "End date must be on or after the start date.", "error"); return; }
+    if (!/(19|20)\d{2}/.test(label)) { showMsg(msg, "The name must include the year, e.g. 2027.", "error"); return; }
+    if ((new Date(end + "T00:00:00") - new Date(start + "T00:00:00")) / 86400000 > 365) { showMsg(msg, "A rota period covers at most one year (366 days).", "error"); return; }
     btn.disabled = true; btn.textContent = "Creating…";
     try {
       const { data, error } = await sb.rpc("create_oncall_rota_period", { p_label: label, p_start_date: start, p_end_date: end });
@@ -650,7 +686,26 @@ async function toggleArchivePeriod() {
 }
 
 /* ---------------- rota rendering ---------------- */
+let FILTER_USER = "";   // "" = everyone
+function populateFilter() {
+  const sel = document.getElementById("personFilter");
+  const ids = new Set(poolFor(SELECTED_SITE).map(p => p.id));
+  ASSIGNMENTS.forEach(a => ids.add(a.user_id));          // include anyone already on the rota
+  const people = Array.from(ids).map(profileById).filter(Boolean).sort((a, b) => a.full_name.localeCompare(b.full_name));
+  if (FILTER_USER && !ids.has(FILTER_USER)) FILTER_USER = "";
+  sel.innerHTML = `<option value="">Everyone</option>` +
+    (PROFILE && ids.has(PROFILE.id) ? `<option value="${PROFILE.id}">My shifts</option>` : "") +
+    people.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})</option>`).join("");
+  sel.value = FILTER_USER;
+}
+function onPersonFilter() {
+  FILTER_USER = document.getElementById("personFilter").value;
+  clearSelection();
+  renderRota();
+}
+
 function renderLegend() {
+  populateFilter();
   const wrap = document.getElementById("rotaLegend");
   const pool = poolFor(SELECTED_SITE);
   let html = `<div style="margin:6px 0;">
@@ -665,15 +720,37 @@ function renderLegend() {
 
 function renderRota() {
   const grid = document.getElementById("rotaGrid");
+  if (!SELECTED_PERIOD) {
+    document.getElementById("filterSummary").style.display = "none";
+    grid.innerHTML = `<div class="card" style="grid-column:1/-1;margin:0;"><p style="margin:0;">${isLeadPlus(PROFILE)
+      ? "There is no rota period yet. Use <strong>+ New period</strong> to create one — give it a name that includes the year (e.g. 2027) and its exact first and last dates (e.g. 1 Jan 2027 to 31 Dec 2027), then allocate the shifts."
+      : "No on-call rota has been published yet."}</p></div>`;
+    return;
+  }
   const blocks = [];
   for (let w = 0; w < WEEKS_SHOWN; w++) {
-    const weekStart = addDays(RANGE_START, w * 7);
-    blocks.push(renderWeekBlock(weekStart));
+    const html = renderWeekBlock(addDays(RANGE_START, w * 7));
+    if (html) blocks.push(html);
   }
-  grid.innerHTML = blocks.join("");
+  const sum = document.getElementById("filterSummary");
+  if (FILTER_USER) {
+    const mine = ASSIGNMENTS.filter(a => a.user_id === FILTER_USER);
+    const oc = mine.filter(a => a.duty_type === "on_call").length, os = mine.length - oc;
+    const p = profileById(FILTER_USER);
+    sum.style.display = "";
+    sum.innerHTML = `<strong>${escapeHtml(p ? p.full_name : "")}</strong> &mdash; ${mine.length} shift${mine.length === 1 ? "" : "s"} (${oc} overnight, ${os} onsite) shown below; everyone else is hidden.`;
+    grid.innerHTML = blocks.join("") || `<p class="small">No shifts for this person in the period shown.</p>`;
+  } else {
+    sum.style.display = "none";
+    grid.innerHTML = blocks.join("");
+  }
 }
 
 function renderWeekBlock(weekStart) {
+  if (FILTER_USER) {
+    const startS = ymd(weekStart), endS = ymd(addDays(weekStart, 6));
+    if (!ASSIGNMENTS.some(a => a.user_id === FILTER_USER && a.shift_date >= startS && a.shift_date <= endS)) return "";
+  }
   // Weeks run Sunday-Saturday; the label uses the ISO week of the Monday inside the block.
   const weekNum = isoWeekNumber(addDays(weekStart, 1));
   let rows = "";
@@ -699,7 +776,7 @@ function renderWeekBlock(weekStart) {
     rows += `
       <tr class="${isToday ? "today-row" : ""}">
         <td class="daycell" ${cellStyle}>${WEEKDAY_NAMES[i]}${bh ? `<span class="bh-tag" title="${escapeHtml(bh.label || "Bank holiday")}">BH</span>` : ""}</td>
-        <td class="datecell" ${cellStyle}>${day.getDate()}/${day.getMonth() + 1}${bh && bh.label ? `<span class="note-line">${escapeHtml(bh.label)}</span>` : ""}</td>
+        <td class="datecell" ${cellStyle}${bh && bh.label ? ` title="${escapeHtml(bh.label)}"` : ""}>${day.getDate()}/${day.getMonth() + 1}</td>
         <td ${cellStyle}>${renderChip(day, "on_call", onCall)}</td>
         <td ${cellStyle}>${onsiteCell}</td>
       </tr>`;
@@ -708,6 +785,7 @@ function renderWeekBlock(weekStart) {
     <div class="week-block">
       <h4><span>Week ${weekNum}</span><span>${weekStart.getDate()}/${weekStart.getMonth() + 1} &ndash; ${addDays(weekStart, 6).getDate()}/${addDays(weekStart, 6).getMonth() + 1}</span></h4>
       <table>
+        <colgroup><col style="width:15%"><col style="width:16%"><col style="width:29%"><col style="width:40%"></colgroup>
         <thead><tr><th>Day</th><th>Date</th><th>Overnight</th><th>Onsite</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -715,7 +793,8 @@ function renderWeekBlock(weekStart) {
 }
 
 function renderChip(day, dutyType, row, requiresOnsite) {
-  const editable = isLeadPlus(PROFILE);
+  const editable = isLeadPlus(PROFILE) && !FILTER_USER;   // viewing one person: read-only
+  if (FILTER_USER && (!row || row.user_id !== FILTER_USER)) return "";
   const key = `${ymd(day)}|${dutyType}`;
   const selCls = SELECTED.has(key) ? " sel" : "";
   if (!row) {
@@ -734,8 +813,10 @@ function renderChip(day, dutyType, row, requiresOnsite) {
   const star = row.replaced_user_id
     ? `<span class="swap-star" role="button" tabindex="0" title="Manually swapped \u2014 click for details" onclick="showSwapDetail(event,'${ymd(day)}','${dutyType}')" onkeydown="if(event.key==='Enter')showSwapDetail(event,'${ymd(day)}','${dutyType}')">*</span>`
     : "";
-  const noteLine = row.note ? `<span class="note-line">${escapeHtml(row.note)}</span>` : "";
-  return `<span class="${cls}" data-key="${key}" title="${escapeHtml(title)}"${onclick}>${escapeHtml(label)}</span>${star}${noteLine}`;
+  const noteDot = (row.note && !row.replaced_user_id)
+    ? `<span class="note-dot" role="button" tabindex="0" title="${escapeHtml(row.note)}" onclick="showNoteDetail(event,'${ymd(day)}','${dutyType}')">&bull;</span>` : "";
+  const mine = FILTER_USER ? " mine" : "";
+  return `<span class="${cls}${mine}" data-key="${key}" title="${escapeHtml(title)}"${onclick}>${escapeHtml(label)}</span>${star}${noteDot}`;
 }
 
 /* ---------------- manual-swap detail ("*") ---------------- */
@@ -745,6 +826,13 @@ function swapSentence(row) {
   let reason = (row.note || "").trim().replace(/[.\s]+$/, "");
   if (reason && !/^due to\b/i.test(reason)) reason = "due to " + reason;
   return `${n} swapped with ${w}${reason ? " " + reason : ""}. ${n} now covering.`;
+}
+function showNoteDetail(e, dateStr, dutyType) {
+  e.stopPropagation();
+  const row = ASSIGNMENTS.find(a => a.shift_date === dateStr && a.duty_type === dutyType);
+  if (!row) return;
+  const p = profileById(row.user_id);
+  uiAlert(`${p ? p.full_name : "Unknown"}: ${row.note}\n${SITE_LABEL[SELECTED_SITE]} \u2014 ${DUTY_LABEL[dutyType]} \u2014 ${fmtDate(dateStr)}`, "Shift note");
 }
 function showSwapDetail(e, dateStr, dutyType) {
   e.stopPropagation();
@@ -772,6 +860,11 @@ function cellClick(e, dateStr, dutyType) {
   }
   if (SELECTED.size) clearSelection();
   openCellModal(dateStr, dutyType);
+}
+// Overnight on a Sat/Sun/bank holiday also fills that day's onsite slot (done by the database).
+function isOnsiteDay(dateStr) {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.getDay() === 0 || d.getDay() === 6 || BANK_HOLIDAYS.some(h => h.holiday_date === dateStr);
 }
 function updateSelBar() {
   const bar = document.getElementById("selBar");
@@ -801,7 +894,8 @@ async function applySelection() {
   SELECTED.forEach(k => { const [d, duty] = k.split("|"); (byDuty[duty] = byDuty[duty] || []).push(d); });
   const total = SELECTED.size;
   const p = profileById(person);
-  if (!await uiConfirm(`Assign ${p ? p.full_name : "this person"} to ${total} selected shift${total === 1 ? "" : "s"}? Anyone already on those shifts will be replaced.`)) return;
+  if (!await uiConfirm(`Assign ${p ? p.full_name : "this person"} to ${total} selected shift${total === 1 ? "" : "s"}? Anyone already on those shifts will be replaced.` +
+    ((byDuty.on_call || []).some(isOnsiteDay) ? " Overnight shifts on Saturdays, Sundays and bank holidays also fill the onsite slot." : ""))) return;
   btn.disabled = true; btn.textContent = "Assigning…";
   try {
     for (const [duty, dates] of Object.entries(byDuty)) {
@@ -885,12 +979,6 @@ function renderAudit() {
   document.getElementById("auditMoreBtn").style.display = AUDIT_MORE ? "" : "none";
 }
 
-function shiftYear(n) {
-  VIEW_YEAR += n;
-  computeRange();
-  loadAssignments().then(renderRota);
-}
-
 /* ---------------- single-cell assign/clear/annotate ---------------- */
 let CELL_DATE = null, CELL_DUTY = null;
 function openCellModal(dateStr, dutyType) {
@@ -898,7 +986,8 @@ function openCellModal(dateStr, dutyType) {
   const existing = ASSIGNMENTS.find(a => a.shift_date === dateStr && a.duty_type === dutyType);
   document.getElementById("cellMsg").innerHTML = "";
   document.getElementById("cellModalTitle").textContent = DUTY_LABEL[dutyType];
-  document.getElementById("cellModalSub").textContent = `${SITE_LABEL[SELECTED_SITE]} — ${fmtDate(dateStr)}`;
+  document.getElementById("cellModalSub").textContent = `${SITE_LABEL[SELECTED_SITE]} — ${fmtDate(dateStr)}` +
+    (dutyType === "on_call" && isOnsiteDay(dateStr) ? " — this person will also be put in the Onsite slot (if it is empty or held by the person being replaced)." : "");
 
   const sel = document.getElementById("cellPerson");
   const options = poolFor(SELECTED_SITE);
@@ -1007,7 +1096,8 @@ document.getElementById("buildForm").addEventListener("submit", async (e) => {
       p_dates: dates, p_note: note, p_highlight_color: color,
     });
     if (error) throw error;
-    showMsg(msg, `Filled ${dates.length} date(s).`, "ok");
+    const auto = dutyType === "on_call" ? dates.filter(isOnsiteDay).length : 0;
+    showMsg(msg, `Filled ${dates.length} date(s)` + (auto ? `; the onsite slot was also filled on ${auto} weekend/bank-holiday date${auto === 1 ? "" : "s"}.` : "."), "ok");
     await loadAssignments();
     renderRota();
   } catch (err) {

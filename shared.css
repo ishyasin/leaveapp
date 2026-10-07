@@ -149,7 +149,7 @@ button.secondary:hover{border-color:var(--navy);}
 button.danger{background:var(--rejected);color:#fff;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;}
 button.danger:hover{opacity:.9;}
 button:disabled{opacity:.5;cursor:not-allowed;}
-input[type=text],input[type=password],input[type=date],select,textarea{
+input[type=text],input[type=password],input[type=date],input[type=email],select,textarea{
   width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;
   background:var(--surface);color:var(--text);
 }
