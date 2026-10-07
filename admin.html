@@ -37,6 +37,34 @@
   <!-- USERS -->
   <div id="tab-users">
     <div class="card">
+      <h2 style="margin-top:0;">Invite people by email</h2>
+      <p class="small">Paste one or more email addresses &mdash; one per line, or separated by commas or semicolons (names such as <em>Ish Yasin &lt;ish@example.nhs.uk&gt;</em> are fine). Each person gets a personal link where they enter their <strong>first and last name</strong> (their username and initials are created from it), choose their <strong>base site or cross-site</strong>, and <strong>set their own password</strong>. Links work once and last 7 days. You or a Developer can change someone&rsquo;s site afterwards with <em>Edit site</em> in the list below.</p>
+      <div id="inviteMsg"></div>
+      <label for="inviteEmails">Email addresses</label>
+      <textarea id="inviteEmails" rows="5" placeholder="anna.jones@example.nhs.uk&#10;sam.patel@example.nhs.uk" autocomplete="off" spellcheck="false"></textarea>
+      <div class="small" id="inviteCount" style="margin-top:4px;"></div>
+      <label for="inviteRole">Role for everyone in this batch</label>
+      <select id="inviteRole"></select>
+      <div style="margin-top:12px;">
+        <button type="button" class="primary" id="inviteBtn" disabled>Send invitations</button>
+      </div>
+
+      <h3 style="margin:22px 0 8px;">Invitations</h3>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+        <select id="inviteFilter" style="width:auto;">
+          <option value="open">Waiting to be accepted</option>
+          <option value="all">All invitations</option>
+        </select>
+        <button type="button" class="secondary" id="inviteResendAllBtn" style="display:none;">Resend all waiting</button>
+      </div>
+      <div id="inviteListMsg"></div>
+      <table>
+        <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Sent</th><th></th></tr></thead>
+        <tbody id="inviteRows"></tbody>
+      </table>
+      <p id="inviteEmpty" class="small" style="display:none;">No invitations to show.</p>
+    </div>
+    <div class="card">
       <button type="button" id="createToggleBtn" onclick="toggleCreateForm()" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;padding:0;cursor:pointer;text-align:left;">
         <h2 style="margin:0;">+ Create new login</h2>
         <span id="createToggleIcon" style="font-size:14px;color:#667085;">&#9660;</span>
@@ -530,8 +558,10 @@ let PROFILES = [];
     setupBulkThemeTab();
   }
   setupRoleOptions();
+  setupInviteRoles();
   generateTempPw();
   await loadUsers();
+  await loadInvitations();
   await loadHolidays();
   renderRestColorTable();
   updateRestColorPreview();
@@ -572,6 +602,135 @@ function updateIdPreview() {
   iEl.value = m ? baseI + m : baseI;
 }
 ["newFirstName", "newLastName"].forEach(id => document.getElementById(id).addEventListener("input", updateIdPreview));
+
+/* ---------------- bulk invitations ---------------- */
+let INVITES = [];
+const EMAIL_FIND = /[^\s@<>,;"'()]+@[^\s@<>,;"'()]+\.[^\s@<>,;"'()]+/g;
+function parseInviteEmails() {
+  const found = (document.getElementById("inviteEmails").value.match(EMAIL_FIND) || []).map(e => e.toLowerCase().replace(/[.]+$/, ""));
+  return [...new Set(found)];
+}
+function updateInviteCount() {
+  const list = parseInviteEmails();
+  const el = document.getElementById("inviteCount");
+  el.textContent = list.length
+    ? `${list.length} address${list.length === 1 ? "" : "es"} found${list.length > 100 ? " — at most 100 can be sent at once" : ""}.`
+    : "";
+  document.getElementById("inviteBtn").disabled = list.length === 0 || list.length > 100;
+}
+document.getElementById("inviteEmails").addEventListener("input", updateInviteCount);
+
+function setupInviteRoles() {
+  const options = isDeveloper(PROFILE)
+    ? ["pharmacist","lead_pharmacist","superuser","developer"]
+    : ["pharmacist","lead_pharmacist","superuser"];
+  document.getElementById("inviteRole").innerHTML = options.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join("");
+}
+
+function joinPageUrl() { return new URL("join.html", window.location.href).href; }
+
+document.getElementById("inviteBtn").addEventListener("click", async () => {
+  const msg = document.getElementById("inviteMsg"), btn = document.getElementById("inviteBtn");
+  const emails = parseInviteEmails();
+  const role = document.getElementById("inviteRole").value;
+  if (!emails.length) return;
+  if (!await uiConfirm(`Send ${emails.length} invitation${emails.length === 1 ? "" : "s"} as ${ROLE_LABEL[role]}?`)) return;
+  btn.disabled = true; btn.textContent = "Sending…";
+  msg.innerHTML = "";
+  try {
+    const res = await callEdgeFunction("admin-invite-users", { emails, role, join_url: joinPageUrl() });
+    const failed = (res.results || []).filter(r => !r.ok);
+    if (!failed.length) {
+      showMsg(msg, `${res.sent} invitation${res.sent === 1 ? "" : "s"} sent.`, "ok");
+      document.getElementById("inviteEmails").value = "";
+    } else {
+      showMsg(msg, `${res.sent} sent, ${failed.length} failed: ${failed.slice(0, 5).map(f => f.email).join(", ")}${failed.length > 5 ? "…" : ""} — ${failed[0].error}. Use Resend in the list to try again.`, "error");
+      document.getElementById("inviteEmails").value = failed.map(f => f.email).join("\n");
+    }
+    updateInviteCount();
+    await loadInvitations();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.textContent = "Send invitations";
+    updateInviteCount();
+  }
+});
+
+function inviteState(i) {
+  if (i.status === "accepted") return { label: "Accepted", cls: "" };
+  if (i.status === "revoked") return { label: "Revoked", cls: "" };
+  if (new Date(i.expires_at).getTime() < Date.now()) return { label: "Expired", cls: "danger-text" };
+  if (i.email_error) return { label: "Email failed", cls: "danger-text" };
+  return { label: "Waiting", cls: "" };
+}
+function fmtDay(iso) {
+  return iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
+}
+
+async function loadInvitations() {
+  const { data, error } = await sb.from("invitations")
+    .select("id,email,email_masked,role,status,created_at,expires_at,last_sent_at,send_count,email_error,accepted_at,accepted_user_id")
+    .order("created_at", { ascending: false }).limit(300);
+  if (error) { showMsg(document.getElementById("inviteListMsg"), error.message, "error"); return; }
+  INVITES = data || [];
+  renderInvitations();
+}
+
+function renderInvitations() {
+  const open = document.getElementById("inviteFilter").value === "open";
+  const rows = INVITES.filter(i => !open || i.status === "pending");
+  const tbody = document.getElementById("inviteRows");
+  document.getElementById("inviteEmpty").style.display = rows.length ? "none" : "";
+  document.getElementById("inviteResendAllBtn").style.display = INVITES.some(i => i.status === "pending") ? "" : "none";
+  tbody.innerHTML = rows.map(i => {
+    const st = inviteState(i);
+    const who = i.status === "accepted" ? (PROFILES.find(p => p.id === i.accepted_user_id) || {}).full_name : null;
+    const stText = i.status === "accepted"
+      ? `Accepted ${fmtDay(i.accepted_at)}${who ? " — " + escapeHtml(who) : ""}`
+      : st.label + (i.status === "pending" && st.label === "Waiting" ? ` · expires ${fmtDay(i.expires_at)}` : "");
+    const sent = i.last_sent_at ? `${fmtDay(i.last_sent_at)}${i.send_count > 1 ? ` (×${i.send_count})` : ""}` : "—";
+    const canAct = i.status === "pending" && (i.role !== "developer" || isDeveloper(PROFILE));
+    return `<tr>
+      <td>${escapeHtml(i.email || i.email_masked)}</td>
+      <td>${escapeHtml(ROLE_LABEL[i.role] || i.role)}</td>
+      <td>${i.status === "accepted" ? stText : `<span class="${st.cls}" ${st.cls ? 'style="color:#b42318;"' : ""}>${stText}</span>${i.email_error ? `<div class="small" style="color:#b42318;">${escapeHtml(i.email_error)}</div>` : ""}`}</td>
+      <td>${sent}</td>
+      <td style="white-space:nowrap;">${canAct ? `<button type="button" class="secondary" data-inv="resend" data-id="${i.id}">Resend</button> <button type="button" class="danger" data-inv="revoke" data-id="${i.id}">Revoke</button>` : ""}</td>
+    </tr>`;
+  }).join("");
+}
+document.getElementById("inviteFilter").addEventListener("change", renderInvitations);
+
+async function resendInvitations(ids) {
+  const msg = document.getElementById("inviteListMsg");
+  msg.innerHTML = "";
+  try {
+    const res = await callEdgeFunction("admin-invite-users", { resend_ids: ids, join_url: joinPageUrl() });
+    showMsg(msg, res.failed ? `${res.sent} re-sent, ${res.failed} failed — ${(res.results.find(r => !r.ok) || {}).error}.` : `${res.sent} invitation${res.sent === 1 ? "" : "s"} re-sent with a fresh 7-day link.`, res.failed ? "error" : "ok");
+    await loadInvitations();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+document.getElementById("inviteRows").addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-inv]");
+  if (!b) return;
+  const id = b.dataset.id, inv = INVITES.find(i => i.id === id);
+  if (b.dataset.inv === "resend") return resendInvitations([id]);
+  if (!await uiConfirm(`Revoke the invitation to ${inv ? inv.email : "this address"}? Their link will stop working.`)) return;
+  const msg = document.getElementById("inviteListMsg");
+  try {
+    const { error } = await sb.rpc("revoke_invitation", { p_id: id });
+    if (error) throw error;
+    await loadInvitations();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+});
+document.getElementById("inviteResendAllBtn").addEventListener("click", async () => {
+  const ids = INVITES.filter(i => i.status === "pending" && (i.role !== "developer" || isDeveloper(PROFILE))).map(i => i.id);
+  if (!ids.length) return;
+  if (!await uiConfirm(`Resend ${ids.length} waiting invitation${ids.length === 1 ? "" : "s"}? Each person gets a new link and the old one stops working.`)) return;
+  resendInvitations(ids.slice(0, 100));
+});
 
 function generateTempPw() {
   // Unambiguous characters only (no 0/O, 1/l/I), 14 long, from the browser's CSPRNG.
