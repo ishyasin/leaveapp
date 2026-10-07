@@ -41,6 +41,12 @@
     .week-block h4,.week-block tr td{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     .week-block{font-size:9px;}
   }
+  .swap-star{color:#b91c1c;font-weight:800;cursor:pointer;margin-left:1px;padding:0 3px;font-size:13px;line-height:1;}
+  .person-chip.sel{outline:2px solid #1d4ed8;background:rgba(29,78,216,.22);border-radius:6px;}
+  .selbar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:50;background:var(--surface);border:2px solid #1d4ed8;border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.28);padding:10px 14px;display:none;gap:10px;align-items:center;flex-wrap:wrap;max-width:94vw;}
+  .selbar select,.selbar input{width:auto;min-width:150px;margin:0;}
+  .audit-table td{vertical-align:top;font-size:13px;}
+  @media print{.selbar{display:none !important;}}
   .legend-sw{display:inline-flex;align-items:center;gap:6px;font-size:12px;margin-right:14px;}
   .legend-sw i{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.25);display:inline-block;}
   .week-block tr.today-row td{box-shadow:inset 0 0 0 2px var(--teal);}
@@ -76,6 +82,7 @@
     <button id="tabBtn-mydates" style="display:none;" onclick="showOncallTab('mydates')">My On-Call Dates</button>
     <button id="tabBtn-swaps" style="display:none;" onclick="showOncallTab('swaps')">Swaps</button>
     <button id="tabBtn-approvals" style="display:none;" onclick="showOncallTab('approvals')">Swap Approvals</button>
+    <button id="tabBtn-audit" onclick="showOncallTab('audit')">Audit Trail</button>
   </div>
 
   <!-- ROTA -->
@@ -98,7 +105,7 @@
         </span>
         <button class="secondary" onclick="window.print()">Print</button>
       </div>
-      <p class="small" id="editModeHint" style="display:none;">Weeks run Sunday to Saturday. Names are shown as initials (hover for the full name). Click a cell to assign, clear, or annotate it. Onsite shifts are only used on Saturdays, Sundays and bank holidays. Bank holidays appear in their own colour and expect an onsite shift.</p>
+      <p class="small" id="editModeHint" style="display:none;">Weeks run Sunday to Saturday. Names are shown as initials (hover for the full name). Click a cell to assign, clear, or annotate it; hold Ctrl (⌘ on Mac) and click several cells to select them, then choose a person to allocate them all at once. A red * marks a shift manually swapped to a different person — click it for details. Onsite shifts are only used on Saturdays, Sundays and bank holidays. Bank holidays appear in their own colour and expect an onsite shift.</p>
       <h1 id="rotaTitle" style="margin:10px 0 2px;"></h1>
       <p class="small" id="rotaSubtitle" style="margin:0 0 6px;"></p>
       <div id="rotaLegend"></div>
@@ -226,6 +233,39 @@
     </div>
   </div>
 
+<!-- AUDIT TRAIL (everyone with access) -->
+  <div id="tab-audit" style="display:none;">
+    <div class="card">
+      <h2>On-call audit trail</h2>
+      <p class="small">Every change to the on-call rota — allocations, manual swaps, swap requests and approvals, bank holidays and rota periods — newest first. Visible to everyone with access to the rota.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+        <select id="auditFilter" style="width:220px;" onchange="renderAudit()">
+          <option value="">All activity</option>
+          <option value="alloc">Allocations &amp; manual swaps</option>
+          <option value="swap">Swap requests &amp; approvals</option>
+          <option value="setup">Bank holidays, periods &amp; settings</option>
+        </select>
+        <button class="secondary" onclick="loadAudit(true)">Refresh</button>
+      </div>
+      <div id="auditMsg"></div>
+      <table class="audit-table">
+        <thead><tr><th>When</th><th>What</th><th>By</th></tr></thead>
+        <tbody id="auditRows"></tbody>
+      </table>
+      <p id="auditEmpty" class="small" style="display:none;">Nothing recorded yet.</p>
+      <div style="text-align:center;margin-top:10px;"><button class="secondary" id="auditMoreBtn" style="display:none;" onclick="loadAudit(false)">Load older entries</button></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Multi-select action bar (Ctrl/Cmd-click on cells) -->
+<div class="selbar" id="selBar">
+  <strong id="selCount">0 selected</strong>
+  <select id="selPerson" aria-label="Person"></select>
+  <input type="text" id="selNote" placeholder="Reason (optional), e.g. sickness" maxlength="200">
+  <button class="primary" id="selApplyBtn" onclick="applySelection()">Assign</button>
+  <button class="secondary" onclick="clearSelection()">Cancel</button>
 </div>
 
 <!-- Assign / clear / annotate a single cell -->
@@ -237,8 +277,8 @@
     <form id="cellForm">
       <label>Person</label>
       <select id="cellPerson"></select>
-      <label>Note (optional, shown on the rota and on hover)</label>
-      <input type="text" id="cellNote" placeholder="e.g. Replaced with J Smith due to sickness">
+      <label>Reason / note (optional — e.g. sickness; shown on the rota and in the swap details)</label>
+      <input type="text" id="cellNote" placeholder="e.g. sickness" maxlength="200">
       <div class="modal-actions">
         <button type="button" class="danger" id="cellClearBtn" onclick="clearCell()">Clear</button>
         <button type="button" class="secondary" onclick="closeCellModal()">Cancel</button>
@@ -335,6 +375,7 @@ const DEFAULT_ONCALL_COLORS = ["#2b6cb0","#2f855a","#b7791f","#9b2c2c","#6b46c1"
   document.getElementById("siteSelect").value = SELECTED_SITE;
   document.getElementById("siteSelect").addEventListener("change", async (e) => {
     SELECTED_SITE = e.target.value;
+    clearSelection();
     computeRange();
     await loadProfiles();
     await loadAssignments();
@@ -365,7 +406,8 @@ const DEFAULT_ONCALL_COLORS = ["#2b6cb0","#2f855a","#b7791f","#9b2c2c","#6b46c1"
 
 /* ---------------- tabs ---------------- */
 function showOncallTab(name) {
-  ["rota","mydates","swaps","approvals"].forEach(t => {
+  if (name === "audit" && !AUDIT_LOADED) loadAudit(true);
+  ["rota","mydates","swaps","approvals","audit"].forEach(t => {
     const el = document.getElementById("tab-" + t);
     if (el) el.style.display = t === name ? "" : "none";
     const btn = document.getElementById("tabBtn-" + t);
@@ -674,21 +716,173 @@ function renderWeekBlock(weekStart) {
 
 function renderChip(day, dutyType, row, requiresOnsite) {
   const editable = isLeadPlus(PROFILE);
+  const key = `${ymd(day)}|${dutyType}`;
+  const selCls = SELECTED.has(key) ? " sel" : "";
   if (!row) {
     const flagRequired = requiresOnsite && dutyType === "onsite";
     const label = flagRequired ? "Onsite needed" : "&mdash;";
-    const cls = "person-chip empty" + (flagRequired ? " warn" : "") + (editable ? " clickable" : "");
+    const cls = "person-chip empty" + (flagRequired ? " warn" : "") + (editable ? " clickable" : "") + selCls;
     return editable
-      ? `<span class="${cls}" title="Click to assign" onclick="openCellModal('${ymd(day)}','${dutyType}')">${label}</span>`
+      ? `<span class="${cls}" data-key="${key}" title="Click to assign. Ctrl-click to select several." onclick="cellClick(event,'${ymd(day)}','${dutyType}')">${label}</span>`
       : `<span class="${cls}">${label}</span>`;
   }
   const p = profileById(row.user_id);
   const label = p ? p.initials : "?";
   const title = row.note ? `${p ? p.full_name : "Unknown"} \u2014 ${row.note}` : (p ? p.full_name : "Unknown");
-  const cls = "person-chip" + (editable ? " clickable" : "");
-  const onclick = editable ? ` onclick="openCellModal('${ymd(day)}','${dutyType}')"` : "";
+  const cls = "person-chip" + (editable ? " clickable" : "") + selCls;
+  const onclick = editable ? ` onclick="cellClick(event,'${ymd(day)}','${dutyType}')"` : "";
+  const star = row.replaced_user_id
+    ? `<span class="swap-star" role="button" tabindex="0" title="Manually swapped \u2014 click for details" onclick="showSwapDetail(event,'${ymd(day)}','${dutyType}')" onkeydown="if(event.key==='Enter')showSwapDetail(event,'${ymd(day)}','${dutyType}')">*</span>`
+    : "";
   const noteLine = row.note ? `<span class="note-line">${escapeHtml(row.note)}</span>` : "";
-  return `<span class="${cls}" title="${escapeHtml(title)}"${onclick}>${escapeHtml(label)}</span>${noteLine}`;
+  return `<span class="${cls}" data-key="${key}" title="${escapeHtml(title)}"${onclick}>${escapeHtml(label)}</span>${star}${noteLine}`;
+}
+
+/* ---------------- manual-swap detail ("*") ---------------- */
+function swapSentence(row) {
+  const now = profileById(row.user_id), was = profileById(row.replaced_user_id);
+  const n = now ? now.initials : "?", w = was ? was.initials : "?";
+  let reason = (row.note || "").trim().replace(/[.\s]+$/, "");
+  if (reason && !/^due to\b/i.test(reason)) reason = "due to " + reason;
+  return `${n} swapped with ${w}${reason ? " " + reason : ""}. ${n} now covering.`;
+}
+function showSwapDetail(e, dateStr, dutyType) {
+  e.stopPropagation();
+  const row = ASSIGNMENTS.find(a => a.shift_date === dateStr && a.duty_type === dutyType);
+  if (!row) return;
+  const by = profileById(row.updated_by);
+  const lines = [
+    swapSentence(row),
+    `${SITE_LABEL[SELECTED_SITE]} \u2014 ${DUTY_LABEL[dutyType]} \u2014 ${fmtDate(dateStr)}`,
+    by ? `Changed by ${by.full_name} on ${fmtDateTime(row.updated_at)}.` : "",
+  ].filter(Boolean).join("\n");
+  uiAlert(lines, "Manual swap");
+}
+
+/* ---------------- Ctrl/Cmd multi-select ---------------- */
+const SELECTED = new Set();   // "YYYY-MM-DD|duty_type"
+function cellClick(e, dateStr, dutyType) {
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    const key = `${dateStr}|${dutyType}`;
+    if (SELECTED.has(key)) SELECTED.delete(key); else SELECTED.add(key);
+    e.currentTarget.classList.toggle("sel", SELECTED.has(key));
+    updateSelBar();
+    return;
+  }
+  if (SELECTED.size) clearSelection();
+  openCellModal(dateStr, dutyType);
+}
+function updateSelBar() {
+  const bar = document.getElementById("selBar");
+  document.getElementById("selCount").textContent = `${SELECTED.size} shift${SELECTED.size === 1 ? "" : "s"} selected`;
+  if (SELECTED.size) {
+    const sel = document.getElementById("selPerson");
+    if (!sel.options.length || sel.dataset.site !== SELECTED_SITE) {
+      sel.innerHTML = poolFor(SELECTED_SITE).map(p => `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})</option>`).join("");
+      sel.dataset.site = SELECTED_SITE;
+    }
+  }
+  bar.style.display = SELECTED.size ? "flex" : "none";
+}
+function clearSelection() {
+  SELECTED.clear();
+  document.querySelectorAll(".person-chip.sel").forEach(el => el.classList.remove("sel"));
+  updateSelBar();
+}
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && SELECTED.size) clearSelection(); });
+
+async function applySelection() {
+  const person = document.getElementById("selPerson").value;
+  const note = document.getElementById("selNote").value.trim() || null;
+  const btn = document.getElementById("selApplyBtn");
+  if (!person) { uiAlert("Pick a person first."); return; }
+  const byDuty = {};
+  SELECTED.forEach(k => { const [d, duty] = k.split("|"); (byDuty[duty] = byDuty[duty] || []).push(d); });
+  const total = SELECTED.size;
+  const p = profileById(person);
+  if (!await uiConfirm(`Assign ${p ? p.full_name : "this person"} to ${total} selected shift${total === 1 ? "" : "s"}? Anyone already on those shifts will be replaced.`)) return;
+  btn.disabled = true; btn.textContent = "Assigning…";
+  try {
+    for (const [duty, dates] of Object.entries(byDuty)) {
+      const { error } = await sb.rpc("bulk_set_oncall_assignments", {
+        p_site: SELECTED_SITE, p_duty_type: duty, p_user_id: person,
+        p_dates: dates.sort(), p_note: note, p_highlight_color: null,
+      });
+      if (error) throw error;
+    }
+    document.getElementById("selNote").value = "";
+    clearSelection();
+    await loadAssignments();
+    renderRota();
+    AUDIT_LOADED = false;
+  } catch (err) {
+    uiAlert(err.message || "Could not assign those shifts.", "Error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Assign";
+  }
+}
+
+/* ---------------- audit trail ---------------- */
+let AUDIT = [], AUDIT_LOADED = false, AUDIT_MORE = false;
+const AUDIT_PAGE = 200;
+const AUDIT_CATEGORY = {
+  set_oncall_assignment: "alloc", clear_oncall_assignment: "alloc", bulk_set_oncall_assignments: "alloc", annotate_oncall_assignments: "alloc",
+  request_oncall_swap: "swap", accept_oncall_swap: "swap", decline_oncall_swap: "swap", cancel_oncall_swap: "swap", apply_oncall_swap: "swap",
+  approve_oncall_swap: "swap", reject_oncall_swap: "swap",
+};
+const AUDIT_LABEL = {
+  bulk_set_oncall_assignments: "Multiple shifts allocated", annotate_oncall_assignments: "Shift note updated",
+  request_oncall_swap: "Swap requested", accept_oncall_swap: "Swap accepted", decline_oncall_swap: "Swap declined",
+  cancel_oncall_swap: "Swap cancelled", apply_oncall_swap: "Swap applied", approve_oncall_swap: "Swap approved", reject_oncall_swap: "Swap rejected",
+  set_oncall_bank_holiday: "Bank holiday set", remove_oncall_bank_holiday: "Bank holiday removed",
+  create_oncall_rota_period: "Rota period created", archive_oncall_rota_period: "Rota period archived", reopen_oncall_rota_period: "Rota period reopened",
+  set_oncall_eligibility: "On-call pool changed", set_oncall_swap_mode: "Swap approval mode changed",
+};
+function whoFull(id) { const p = profileById(id); return p ? `${p.full_name} (${p.initials})` : "Unknown"; }
+function dutyWord(d) { return DUTY_LABEL[d] || d; }
+function describeAudit(a) {
+  const b = a.before_state, n = a.after_state;
+  const where = (r) => `${dutyWord(r.duty_type)} ${fmtDate(r.shift_date)} (${SITE_LABEL[r.site] || r.site})`;
+  if (a.action === "set_oncall_assignment" && n) {
+    if (!b) return `${whoFull(n.user_id)} allocated to ${where(n)}.` + (n.note ? ` Note: ${n.note}` : "");
+    if (b.user_id !== n.user_id) {
+      let reason = (n.note || "").trim().replace(/[.\s]+$/, "");
+      if (reason && !/^due to\b/i.test(reason)) reason = "due to " + reason;
+      return `${whoFull(n.user_id)} swapped with ${whoFull(b.user_id)}${reason ? " " + reason : ""}. ${whoFull(n.user_id)} now covering ${where(n)}.`;
+    }
+    return `Note updated on ${where(n)} (${whoFull(n.user_id)})` + (n.note ? `: ${n.note}` : " (note removed).");
+  }
+  if (a.action === "clear_oncall_assignment" && b) return `${whoFull(b.user_id)} removed from ${where(b)}.`;
+  const label = AUDIT_LABEL[a.action] || a.action;
+  let extra = a.note || "";
+  if (a.action === "bulk_set_oncall_assignments") extra = `${whoFull(a.target_user_id)} \u2014 ${extra}`;
+  else if (a.target_user_id && /swap/.test(a.action)) extra = `with ${whoFull(a.target_user_id)}${extra ? " \u2014 " + extra : ""}`;
+  return `${label}${extra ? ": " + extra : ""}`;
+}
+async function loadAudit(reset) {
+  const msg = document.getElementById("auditMsg");
+  msg.innerHTML = "";
+  const before = (!reset && AUDIT.length) ? AUDIT[AUDIT.length - 1].created_at : null;
+  const { data, error } = await sb.rpc("get_oncall_audit", { p_limit: AUDIT_PAGE, p_before: before });
+  if (error) { showMsg(msg, error.message, "error"); return; }
+  const rows = data || [];
+  AUDIT = reset ? rows : AUDIT.concat(rows);
+  AUDIT_MORE = rows.length === AUDIT_PAGE;
+  AUDIT_LOADED = true;
+  renderAudit();
+}
+function renderAudit() {
+  const f = document.getElementById("auditFilter").value;
+  const rows = AUDIT.filter(a => !f || (AUDIT_CATEGORY[a.action] || "setup") === f);
+  document.getElementById("auditEmpty").style.display = rows.length ? "none" : "";
+  document.getElementById("auditRows").innerHTML = rows.map(a => `
+    <tr>
+      <td class="small" style="white-space:nowrap;">${fmtDateTime(a.created_at)}</td>
+      <td>${escapeHtml(describeAudit(a))}</td>
+      <td class="small">${escapeHtml(whoFull(a.actor_id))}</td>
+    </tr>`).join("");
+  document.getElementById("auditMoreBtn").style.display = AUDIT_MORE ? "" : "none";
 }
 
 function shiftYear(n) {
@@ -714,6 +908,7 @@ function openCellModal(dateStr, dutyType) {
 
   document.getElementById("cellNote").value = existing ? (existing.note || "") : "";
   document.getElementById("cellClearBtn").style.display = existing ? "" : "none";
+  document.getElementById("cellModalSub").textContent += existing && existing.replaced_user_id ? ` \u2014 ${swapSentence(existing)}` : "";
 
   document.getElementById("cellOverlay").style.display = "flex";
 }
@@ -735,6 +930,7 @@ document.getElementById("cellForm").addEventListener("submit", async (e) => {
     });
     if (error) throw error;
     closeCellModal();
+    AUDIT_LOADED = false;
     await loadAssignments();
     renderRota();
   } catch (err) {
@@ -751,6 +947,7 @@ async function clearCell() {
     const { error } = await sb.rpc("clear_oncall_assignment", { p_site: SELECTED_SITE, p_shift_date: CELL_DATE, p_duty_type: CELL_DUTY });
     if (error) throw error;
     closeCellModal();
+    AUDIT_LOADED = false;
     await loadAssignments();
     renderRota();
   } catch (err) { showMsg(msg, err.message, "error"); }

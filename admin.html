@@ -342,6 +342,11 @@
       <p class="small">Developer only. Permanently deletes every <strong>leave request</strong>, <strong>bank holiday</strong>, <strong>restricted day</strong>, <strong>capacity override</strong>, and <strong>Clinical Rota Completed / DSR complete</strong> flag, resets each site's leave-capacity threshold back to its default, and clears the audit log — so the app starts completely clean for real use. <strong>User accounts, roles, and site assignments are not touched</strong> — nobody needs to be recreated. This cannot be undone.</p>
       <button class="danger" onclick="openResetDataModal()">Reset App Data</button>
     </div>
+    <div class="card">
+      <h2>Reset the on-call rota only</h2>
+      <p class="small">Developer only. Permanently deletes every <strong>on-call shift</strong>, <strong>swap request</strong>, <strong>on-call bank holiday</strong> and <strong>rota period</strong> so the rota can be built again from scratch. <strong>Leave data, user accounts, who is in each site's on-call pool, swap-approval settings, the Huddle Board and Quick Links are not touched</strong>, and the audit trail keeps a record of the reset. This cannot be undone — the daily backup email is your safety net.</p>
+      <button class="danger" onclick="openResetOncallModal()">Reset On-Call Rota</button>
+    </div>
   </div>
 
   <!-- APPEARANCE (Developer only) -->
@@ -382,6 +387,23 @@
       <div class="modal-actions">
         <button type="button" class="secondary" onclick="closeResetDataModal()">Cancel</button>
         <button type="submit" class="danger" id="resetDataSubmitBtn">Permanently reset app data</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Reset-on-call-rota confirmation modal -->
+<div class="overlay" id="resetOncallOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Confirm: Reset On-Call Rota</h3>
+    <p class="small">This permanently deletes all on-call shifts, swap requests, on-call bank holidays and rota periods. Nothing else is touched. There is no way to undo this. Enter your password to confirm.</p>
+    <div id="resetOncallMsg"></div>
+    <form id="resetOncallForm">
+      <label>Password</label>
+      <input type="password" id="resetOncallPassword" required autocomplete="current-password">
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeResetOncallModal()">Cancel</button>
+        <button type="submit" class="danger" id="resetOncallSubmitBtn">Permanently reset on-call rota</button>
       </div>
     </form>
   </div>
@@ -870,6 +892,37 @@ document.getElementById("resetDataForm").addEventListener("submit", async (e) =>
     showMsg(msg, err.message || "Could not reset app data.", "error");
   } finally {
     btn.disabled = false; btn.textContent = "Permanently reset app data";
+  }
+});
+
+/* ---------------- reset on-call rota only (Developer only) ---------------- */
+function openResetOncallModal() {
+  document.getElementById("resetOncallMsg").innerHTML = "";
+  document.getElementById("resetOncallPassword").value = "";
+  document.getElementById("resetOncallOverlay").style.display = "flex";
+}
+function closeResetOncallModal() { document.getElementById("resetOncallOverlay").style.display = "none"; }
+
+document.getElementById("resetOncallForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("resetOncallMsg");
+  const btn = document.getElementById("resetOncallSubmitBtn");
+  btn.disabled = true; btn.textContent = "Verifying password…";
+  try {
+    const session = await getSession();
+    const { error: authErr } = await sb.auth.signInWithPassword({
+      email: session.user.email, password: document.getElementById("resetOncallPassword").value,
+    });
+    if (authErr) { showMsg(msg, "Incorrect password.", "error"); return; }
+    btn.textContent = "Resetting…";
+    const { error } = await sb.rpc("reset_oncall_rota");
+    if (error) throw error;
+    closeResetOncallModal();
+    await uiAlert("The on-call rota has been reset. Leave data and user accounts were not affected.", "Reset complete");
+  } catch (err) {
+    showMsg(msg, err.message || "Could not reset the on-call rota.", "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Permanently reset on-call rota";
   }
 });
 
