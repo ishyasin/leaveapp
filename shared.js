@@ -262,6 +262,13 @@ function startBunnyCycle() {
   _bunnyTimer = setTimeout(loop, 2500);        // first visit shortly after the page loads
 }
 
+// Pages people see before signing in never use a theme.
+const PRE_LOGIN_PAGE = /\/(login|join|index)(\.html)?$|\/$/.test(window.location.pathname);
+if (PRE_LOGIN_PAGE) {
+  document.documentElement.removeAttribute("data-theme");
+  try { localStorage.removeItem("lm_theme"); } catch (e) {}
+}
+
 function buildThemeFx() {
   const theme = document.documentElement.getAttribute("data-theme");
   const kind = ["halloween", "christmas", "easter"].includes(theme) ? theme : null;
@@ -755,6 +762,7 @@ async function signOut() {
     // is less work and less likely to hit a snag than the default
     // 'global' scope. Combined with the try/catch below, this makes
     // sign-out work even if the remote call has any trouble at all.
+    try { localStorage.removeItem(THEME_STORAGE_KEY); } catch (e) {}   // the theme belongs to the signed-in session only
     await sb.auth.signOut({ scope: "local" });
   } catch (e) {
     // Even if the remote sign-out call fails (an already-expired or

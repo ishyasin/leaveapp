@@ -12,7 +12,8 @@
 // see a flash of the default-look page while their profile loads. The
 // profile itself (fetched in requireAuth()) remains the source of
 // truth and corrects this on every page load.
-(function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+// Colour theme (and seasonal animations) only apply after sign-in, so this page never uses it.
+(function(){try{var m=localStorage.getItem('lm_color_mode');if(m)document.documentElement.setAttribute('data-color-mode',m);}catch(e){}})();
 </script>
 <link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>

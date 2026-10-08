@@ -39,6 +39,20 @@
   .site-checks label{display:flex;align-items:center;gap:6px;font-weight:400;margin:0;}
   .site-checks input,.pin-check input{width:auto;}
   .pin-check{display:flex;align-items:center;gap:6px;font-weight:400;margin-top:12px;}
+  .react-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:14px;}
+  .react-btn{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);background:var(--surface-alt);color:var(--text);border-radius:18px;padding:3px 10px;font-size:15px;cursor:pointer;line-height:1.4;}
+  .react-btn .n{font-size:12px;font-weight:600;min-width:6px;}
+  .react-btn:hover{border-color:var(--teal);}
+  .react-btn.mine{background:var(--teal-light);border-color:var(--teal);color:#fff;}
+  .react-btn.mine .n{color:#fff;}
+  .comments-toggle{margin-left:auto;font-size:12.5px;}
+  .comments{margin-top:10px;border-top:1px solid var(--border);padding-top:10px;}
+  .comment{padding:7px 0;border-bottom:1px solid var(--border);font-size:13.5px;}
+  .comment .who{font-size:12px;color:var(--text-muted);display:flex;gap:8px;align-items:center;}
+  .comment .who button{margin-left:auto;font-size:11.5px;}
+  .comment .txt{white-space:pre-wrap;word-wrap:break-word;margin-top:2px;}
+  .comment-form{display:flex;gap:8px;margin-top:10px;align-items:flex-start;}
+  .comment-form textarea{flex:1;min-height:38px;margin:0;resize:vertical;}
 </style>
 </head>
 <body>
@@ -114,6 +128,8 @@ let POSTS = [];
 let OFFSET = 0;
 let HAS_MORE = false;
 let REQ = 0;                // guards against out-of-order responses
+const REACTIONS = [["heart", "\u2764\uFE0F", "Love"], ["thumbs_up", "\uD83D\uDC4D", "Thumbs up"], ["laugh", "\uD83D\uDE02", "Laughing"], ["sad", "\uD83D\uDE22", "Sad"], ["shocked", "\uD83D\uDE2E", "Shocked"]];
+const OPEN_COMMENTS = new Set();   // post ids whose comments are expanded
 
 // editor state
 let EDIT_ID = null;
@@ -210,10 +226,59 @@ async function load(reset) {
     if (aErr) { showMsg(msg, aErr.message, "error"); return; }
     (att || []).forEach(a => { (files[a.post_id] = files[a.post_id] || []).push(a); });
   }
-  page.forEach(p => { p.attachments = files[p.id] || []; });
+  page.forEach(p => { p.attachments = files[p.id] || []; p.reactions = []; p.comments = []; });
+  await attachExtras(page, my);
+  if (my !== REQ) return;
   POSTS = POSTS.concat(page);
   OFFSET += page.length;
   render();
+}
+
+// Reactions and comments for a set of posts (filled in place).
+async function attachExtras(posts, my) {
+  const ids = posts.map(p => p.id);
+  if (!ids.length) return;
+  const [r, c] = await Promise.all([
+    sb.from("huddle_reactions").select("post_id, user_id, emoji").in("post_id", ids),
+    sb.from("huddle_comments").select("id, post_id, body, created_by, created_at").in("post_id", ids).order("created_at"),
+  ]);
+  if (my !== undefined && my !== REQ) return;
+  const byPostR = {}, byPostC = {};
+  (r.data || []).forEach(x => (byPostR[x.post_id] = byPostR[x.post_id] || []).push(x));
+  (c.data || []).forEach(x => (byPostC[x.post_id] = byPostC[x.post_id] || []).push(x));
+  posts.forEach(p => { p.reactions = byPostR[p.id] || []; p.comments = byPostC[p.id] || []; });
+}
+async function refreshPost(id) {
+  const post = POSTS.find(p => p.id === id);
+  if (!post) return;
+  await attachExtras([post]);
+  const art = document.querySelector(`.post[data-id="${id}"]`);
+  if (art) art.querySelector(".post-social").outerHTML = socialHtml(post);
+}
+
+function socialHtml(p) {
+  const mine = new Set((p.reactions || []).filter(x => x.user_id === PROFILE.id).map(x => x.emoji));
+  const btns = REACTIONS.map(([key, glyph, label]) => {
+    const who = (p.reactions || []).filter(x => x.emoji === key);
+    const names = who.map(x => nameFor(x.user_id)).join(", ");
+    return `<button type="button" class="react-btn${mine.has(key) ? " mine" : ""}" data-act="react" data-emoji="${key}" aria-pressed="${mine.has(key)}" aria-label="${label}" title="${escapeHtml(names ? label + ": " + names : label)}"><span>${glyph}</span>${who.length ? `<span class="n">${who.length}</span>` : ""}</button>`;
+  }).join("");
+  const open = OPEN_COMMENTS.has(p.id), n = (p.comments || []).length;
+  const list = (p.comments || []).map(c => `
+      <div class="comment" data-cid="${c.id}">
+        <div class="who"><strong>${escapeHtml(nameFor(c.created_by))}</strong><span>${fmtDateTime(c.created_at)}</span>
+          ${(c.created_by === PROFILE.id || isSuperuserPlus(PROFILE)) ? `<button type="button" class="link-btn" data-act="delcomment" style="margin-top:0;">Delete</button>` : ""}</div>
+        <div class="txt">${linkify(escapeHtml(c.body))}</div>
+      </div>`).join("");
+  return `<div class="post-social">
+    <div class="react-bar">${btns}
+      <button type="button" class="link-btn comments-toggle" data-act="comments">${open ? "Hide comments" : (n ? `Comments (${n})` : "Comment")}</button>
+    </div>
+    ${open ? `<div class="comments">${list || `<p class="small" style="margin:0 0 6px;">No comments yet.</p>`}
+      <div class="comment-form"><textarea maxlength="2000" rows="1" placeholder="Write a comment…" aria-label="Write a comment"></textarea>
+        <button type="button" class="primary" data-act="addcomment" style="padding:6px 12px;font-size:12.5px;">Comment</button></div>
+    </div>` : ""}
+  </div>`;
 }
 
 function render() {
@@ -250,7 +315,8 @@ function fmtSize(n) {
 }
 
 function postHtml(p) {
-  const canManage = isLeadPlus(PROFILE) && (p.created_by === PROFILE.id || isSuperuserPlus(PROFILE));
+  const isAuthor = isLeadPlus(PROFILE) && p.created_by === PROFILE.id;                      // only the author edits
+  const canDelete = isLeadPlus(PROFILE) && (p.created_by === PROFILE.id || isSuperuserPlus(PROFILE));
   const long = (p.body || "").length > 450 || (p.body || "").split("\n").length > 8;
   const sites = (p.sites || []).map(s => `<span class="site-tag ${s}">${escapeHtml(SITE_NAMES[s] || s)}</span>`).join("");
   const files = (p.attachments || []).map(a =>
@@ -266,11 +332,12 @@ function postHtml(p) {
       ${p.body ? `<div class="post-body ${long ? "clamped" : ""}">${linkify(escapeHtml(p.body))}</div>` : ""}
       ${long ? `<button type="button" class="link-btn" data-act="more">Show more</button>` : ""}
       ${files ? `<div class="post-files">${files}</div>` : ""}
+      ${socialHtml(p)}
       ${isLeadPlus(PROFILE) ? `
         <div class="post-actions">
           <button type="button" class="secondary" data-act="pin">${p.pinned ? "Unpin" : "Pin"}</button>
-          ${canManage ? `<button type="button" class="secondary" data-act="edit">Edit</button>
-                         <button type="button" class="danger" data-act="delete">Delete</button>` : ""}
+          ${isAuthor ? `<button type="button" class="secondary" data-act="edit">Edit</button>` : ""}
+          ${canDelete ? `<button type="button" class="danger" data-act="delete">Delete</button>` : ""}
         </div>` : ""}
     </article>`;
 }
@@ -289,6 +356,33 @@ async function onPostClick(e) {
     const body = art.querySelector(".post-body");
     const nowClamped = body.classList.toggle("clamped");
     btn.textContent = nowClamped ? "Show more" : "Show less";
+  } else if (act === "react" && post) {
+    try {
+      const { error } = await sb.rpc("toggle_huddle_reaction", { p_post_id: id, p_emoji: btn.dataset.emoji });
+      if (error) throw error;
+      await refreshPost(id);
+    } catch (err) { showMsg(msg, err.message, "error"); }
+  } else if (act === "comments" && post) {
+    if (OPEN_COMMENTS.has(id)) OPEN_COMMENTS.delete(id); else OPEN_COMMENTS.add(id);
+    art.querySelector(".post-social").outerHTML = socialHtml(post);
+    const ta = art.querySelector(".comment-form textarea"); if (ta) ta.focus();
+  } else if (act === "addcomment" && post) {
+    const ta = art.querySelector(".comment-form textarea");
+    const text = ta.value.trim();
+    if (!text) return;
+    btn.disabled = true;
+    try {
+      const { error } = await sb.rpc("add_huddle_comment", { p_post_id: id, p_body: text });
+      if (error) throw error;
+      await refreshPost(id);
+    } catch (err) { showMsg(msg, err.message, "error"); btn.disabled = false; }
+  } else if (act === "delcomment" && post) {
+    if (!await uiConfirm("Delete this comment?")) return;
+    try {
+      const { error } = await sb.rpc("delete_huddle_comment", { p_comment_id: btn.closest(".comment").dataset.cid });
+      if (error) throw error;
+      await refreshPost(id);
+    } catch (err) { showMsg(msg, err.message, "error"); }
   } else if (act === "file") {
     await openFile(btn.dataset.path);
   } else if (act === "pin" && post) {
