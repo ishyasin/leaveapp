@@ -40,6 +40,17 @@
   .site-checks input,.pin-check input{width:auto;}
   .pin-check{display:flex;align-items:center;gap:6px;font-weight:400;margin-top:12px;}
   .react-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:14px;}
+  .react-add{position:relative;display:inline-block;}
+  .react-pop{display:none;position:absolute;left:0;bottom:calc(100% + 6px);z-index:30;background:var(--surface);border:1px solid var(--border);border-radius:24px;box-shadow:0 6px 22px rgba(0,0,0,.25);padding:5px 8px;gap:2px;white-space:nowrap;}
+  .react-pop.show{display:flex;animation:popIn .12s ease both;}
+  .react-pop button{background:none;border:none;font-size:22px;padding:2px 5px;cursor:pointer;border-radius:50%;line-height:1.2;transition:transform .1s;}
+  .react-pop button:hover{transform:scale(1.35);}
+  .react-pop button.mine{background:var(--surface-alt);}
+  .react-btn.add{padding:3px 9px;color:var(--text-muted);}
+  .comment .react-bar{margin-top:5px;}
+  .comment .react-btn{font-size:13px;padding:1px 8px;}
+  @keyframes popIn{from{opacity:0;transform:translateY(4px) scale(.96)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.react-pop.show{animation:none}}
   .react-btn{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);background:var(--surface-alt);color:var(--text);border-radius:18px;padding:3px 10px;font-size:15px;cursor:pointer;line-height:1.4;}
   .react-btn .n{font-size:12px;font-weight:600;min-width:6px;}
   .react-btn:hover{border-color:var(--teal);}
@@ -246,7 +257,17 @@ async function attachExtras(posts, my) {
   const byPostR = {}, byPostC = {};
   (r.data || []).forEach(x => (byPostR[x.post_id] = byPostR[x.post_id] || []).push(x));
   (c.data || []).forEach(x => (byPostC[x.post_id] = byPostC[x.post_id] || []).push(x));
-  posts.forEach(p => { p.reactions = byPostR[p.id] || []; p.comments = byPostC[p.id] || []; });
+  const cids = (c.data || []).map(x => x.id);
+  const byC = {};
+  if (cids.length) {
+    const cr = await sb.from("huddle_comment_reactions").select("comment_id, user_id, emoji").in("comment_id", cids);
+    (cr.data || []).forEach(x => (byC[x.comment_id] = byC[x.comment_id] || []).push(x));
+  }
+  if (my !== undefined && my !== REQ) return;
+  posts.forEach(p => {
+    p.reactions = byPostR[p.id] || [];
+    p.comments = (byPostC[p.id] || []).map(x => ({ ...x, reactions: byC[x.id] || [] }));
+  });
 }
 async function refreshPost(id) {
   const post = POSTS.find(p => p.id === id);
@@ -256,22 +277,32 @@ async function refreshPost(id) {
   if (art) art.querySelector(".post-social").outerHTML = socialHtml(post);
 }
 
-function socialHtml(p) {
-  const mine = new Set((p.reactions || []).filter(x => x.user_id === PROFILE.id).map(x => x.emoji));
-  const btns = REACTIONS.map(([key, glyph, label]) => {
-    const who = (p.reactions || []).filter(x => x.emoji === key);
+// A reaction bar: only the reactions people have actually used are shown;
+// the smiley "+" button pops up the five choices.
+function reactionBar(list, kind, cid) {
+  const mine = new Set((list || []).filter(x => x.user_id === PROFILE.id).map(x => x.emoji));
+  const used = REACTIONS.map(([key, glyph, label]) => {
+    const who = (list || []).filter(x => x.emoji === key);
+    if (!who.length) return "";
     const names = who.map(x => nameFor(x.user_id)).join(", ");
-    return `<button type="button" class="react-btn${mine.has(key) ? " mine" : ""}" data-act="react" data-emoji="${key}" aria-pressed="${mine.has(key)}" aria-label="${label}" title="${escapeHtml(names ? label + ": " + names : label)}"><span>${glyph}</span>${who.length ? `<span class="n">${who.length}</span>` : ""}</button>`;
+    return `<button type="button" class="react-btn${mine.has(key) ? " mine" : ""}" data-act="${kind}" data-emoji="${key}" aria-pressed="${mine.has(key)}" aria-label="${label}" title="${escapeHtml(label + ": " + names)}"><span>${glyph}</span><span class="n">${who.length}</span></button>`;
   }).join("");
+  const pop = REACTIONS.map(([key, glyph, label]) =>
+    `<button type="button" class="${mine.has(key) ? "mine" : ""}" data-act="${kind}" data-emoji="${key}" aria-label="${label}" title="${label}">${glyph}</button>`).join("");
+  return `${used}<span class="react-add"><button type="button" class="react-btn add" data-act="picker" aria-haspopup="true" aria-label="Add a reaction" title="Add a reaction">&#9786;&#xFE0E;+</button><span class="react-pop" role="menu">${pop}</span></span>`;
+}
+
+function socialHtml(p) {
   const open = OPEN_COMMENTS.has(p.id), n = (p.comments || []).length;
   const list = (p.comments || []).map(c => `
       <div class="comment" data-cid="${c.id}">
         <div class="who"><strong>${escapeHtml(nameFor(c.created_by))}</strong><span>${fmtDateTime(c.created_at)}</span>
           ${(c.created_by === PROFILE.id || isSuperuserPlus(PROFILE)) ? `<button type="button" class="link-btn" data-act="delcomment" style="margin-top:0;">Delete</button>` : ""}</div>
         <div class="txt">${linkify(escapeHtml(c.body))}</div>
+        <div class="react-bar">${reactionBar(c.reactions, "creact", c.id)}</div>
       </div>`).join("");
   return `<div class="post-social">
-    <div class="react-bar">${btns}
+    <div class="react-bar">${reactionBar(p.reactions, "react")}
       <button type="button" class="link-btn comments-toggle" data-act="comments">${open ? "Hide comments" : (n ? `Comments (${n})` : "Comment")}</button>
     </div>
     ${open ? `<div class="comments">${list || `<p class="small" style="margin:0 0 6px;">No comments yet.</p>`}
@@ -343,9 +374,20 @@ function postHtml(p) {
 }
 
 /* ---------- post actions ---------- */
+function closePickers() { document.querySelectorAll(".react-pop.show").forEach(p => p.classList.remove("show")); }
+document.addEventListener("click", (e) => { if (!e.target.closest(".react-add")) closePickers(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePickers(); });
+
 async function onPostClick(e) {
   const btn = e.target.closest("[data-act]");
-  if (!btn) return;
+  if (!btn) { closePickers(); return; }
+  if (btn.dataset.act === "picker") {
+    const pop = btn.nextElementSibling, wasOpen = pop.classList.contains("show");
+    closePickers();
+    if (!wasOpen) pop.classList.add("show");
+    return;
+  }
+  closePickers();
   const art = btn.closest(".post");
   const id = art ? art.dataset.id : null;
   const post = POSTS.find(p => p.id === id);
@@ -359,6 +401,12 @@ async function onPostClick(e) {
   } else if (act === "react" && post) {
     try {
       const { error } = await sb.rpc("toggle_huddle_reaction", { p_post_id: id, p_emoji: btn.dataset.emoji });
+      if (error) throw error;
+      await refreshPost(id);
+    } catch (err) { showMsg(msg, err.message, "error"); }
+  } else if (act === "creact" && post) {
+    try {
+      const { error } = await sb.rpc("toggle_huddle_comment_reaction", { p_comment_id: btn.closest(".comment").dataset.cid, p_emoji: btn.dataset.emoji });
       if (error) throw error;
       await refreshPost(id);
     } catch (err) { showMsg(msg, err.message, "error"); }
