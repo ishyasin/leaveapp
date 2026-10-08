@@ -194,7 +194,6 @@
 
 /* ---------------- home-screen banners ---------------- */
 let PROFILE_ = null, BANNERS = [], BN_EDIT = null;
-const BN_ICON = { info: "\u2139\uFE0F", success: "\u2705", warning: "\u26A0\uFE0F", urgent: "\uD83D\uDEA8" };
 function todayUK() { return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" }); }
 function bannerState(b) {
   const t = todayUK();
@@ -211,7 +210,7 @@ function bnLinkify(escaped) {
   });
 }
 function bannerHtml(b) {
-  return `<div class="hbanner ${escapeHtml(b.severity)}" role="status"><span class="ic" aria-hidden="true">${BN_ICON[b.severity] || ""}</span><div class="tx">${bnLinkify(escapeHtml(b.message))}</div></div>`;
+  return `<div class="hbanner ${escapeHtml(b.severity)}" role="status"><div class="tx">${bnLinkify(escapeHtml(b.message))}</div></div>`;
 }
 async function loadBanners() {
   const { data, error } = await sb.from("home_banners").select("*").order("created_at", { ascending: false });
