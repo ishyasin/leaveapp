@@ -22,6 +22,18 @@
   .ql-logo img{max-width:100%;max-height:100%;object-fit:contain;}
   .ql-logo .ph{width:64px;height:64px;border-radius:14px;background:var(--navy);color:#fff;font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center;}
   .ql-title{font-weight:600;font-size:14px;word-break:break-word;}
+  /* Tiles with text: first click expands the text, second click opens the link. */
+  .ql-tile.has-note{cursor:pointer;}
+  .ql-chev{position:absolute;top:8px;right:10px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+    border-radius:50%;color:var(--text-muted);transition:transform .18s;}
+  .ql-chev svg{width:14px;height:14px;}
+  .ql-tile.open .ql-chev{transform:rotate(180deg);}
+  .ql-note{display:none;width:100%;margin-top:2px;padding-top:10px;border-top:1px solid var(--border);
+    font-size:13px;line-height:1.45;color:var(--text);text-align:left;white-space:pre-line;word-break:break-word;}
+  .ql-tile.open .ql-note{display:block;animation:qlFade .18s ease both;}
+  .ql-go{display:block;margin-top:8px;font-size:12px;font-weight:600;color:var(--teal);text-align:center;white-space:normal;}
+  @keyframes qlFade{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.ql-tile.open .ql-note{animation:none}.ql-chev{transition:none}}
   .ql-admin{display:flex;gap:6px;margin-top:4px;}
   .ql-admin button{padding:3px 8px;font-size:11px;}
   .logo-preview{width:64px;height:64px;border:1px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;margin:6px 0;}
@@ -50,6 +62,9 @@
       <input type="text" id="qTitle" maxlength="80" required>
       <label for="qUrl">Link (https://…)</label>
       <input type="url" id="qUrl" maxlength="2000" required placeholder="https://">
+      <label for="qNote">Text (optional)</label>
+      <textarea id="qNote" rows="4" maxlength="1000" placeholder="If you add text, the first click on the tile shows it and the next click opens the link."></textarea>
+      <div class="small" id="qNoteCount" style="text-align:right;">0 / 1000</div>
       <label for="qLogo">Logo (PNG, JPG, WebP or GIF — optional)</label>
       <div class="logo-preview" id="logoPreview"><span class="small">None</span></div>
       <input type="file" id="qLogo" accept="image/png,image/jpeg,image/webp,image/gif">
@@ -100,11 +115,13 @@ function render() {
   }
   grid.innerHTML = LINKS.map((l, i) => `
     <div class="ql-tile-wrap">
-      <a class="ql-tile" href="${escapeHtml(safeUrl(l.url))}" target="_blank" rel="noopener noreferrer">
+      <a class="ql-tile${l.note ? " has-note" : ""}" href="${escapeHtml(safeUrl(l.url))}" target="_blank" rel="noopener noreferrer"${l.note ? ` data-note="1" aria-expanded="false" aria-controls="qn-${l.id}"` : ""}>
+        ${l.note ? `<span class="ql-chev" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>` : ""}
         <div class="ql-logo">${l.logo_data
           ? `<img src="${escapeHtml(l.logo_data)}" alt="">`
           : `<div class="ph" aria-hidden="true">${escapeHtml((l.title || "?").trim().charAt(0).toUpperCase())}</div>`}</div>
         <div class="ql-title">${escapeHtml(l.title)}</div>
+        ${l.note ? `<div class="ql-note" id="qn-${l.id}">${escapeHtml(l.note)}<span class="ql-go">Click again to open the link &rsaquo;</span></div>` : ""}
         ${dev ? `<div class="ql-admin" data-id="${l.id}">
           <button type="button" class="secondary" data-act="left" ${i === 0 ? "disabled" : ""} aria-label="Move earlier">&larr;</button>
           <button type="button" class="secondary" data-act="edit">Edit</button>
@@ -115,9 +132,32 @@ function render() {
     </div>`).join("");
 }
 
+function collapseAllTiles(except) {
+  document.querySelectorAll("#grid .ql-tile.open").forEach(t => {
+    if (t !== except) { t.classList.remove("open"); t.setAttribute("aria-expanded", "false"); }
+  });
+}
+// Click outside any tile, or Escape, folds an open tile back up.
+document.addEventListener("click", (e) => { if (!e.target.closest(".ql-tile")) collapseAllTiles(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") collapseAllTiles(); });
+
 async function onGridClick(e) {
   const b = e.target.closest("button[data-act]");
-  if (!b) return;
+  if (!b) {
+    // Tiles that have text: first click reveals it; the next click follows the link.
+    const tile = e.target.closest("a.ql-tile[data-note]");
+    if (!tile) return;
+    const selecting = window.getSelection && String(window.getSelection()).length > 0;
+    if (!tile.classList.contains("open")) {
+      e.preventDefault();
+      collapseAllTiles(tile);
+      tile.classList.add("open");
+      tile.setAttribute("aria-expanded", "true");
+    } else if (selecting) {
+      e.preventDefault();   // someone was selecting the text to copy it — don't navigate
+    }
+    return;
+  }
   e.preventDefault(); e.stopPropagation();   // buttons sit inside the tile's <a>
   const id = b.closest(".ql-admin").dataset.id;
   const link = LINKS.find(l => l.id === id);
@@ -144,11 +184,17 @@ function openEditor(link) {
   document.getElementById("editorTitle").textContent = link ? "Edit link" : "Add link";
   document.getElementById("qTitle").value = link ? link.title : "";
   document.getElementById("qUrl").value = link ? link.url : "";
+  document.getElementById("qNote").value = link && link.note ? link.note : "";
+  updateNoteCount();
   document.getElementById("qLogo").value = "";
   renderPreview();
   document.getElementById("overlay").style.display = "flex";
   document.getElementById("qTitle").focus();
 }
+function updateNoteCount() {
+  document.getElementById("qNoteCount").textContent = `${document.getElementById("qNote").value.length} / 1000`;
+}
+document.getElementById("qNote").addEventListener("input", updateNoteCount);
 function closeEditor() { document.getElementById("overlay").style.display = "none"; }
 
 function renderPreview() {
@@ -190,12 +236,13 @@ async function onSubmit(e) {
   const btn = document.getElementById("saveBtn");
   const title = document.getElementById("qTitle").value.trim();
   const url = document.getElementById("qUrl").value.trim();
+  const note = document.getElementById("qNote").value.trim();
   if (!/^https?:\/\/\S+$/i.test(url)) { showMsg(msg, "The link must start with http:// or https://", "error"); return; }
   btn.disabled = true;
   try {
     const { error } = EDIT_ID
-      ? await sb.rpc("update_quick_link", { p_id: EDIT_ID, p_title: title, p_url: url, p_logo_data: LOGO, p_clear_logo: CLEAR_LOGO })
-      : await sb.rpc("create_quick_link", { p_title: title, p_url: url, p_logo_data: LOGO });
+      ? await sb.rpc("update_quick_link", { p_id: EDIT_ID, p_title: title, p_url: url, p_logo_data: LOGO, p_clear_logo: CLEAR_LOGO, p_note: note })
+      : await sb.rpc("create_quick_link", { p_title: title, p_url: url, p_logo_data: LOGO, p_note: note });
     if (error) throw error;
     closeEditor();
     await load();
