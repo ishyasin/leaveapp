@@ -72,6 +72,20 @@
   :root[data-color-mode="dark"] .portal-tile svg,:root[data-color-mode="inverted"] .portal-tile svg,:root[data-theme="halloween"]:not([data-color-mode="inverted"]) .portal-tile svg,:root[data-theme="christmas"]:not([data-color-mode="inverted"]) .portal-tile svg{color:var(--heading-color);}
   .portal-tile h2{margin:0;font-size:18px;color:var(--heading-color);}
   .portal-tile p{margin:0;font-size:13px;color:var(--text-muted);line-height:1.45;}
+  .hb-wrap{display:flex;flex-direction:column;gap:10px;margin:6px 0 16px;}
+  .hbanner{display:flex;gap:12px;align-items:flex-start;border-radius:10px;padding:12px 16px;border:1px solid transparent;border-left-width:6px;font-size:14.5px;line-height:1.5;box-shadow:0 2px 8px rgba(0,0,0,.08);}
+  .hbanner .ic{font-size:20px;line-height:1.25;flex:none;}
+  .hbanner .tx{flex:1;white-space:pre-line;word-break:break-word;}
+  .hbanner a{color:inherit;text-decoration:underline;font-weight:600;}
+  .hbanner.info{background:#dbeefa;border-color:#7fb8dd;color:#10334d;}
+  .hbanner.success{background:#dcf5e3;border-color:#6cc788;color:#10391f;}
+  .hbanner.warning{background:#fff1c9;border-color:#e6b422;color:#4a3500;}
+  .hbanner.urgent{background:#fde0e0;border-color:#d64545;color:#5a0f0f;}
+  .banner-manage{display:flex;justify-content:flex-end;margin:-6px 0 8px;}
+  .bn-row{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+  .bn-row .msg{flex:1;min-width:200px;font-size:13.5px;white-space:pre-line;word-break:break-word;}
+  .bn-pill{display:inline-block;font-size:11px;font-weight:700;border-radius:10px;padding:1px 8px;margin-right:6px;background:var(--surface-alt);color:var(--text);border:1px solid var(--border);}
+  .bn-pill.live{background:#d3f9d8;color:#1b6b2c;border-color:#8fd6a0;}
 </style>
 </head>
 <body>
@@ -110,6 +124,8 @@
     <h1 id="welcome">Pharmacy Portal</h1>
     <p class="small">Choose where to go.</p>
   </div>
+  <div class="hb-wrap" id="bannerArea" aria-live="polite"></div>
+  <div class="banner-manage" id="bannerManage" style="display:none;"><button type="button" class="secondary" onclick="openBannerManager()">Manage banners</button></div>
 
   <div class="portal-grid">
     <a class="portal-tile" href="calendar.html">
@@ -135,13 +151,165 @@
   </div>
 </div>
 
+<div class="overlay" id="bannerOverlay" style="display:none;">
+  <div class="modal modal-wide" style="max-height:92vh;overflow-y:auto;">
+    <h3>Home-screen banners</h3>
+    <p class="small">A live banner is shown at the top of the home page to <strong>everyone at Worthing and St Richard's</strong>. Use dates to schedule it or let it expire by itself, or untick “Show” to hide it without deleting.</p>
+    <div id="bnMsg"></div>
+    <div id="bnList"></div>
+    <h4 id="bnFormTitle" style="margin:16px 0 6px;">New banner</h4>
+    <form id="bnForm">
+      <label for="bnText">Banner text <span class="small" id="bnCount">0 / 500</span></label>
+      <textarea id="bnText" rows="3" maxlength="500" required placeholder="e.g. Pharmacy closes at 17:00 on Friday for the fire-safety drill."></textarea>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:150px;"><label for="bnSeverity">Style</label>
+          <select id="bnSeverity"><option value="info">Information (blue)</option><option value="success">Good news (green)</option><option value="warning">Warning (amber)</option><option value="urgent">Urgent (red)</option></select></div>
+        <div style="flex:1;min-width:140px;"><label for="bnStart">Show from (optional)</label><input type="date" id="bnStart"></div>
+        <div style="flex:1;min-width:140px;"><label for="bnEnd">Show until (optional)</label><input type="date" id="bnEnd"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:10px;"><input type="checkbox" id="bnActive" checked style="width:auto;"> Show this banner</label>
+      <div id="bnPreview" style="margin-top:10px;"></div>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeBannerManager()">Close</button>
+        <button type="button" class="secondary" id="bnCancelEdit" style="display:none;" onclick="resetBannerForm()">Cancel edit</button>
+        <button type="submit" class="primary" id="bnSave">Add banner</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script src="shared.js"></script>
 <script>
 (async () => {
   const profile = await requireAuth(null);
   if (!profile) return;
   document.getElementById("welcome").textContent = `Welcome, ${profile.full_name}`;
+  PROFILE_ = profile;
+  if (isLeadPlus(profile)) {
+    document.getElementById("bannerManage").style.display = "";
+    wireBannerManager();
+  }
+  await loadBanners();
 })();
+
+/* ---------------- home-screen banners ---------------- */
+let PROFILE_ = null, BANNERS = [], BN_EDIT = null;
+const BN_ICON = { info: "\u2139\uFE0F", success: "\u2705", warning: "\u26A0\uFE0F", urgent: "\uD83D\uDEA8" };
+function todayUK() { return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" }); }
+function bannerState(b) {
+  const t = todayUK();
+  if (!b.active) return "Hidden";
+  if (b.starts_on && b.starts_on > t) return "Scheduled";
+  if (b.ends_on && b.ends_on < t) return "Expired";
+  return "Live";
+}
+function bnLinkify(escaped) {
+  return escaped.replace(/\bhttps?:\/\/[^\s<]+/g, (u) => {
+    const trail = (u.match(/[.,;:!?)]+$/) || [""])[0];
+    const clean = trail ? u.slice(0, -trail.length) : u;
+    return `<a href="${clean}" target="_blank" rel="noopener noreferrer">${clean}</a>${trail}`;
+  });
+}
+function bannerHtml(b) {
+  return `<div class="hbanner ${escapeHtml(b.severity)}" role="status"><span class="ic" aria-hidden="true">${BN_ICON[b.severity] || ""}</span><div class="tx">${bnLinkify(escapeHtml(b.message))}</div></div>`;
+}
+async function loadBanners() {
+  const { data, error } = await sb.from("home_banners").select("*").order("created_at", { ascending: false });
+  if (error) return;                      // table not created yet / offline: show nothing
+  BANNERS = data || [];
+  renderBanners();
+}
+function renderBanners() {
+  const live = BANNERS.filter(b => bannerState(b) === "Live");
+  document.getElementById("bannerArea").innerHTML = live.map(bannerHtml).join("");
+}
+
+function wireBannerManager() {
+  document.getElementById("bnText").addEventListener("input", updateBannerPreview);
+  document.getElementById("bnSeverity").addEventListener("change", updateBannerPreview);
+  document.getElementById("bnForm").addEventListener("submit", saveBanner);
+  document.getElementById("bnList").addEventListener("click", onBannerListClick);
+}
+function updateBannerPreview() {
+  const t = document.getElementById("bnText").value;
+  document.getElementById("bnCount").textContent = `${t.length} / 500`;
+  document.getElementById("bnPreview").innerHTML = t.trim()
+    ? `<div class="small" style="margin-bottom:4px;">Preview</div>` + bannerHtml({ message: t, severity: document.getElementById("bnSeverity").value }) : "";
+}
+function openBannerManager() { renderBannerList(); resetBannerForm(); document.getElementById("bannerOverlay").style.display = "flex"; }
+function closeBannerManager() { document.getElementById("bannerOverlay").style.display = "none"; }
+function renderBannerList() {
+  const el = document.getElementById("bnList");
+  el.innerHTML = BANNERS.length ? BANNERS.map(b => {
+    const st = bannerState(b);
+    const dates = (b.starts_on || b.ends_on) ? ` &middot; ${b.starts_on ? "from " + fmtDate(b.starts_on) : ""}${b.starts_on && b.ends_on ? " " : ""}${b.ends_on ? "until " + fmtDate(b.ends_on) : ""}` : "";
+    return `<div class="bn-row" data-id="${b.id}">
+      <div class="msg"><span class="bn-pill ${st === "Live" ? "live" : ""}">${st}</span>${escapeHtml(b.message)}<div class="small">${escapeHtml(b.severity)}${dates}</div></div>
+      <div style="display:flex;gap:6px;"><button type="button" class="secondary" data-bn="toggle">${b.active ? "Hide" : "Show"}</button>
+        <button type="button" class="secondary" data-bn="edit">Edit</button><button type="button" class="danger" data-bn="delete">Delete</button></div>
+    </div>`;
+  }).join("") : `<p class="small" style="margin:0;">No banners yet.</p>`;
+}
+function resetBannerForm() {
+  BN_EDIT = null;
+  document.getElementById("bnForm").reset();
+  document.getElementById("bnActive").checked = true;
+  document.getElementById("bnFormTitle").textContent = "New banner";
+  document.getElementById("bnSave").textContent = "Add banner";
+  document.getElementById("bnCancelEdit").style.display = "none";
+  document.getElementById("bnMsg").innerHTML = "";
+  updateBannerPreview();
+}
+async function onBannerListClick(e) {
+  const btn = e.target.closest("[data-bn]");
+  if (!btn) return;
+  const id = btn.closest(".bn-row").dataset.id;
+  const b = BANNERS.find(x => x.id === id);
+  if (!b) return;
+  const msg = document.getElementById("bnMsg");
+  try {
+    if (btn.dataset.bn === "edit") {
+      BN_EDIT = id;
+      document.getElementById("bnText").value = b.message;
+      document.getElementById("bnSeverity").value = b.severity;
+      document.getElementById("bnStart").value = b.starts_on || "";
+      document.getElementById("bnEnd").value = b.ends_on || "";
+      document.getElementById("bnActive").checked = b.active;
+      document.getElementById("bnFormTitle").textContent = "Edit banner";
+      document.getElementById("bnSave").textContent = "Save changes";
+      document.getElementById("bnCancelEdit").style.display = "";
+      updateBannerPreview();
+      document.getElementById("bnText").focus();
+    } else if (btn.dataset.bn === "toggle") {
+      await callSave(id, b.message, b.severity, b.starts_on, b.ends_on, !b.active);
+    } else if (btn.dataset.bn === "delete") {
+      if (!await uiConfirm("Delete this banner? It will disappear for everyone.")) return;
+      const { error } = await sb.rpc("delete_home_banner", { p_id: id });
+      if (error) throw error;
+      await loadBanners(); renderBannerList();
+    }
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+async function callSave(id, message, severity, start, end, active) {
+  const { error } = await sb.rpc("save_home_banner", { p_id: id, p_message: message, p_severity: severity, p_starts_on: start || null, p_ends_on: end || null, p_active: active });
+  if (error) throw error;
+  await loadBanners(); renderBannerList();
+}
+async function saveBanner(e) {
+  e.preventDefault();
+  const msg = document.getElementById("bnMsg"), btn = document.getElementById("bnSave");
+  const text = document.getElementById("bnText").value.trim();
+  const start = document.getElementById("bnStart").value, end = document.getElementById("bnEnd").value;
+  if (!text) return showMsg(msg, "Write the banner text first.", "error");
+  if (start && end && end < start) return showMsg(msg, "The end date must be on or after the start date.", "error");
+  btn.disabled = true;
+  try {
+    await callSave(BN_EDIT, text, document.getElementById("bnSeverity").value, start, end, document.getElementById("bnActive").checked);
+    resetBannerForm();
+    showMsg(msg, "Saved.", "ok");
+  } catch (err) { showMsg(msg, err.message, "error"); }
+  finally { btn.disabled = false; }
+}
 </script>
 </body>
 </html>
