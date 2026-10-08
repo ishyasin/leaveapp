@@ -41,7 +41,7 @@
       <p class="small">Paste one or more email addresses &mdash; one per line, or separated by commas or semicolons (names such as <em>Ish Yasin &lt;ish@example.nhs.uk&gt;</em> are fine). Each person gets a personal link where they enter their <strong>first and last name</strong> (their username and initials are created from it), choose their <strong>base site or cross-site</strong>, and <strong>set their own password</strong>. Links work once and last 7 days. You or a Developer can change someone&rsquo;s site afterwards with <em>Edit site</em> in the list below.</p>
       <div id="inviteMsg"></div>
       <label for="inviteEmails">Email addresses</label>
-      <textarea id="inviteEmails" rows="5" placeholder="anna.jones@example.nhs.uk&#10;sam.patel@example.nhs.uk" autocomplete="off" spellcheck="false"></textarea>
+      <textarea id="inviteEmails" rows="5" placeholder="john.doe@nhs.net&#10;jane.doe@nhs.net" autocomplete="off" spellcheck="false"></textarea>
       <div class="small" id="inviteCount" style="margin-top:4px;"></div>
       <label for="inviteRole">Role for everyone in this batch</label>
       <select id="inviteRole"></select>
@@ -257,7 +257,7 @@
   <div id="tab-backup" style="display:none;">
     <div class="card">
       <h2>Daily backup email</h2>
-      <p class="small">A full Excel workbook of every leave request on record — one calendar-styled tab per month, plus summary tabs (All Approved, All Pending, All Rejected, TOIL, Study Leave, Annual Leave) — is emailed automatically every day at the scheduled time. Set who receives it below; this takes priority over the <code>BACKUP_TO_EMAIL</code> command-line secret if that was set up separately.</p>
+      <p class="small">A full Excel workbook of <strong>both the leave rota and the on-call rota</strong> — every leave request on record (one calendar-styled tab per month, plus summary tabs: All Approved, All Pending, All Rejected, TOIL, Study Leave, Annual Leave) and the on-call rota (a coloured tab per rota period and site, plus bank holidays, periods, swaps and audit) — is emailed automatically every day at the scheduled time. Set who receives it below; this takes priority over the <code>BACKUP_TO_EMAIL</code> command-line secret if that was set up separately.</p>
       <div id="backupMsg"></div>
       <form id="backupForm">
         <label>Recipient email address(es)</label>
@@ -417,6 +417,14 @@
           <button type="submit" class="primary" id="bulkThemeApplyBtn">Apply theme</button>
         </div>
       </form>
+    </div>
+
+    <div class="card">
+      <h2>Theme by month</h2>
+      <p class="small">Give a calendar month its own theme. During that month <strong>everyone</strong> sees it automatically, taking priority over their personal theme; in months left on “No theme” each person's own theme applies as normal. It repeats every year — e.g. October &rarr; Halloween, December &rarr; Christmas, April &rarr; Easter. The seasonal themes include animations (Halloween: glowing carved pumpkins and ghosts; Christmas: falling snow and reindeer; Easter: bunnies and chicks), which are switched off for anyone whose device is set to reduce motion.</p>
+      <div id="monthThemeMsg"></div>
+      <div id="monthThemeRows" class="month-theme-grid"></div>
+      <p class="small" id="monthThemeNow" style="margin-top:10px;"></p>
     </div>
   </div>
 
@@ -1295,7 +1303,7 @@ document.getElementById("themeForm").addEventListener("submit", async (e) => {
     closeThemeModal();
     // If a Developer just re-themes their OWN account, reflect it
     // immediately rather than waiting for the next page load.
-    if (THEME_MODAL_USER_ID === PROFILE.id) applyTheme(newTheme);
+    if (THEME_MODAL_USER_ID === PROFILE.id) applyTheme(scheduledTheme() || newTheme);
     await loadUsers();
   } catch (err) {
     showMsg(msg, err.message, "error");
@@ -1305,7 +1313,42 @@ document.getElementById("themeForm").addEventListener("submit", async (e) => {
 });
 
 /* ---------------- Appearance: bulk theme apply (Developer only) ---------------- */
+/* ---------------- Appearance: theme by month (Developer only) ---------------- */
+function renderMonthThemes() {
+  const wrap = document.getElementById("monthThemeRows");
+  const opts = `<option value="none">No theme (use each person's own)</option>` +
+    Object.entries(THEMES).map(([val, label]) => `<option value="${val}">${label}</option>`).join("");
+  wrap.innerHTML = MONTH_NAMES.map((m, i) => `
+    <label class="month-theme-row"><span>${m}</span>
+      <select data-month="${i + 1}">${opts}</select></label>`).join("");
+  wrap.querySelectorAll("select").forEach(sel => {
+    sel.value = THEME_SCHEDULE[+sel.dataset.month] || "none";
+    sel.addEventListener("change", onMonthThemeChange);
+  });
+  const cur = scheduledTheme();
+  document.getElementById("monthThemeNow").textContent = cur
+    ? `This month (${MONTH_NAMES[new Date().getMonth()]}) is showing the “${THEMES[cur]}” theme for everyone.`
+    : `This month (${MONTH_NAMES[new Date().getMonth()]}) has no monthly theme, so everyone sees their own.`;
+}
+async function onMonthThemeChange(e) {
+  const month = +e.target.dataset.month, theme = e.target.value;
+  const msg = document.getElementById("monthThemeMsg");
+  e.target.disabled = true;
+  try {
+    const { error } = await sb.rpc("set_theme_for_month", { p_month: month, p_theme: theme });
+    if (error) throw error;
+    if (theme === "none") delete THEME_SCHEDULE[month]; else THEME_SCHEDULE[month] = theme;
+    showMsg(msg, `${MONTH_NAMES[month - 1]}: ${theme === "none" ? "monthly theme removed" : THEMES[theme] + " theme set"}.`, "ok");
+    applyTheme(scheduledTheme() || PROFILE.theme);
+    renderMonthThemes();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+    e.target.value = THEME_SCHEDULE[month] || "none";
+  } finally { e.target.disabled = false; }
+}
+
 function setupBulkThemeTab() {
+  renderMonthThemes();
   document.getElementById("bulkThemeSelect").innerHTML =
     Object.entries(THEMES).map(([val, label]) => `<option value="${val}">${label}</option>`).join("");
   document.getElementById("bulkThemeTarget").addEventListener("change", (e) => {
@@ -1353,7 +1396,7 @@ document.getElementById("bulkThemeForm").addEventListener("submit", async (e) =>
     // If this changes the Developer's OWN account (directly selected,
     // or swept up in "All users"), reflect it immediately rather than
     // waiting for the next page load.
-    if (target === "all" || (ids && ids.includes(PROFILE.id))) applyTheme(theme);
+    if (target === "all" || (ids && ids.includes(PROFILE.id))) applyTheme(scheduledTheme() || theme);
     await loadUsers();
   } catch (err) {
     showMsg(msg, err.message, "error");

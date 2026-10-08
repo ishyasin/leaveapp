@@ -227,6 +227,8 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
     window.location.href = "portal.html";
   } catch (err) {
+    // A network failure or a gateway error page (not JSON) is an outage, not a wrong password.
+    if (err instanceof TypeError || err instanceof SyntaxError || isOutageError(err)) { showOutage(); return; }
     showMsg(msg, "Sign in failed — check your User ID and password.", "error");
   } finally {
     btn.disabled = false; btn.textContent = "Sign in";

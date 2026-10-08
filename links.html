@@ -34,7 +34,8 @@
   .ql-go{display:block;margin-top:8px;font-size:12px;font-weight:600;color:var(--teal);text-align:center;white-space:normal;}
   @keyframes qlFade{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
   @media (prefers-reduced-motion:reduce){.ql-tile.open .ql-note{animation:none}.ql-chev{transition:none}}
-  .ql-admin{display:flex;gap:6px;margin-top:4px;}
+  .ql-grid.editing .ql-tile{outline:2px dashed var(--teal);outline-offset:2px;cursor:default;}
+  .ql-admin{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;justify-content:center;}
   .ql-admin button{padding:3px 8px;font-size:11px;}
   .logo-preview{width:64px;height:64px;border:1px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;margin:6px 0;}
   .logo-preview img{max-width:100%;max-height:100%;object-fit:contain;}
@@ -47,6 +48,7 @@
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <h1 style="margin:0;flex:1;">Quick Links</h1>
       <button class="primary" id="addBtn" style="display:none;" onclick="openEditor()">+ Add link</button>
+      <button class="secondary" id="editToggle" style="display:none;" type="button" aria-pressed="false">Edit links</button>
     </div>
   </div>
   <div id="msg"></div>
@@ -79,7 +81,7 @@
 
 <script src="shared.js"></script>
 <script>
-let PROFILE = null, LINKS = [], EDIT_ID = null;
+let PROFILE = null, LINKS = [], EDIT_ID = null, EDITING = false;
 let LOGO = null;          // new data URI chosen this session
 let CLEAR_LOGO = false;   // remove existing logo on save
 let CURRENT_LOGO = null;  // logo already stored on the link being edited
@@ -87,7 +89,11 @@ let CURRENT_LOGO = null;  // logo already stored on the link being edited
 (async () => {
   PROFILE = await requireAuth(null);
   if (!PROFILE) return;
-  if (isDeveloper(PROFILE)) document.getElementById("addBtn").style.display = "";
+  if (isLeadPlus(PROFILE)) {
+    const t = document.getElementById("editToggle");
+    t.style.display = "";
+    t.addEventListener("click", () => setEditing(!EDITING));
+  }
   document.getElementById("qLogo").addEventListener("change", onLogoPicked);
   document.getElementById("clearLogoBtn").addEventListener("click", () => {
     LOGO = null; CLEAR_LOGO = true; CURRENT_LOGO = null; renderPreview();
@@ -106,11 +112,25 @@ async function load() {
 
 function safeUrl(u) { return /^https?:\/\/[^\s]+$/i.test(u) ? u : "#"; }
 
+// Lead Pharmacists and above press "Edit links" first; only then do the
+// add / edit / delete / reorder controls appear. "Done" puts the page back.
+function setEditing(on) {
+  EDITING = !!on && isLeadPlus(PROFILE);
+  const t = document.getElementById("editToggle");
+  t.textContent = EDITING ? "Done" : "Edit links";
+  t.className = EDITING ? "primary" : "secondary";
+  t.setAttribute("aria-pressed", EDITING ? "true" : "false");
+  document.getElementById("addBtn").style.display = EDITING ? "" : "none";
+  collapseAllTiles();
+  render();
+}
+
 function render() {
-  const dev = isDeveloper(PROFILE);
+  const dev = EDITING;
+  document.getElementById("grid").classList.toggle("editing", EDITING);
   const grid = document.getElementById("grid");
   if (!LINKS.length) {
-    grid.innerHTML = `<div class="card" style="grid-column:1/-1;"><p class="small" style="margin:0;">${dev ? "No links yet — use “Add link” to create the first tile." : "No quick links have been added yet."}</p></div>`;
+    grid.innerHTML = `<div class="card" style="grid-column:1/-1;"><p class="small" style="margin:0;">${isLeadPlus(PROFILE) ? (EDITING ? "No links yet — use “Add link” to create the first tile." : "No links yet — press “Edit links”, then “Add link”.") : "No quick links have been added yet."}</p></div>`;
     return;
   }
   grid.innerHTML = LINKS.map((l, i) => `
@@ -145,6 +165,10 @@ async function onGridClick(e) {
   const b = e.target.closest("button[data-act]");
   if (!b) {
     // Tiles that have text: first click reveals it; the next click follows the link.
+    if (EDITING) {              // while editing, tiles never navigate
+      if (e.target.closest("a.ql-tile")) e.preventDefault();
+      return;
+    }
     const tile = e.target.closest("a.ql-tile[data-note]");
     if (!tile) return;
     const selecting = window.getSelection && String(window.getSelection()).length > 0;

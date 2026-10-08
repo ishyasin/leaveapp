@@ -71,6 +71,26 @@ function applyTheme(theme) {
   if (!THEMES[theme]) theme = "default";
   document.documentElement.setAttribute("data-theme", theme);
   try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (e) {}
+  buildThemeFx();
+}
+
+/* ---- Theme by month (Developer sets it in Admin -> Appearance) ----
+   THEME_SCHEDULE maps month number (1-12) -> theme. When the current
+   month has an entry, it wins over the person's own theme for everyone;
+   otherwise their own theme applies. Repeats every year. */
+let THEME_SCHEDULE = {};
+function scheduledTheme(date) {
+  const t = THEME_SCHEDULE[(date || new Date()).getMonth() + 1];
+  return THEMES[t] ? t : null;
+}
+async function loadThemeSchedule() {
+  try {
+    const { data, error } = await sb.from("theme_schedule").select("month, theme");
+    if (error) throw error;
+    THEME_SCHEDULE = {};
+    (data || []).forEach(r => { THEME_SCHEDULE[r.month] = r.theme; });
+  } catch (e) { /* table not created yet, or offline: just use personal themes */ }
+  return THEME_SCHEDULE;
 }
 function applyColorMode(mode) {
   if (!COLOR_MODES[mode]) mode = "light";
@@ -91,6 +111,213 @@ async function setOwnColorMode(mode) {
     // network never blocks switching modes.
   }
 }
+
+
+/* =====================================================================
+   Seasonal animations (Halloween, Christmas, Easter). Built from small
+   inline-SVG sprites; all movement is CSS (see "theme fx" in shared.css)
+   and is switched off for people who prefer reduced motion and when
+   printing. Two layers: a banner strip under the top bar (#themeBanner)
+   and a full-page, click-through layer (#themeFx) for falling snow and
+   drifting ghosts.
+   ===================================================================== */
+const FX_SVG = {
+  reindeer: `<svg viewBox="0 0 70 46" width="70" height="46" aria-hidden="true">
+    <g class="leg lb"><line x1="18" y1="28" x2="15" y2="42" stroke="#6b4423" stroke-width="3" stroke-linecap="round"/></g>
+    <g class="leg lf"><line x1="24" y1="29" x2="26" y2="43" stroke="#6b4423" stroke-width="3" stroke-linecap="round"/></g>
+    <g class="leg rb"><line x1="38" y1="29" x2="36" y2="43" stroke="#6b4423" stroke-width="3" stroke-linecap="round"/></g>
+    <g class="leg rf"><line x1="44" y1="28" x2="48" y2="42" stroke="#6b4423" stroke-width="3" stroke-linecap="round"/></g>
+    <ellipse cx="30" cy="25" rx="19" ry="10" fill="#8a5a2b"/>
+    <path d="M12,22 Q6,20 7,14" stroke="#6b4423" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <circle cx="52" cy="15" r="8" fill="#8a5a2b"/>
+    <ellipse cx="59" cy="18" rx="4.5" ry="3.6" fill="#6b4423"/>
+    <circle cx="62" cy="17" r="2.6" fill="#e63946" class="nose"/>
+    <circle cx="53" cy="13" r="1.5" fill="#1b1420"/>
+    <polygon points="48,9 45,3 51,7" fill="#8a5a2b"/>
+    <g stroke="#d9c7a0" stroke-width="2" fill="none" stroke-linecap="round"><polyline points="50,8 47,0 42,-1"/><polyline points="47,0 49,-4"/><polyline points="55,8 57,0 62,-2"/><polyline points="57,0 54,-3"/></g>
+    <path d="M42,19 Q36,24 30,19" stroke="#b91c1c" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  </svg>`,
+  ghost: `<svg viewBox="0 0 40 48" width="40" height="48" aria-hidden="true">
+    <path d="M4,44 L4,20 Q4,3 20,3 Q36,3 36,20 L36,44 L30,38 L25,44 L20,38 L15,44 L10,38 Z" fill="#f3f4ff"/>
+    <ellipse cx="14" cy="21" rx="3.4" ry="4.6" fill="#1b1420"/><ellipse cx="26" cy="21" rx="3.4" ry="4.6" fill="#1b1420"/>
+    <ellipse cx="20" cy="31" rx="4" ry="5" fill="#1b1420"/>
+    <ellipse cx="9" cy="28" rx="3" ry="1.8" fill="#ffc2d4" opacity=".7"/><ellipse cx="31" cy="28" rx="3" ry="1.8" fill="#ffc2d4" opacity=".7"/>
+  </svg>`,
+  pumpkin: `<svg viewBox="0 0 56 52" width="56" height="52" aria-hidden="true">
+    <rect x="25" y="3" width="6" height="9" rx="2" fill="#5a8a3a"/>
+    <path d="M28,5 Q35,2 33,-1" stroke="#5a8a3a" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <ellipse cx="28" cy="30" rx="25" ry="19" fill="#f07f13"/>
+    <path d="M15,13 Q10,30 15,47 M28,11 Q28,30 28,49 M41,13 Q46,30 41,47" stroke="#c9600a" stroke-width="2" fill="none"/>
+    <g class="glow" fill="#ffe066"><polygon points="14,23 24,23 19,32"/><polygon points="32,23 42,23 37,32"/>
+      <path d="M14,37 L19,43 L24,37 L28,43 L33,37 L37,43 L42,37 L40,45 L16,45 Z"/></g>
+  </svg>`,
+  bunny: `<svg viewBox="0 0 50 56" width="46" height="52" aria-hidden="true">
+    <ellipse cx="17" cy="14" rx="5" ry="13" fill="#fff"/><ellipse cx="17" cy="15" rx="2.6" ry="9" fill="#ffb3c7"/>
+    <ellipse cx="32" cy="14" rx="5" ry="13" fill="#fff" class="ear2"/><ellipse cx="32" cy="15" rx="2.6" ry="9" fill="#ffb3c7"/>
+    <ellipse cx="24" cy="42" rx="17" ry="12" fill="#fff"/><circle cx="8" cy="46" r="5" fill="#fff"/>
+    <circle cx="24" cy="29" r="12" fill="#fff"/>
+    <circle cx="19" cy="27" r="1.9" fill="#3b2f4a"/><circle cx="29" cy="27" r="1.9" fill="#3b2f4a"/>
+    <ellipse cx="24" cy="32" rx="2.2" ry="1.6" fill="#ff8fab"/>
+    <path d="M24,33.5 Q21,37 18.5,35 M24,33.5 Q27,37 29.5,35" stroke="#3b2f4a" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+    <circle cx="15" cy="32" r="2.4" fill="#ffc2d4" opacity=".8"/><circle cx="33" cy="32" r="2.4" fill="#ffc2d4" opacity=".8"/>
+    <ellipse cx="14" cy="52" rx="6" ry="3" fill="#fff"/><ellipse cx="32" cy="52" rx="6" ry="3" fill="#fff"/>
+  </svg>`,
+  bunnySide: `<svg viewBox="0 0 64 52" width="62" height="50" aria-hidden="true">
+    <circle cx="8" cy="34" r="5.5" fill="#fff"/>
+    <ellipse cx="25" cy="34" rx="19" ry="11.5" fill="#fff"/>
+    <ellipse cx="17" cy="40" rx="10" ry="8" fill="#f4eefb"/>
+    <ellipse cx="14" cy="47" rx="9" ry="3.2" fill="#fff"/>
+    <ellipse cx="42" cy="46" rx="6.5" ry="2.8" fill="#fff"/>
+    <path d="M38,38 Q43,43 41,46" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="46" cy="22" rx="10.5" ry="9.5" fill="#fff"/>
+    <ellipse cx="55" cy="25" rx="5.5" ry="4.4" fill="#fff"/>
+    <ellipse cx="60" cy="24.5" rx="2" ry="1.6" fill="#ff8fab"/>
+    <ellipse cx="38" cy="9" rx="4" ry="12" fill="#fff" transform="rotate(-24 38 9)"/><ellipse cx="38" cy="10" rx="1.9" ry="8" fill="#ffb3c7" transform="rotate(-24 38 10)"/>
+    <ellipse cx="46" cy="7" rx="4" ry="12" fill="#fff" transform="rotate(-8 46 7)"/><ellipse cx="46" cy="8" rx="1.9" ry="8" fill="#ffb3c7" transform="rotate(-8 46 8)"/>
+    <circle cx="50.5" cy="20" r="1.9" fill="#3b2f4a"/><circle cx="51" cy="19.4" r=".6" fill="#fff"/>
+    <circle cx="48" cy="26" r="2.6" fill="#ffc2d4" opacity=".75"/>
+    <path d="M57,27.5 Q55,30 52.5,29" stroke="#3b2f4a" stroke-width="1" fill="none" stroke-linecap="round"/>
+  </svg>`,
+  chick: `<svg viewBox="0 0 40 40" width="36" height="36" aria-hidden="true">
+    <path d="M18,6 Q20,1 22,6 M22,6 Q26,2 25,8" stroke="#f4b400" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <circle cx="20" cy="22" r="14" fill="#ffe14d"/>
+    <path d="M6,22 Q1,26 6,29 Q9,26 8,22 Z" fill="#f6c915"/><path d="M34,22 Q39,26 34,29 Q31,26 32,22 Z" fill="#f6c915"/>
+    <circle cx="14.5" cy="19" r="2" fill="#2b2233"/><circle cx="25.5" cy="19" r="2" fill="#2b2233"/>
+    <circle cx="15" cy="18.4" r=".7" fill="#fff"/><circle cx="26" cy="18.4" r=".7" fill="#fff"/>
+    <polygon points="17,24 23,24 20,29" fill="#ff9a1f"/>
+    <circle cx="10.5" cy="25" r="2.3" fill="#ffb199" opacity=".8"/><circle cx="29.5" cy="25" r="2.3" fill="#ffb199" opacity=".8"/>
+    <g stroke="#ff9a1f" stroke-width="2" stroke-linecap="round"><line x1="15" y1="35" x2="15" y2="39"/><line x1="25" y1="35" x2="25" y2="39"/></g>
+  </svg>`,
+  egg: (c1, c2) => `<svg viewBox="0 0 24 30" width="20" height="25" aria-hidden="true"><ellipse cx="12" cy="17" rx="10" ry="12" fill="${c1}"/><path d="M3,15 Q7,11 12,15 T21,15" stroke="${c2}" stroke-width="2.2" fill="none"/><path d="M4,21 Q8,18 12,21 T20,21" stroke="${c2}" stroke-width="1.6" fill="none"/></svg>`,
+  tree: `<svg viewBox="0 0 40 52" width="34" height="44" aria-hidden="true">
+    <polygon points="20,2 22,7 27,7 23,10 24.5,15 20,12 15.5,15 17,10 13,7 18,7" fill="#d4af37"/>
+    <polygon points="20,8 8,26 32,26" fill="#1f6b3a"/><polygon points="20,18 5,38 35,38" fill="#2f8f50"/><polygon points="20,28 2,48 38,48" fill="#1f6b3a"/>
+    <rect x="17" y="46" width="6" height="6" fill="#6b4423"/>
+    <circle class="lt a" cx="14" cy="26" r="2" fill="#ffd34d"/><circle class="lt b" cx="26" cy="22" r="2" fill="#ff5a5f"/>
+    <circle class="lt b" cx="20" cy="36" r="2" fill="#ffd34d"/><circle class="lt a" cx="11" cy="43" r="2" fill="#ff5a5f"/><circle class="lt b" cx="29" cy="43" r="2" fill="#ffd34d"/>
+  </svg>`,
+};
+
+// Animations are ON unless the person has turned them off (kept per browser).
+const ANIM_STORAGE_KEY = "lm_anim";
+function animationsOn() { try { return localStorage.getItem(ANIM_STORAGE_KEY) !== "off"; } catch (e) { return true; } }
+function applyAnimPref() {
+  document.documentElement.setAttribute("data-anim", animationsOn() ? "on" : "off");
+  const b = document.getElementById("animToggle");
+  if (b) { b.textContent = animationsOn() ? "Animations: On" : "Animations: Off"; b.setAttribute("aria-pressed", animationsOn() ? "true" : "false"); }
+}
+function toggleAnimations() {
+  try { localStorage.setItem(ANIM_STORAGE_KEY, animationsOn() ? "off" : "on"); } catch (e) {}
+  applyAnimPref();
+}
+applyAnimPref();
+
+function fxRand(a, b) { return a + Math.random() * (b - a); }
+
+/* ---- Easter bunny: every 90 s a bunny hops in from the left (side view),
+   stops half-way across, turns to look at the viewer, then hops off to
+   the right. Uses the Web Animations API; skipped when animations are
+   off or the device prefers reduced motion. ---- */
+const BUNNY_EVERY_MS = 90000;
+let _bunnyTimer = null, _bunnyRun = 0;
+function stopBunnyCycle() { clearTimeout(_bunnyTimer); _bunnyTimer = null; _bunnyRun++; }
+function startBunnyCycle() {
+  stopBunnyCycle();
+  const run = _bunnyRun;
+  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const alive = () => run === _bunnyRun && document.getElementById("themeBanner");
+  async function once() {
+    const banner = document.getElementById("themeBanner");
+    const actor = banner && banner.querySelector(".bunny-actor");
+    if (!actor || reduce || !animationsOn() || document.hidden) return;
+    const hop = actor.querySelector(".b-hop"), side = actor.querySelector(".b-side"), front = actor.querySelector(".b-front");
+    const W = banner.clientWidth, w = 62, mid = Math.round(W / 2 - w / 2), hopMs = 700;
+    const hopFrames = [{ transform: "translateY(0) scale(1.08,.9)" }, { transform: "translateY(-20px) scale(1,1)", offset: .5 }, { transform: "translateY(0) scale(.96,1.04)" }];
+    const travel = async (from, to) => {
+      const n = Math.max(3, Math.round(Math.abs(to - from) / 64));      // one hop ≈ 64 px
+      const move = actor.animate([{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }], { duration: n * hopMs, easing: "linear", fill: "forwards" });
+      const h = hop.animate(hopFrames, { duration: hopMs, iterations: n, easing: "ease-out" });
+      await Promise.all([move.finished, h.finished]).catch(() => {});
+    };
+    side.style.display = ""; front.style.display = "none";
+    actor.style.display = "";
+    await travel(-80, mid);                       // hop in from the left
+    if (!alive()) return;
+    await sleep(350);
+    side.style.display = "none"; front.style.display = "";   // turns to look at the viewer
+    const wig = front.animate([{ transform: "rotate(0)" }, { transform: "rotate(-5deg)" }, { transform: "rotate(5deg)" }, { transform: "rotate(0)" }], { duration: 900, iterations: 3 });
+    await sleep(2800);
+    wig.cancel();
+    if (!alive()) return;
+    front.style.display = "none"; side.style.display = "";
+    await sleep(250);
+    await travel(mid, banner.clientWidth + 20);   // hop off to the right
+    actor.style.display = "none";
+  }
+  const loop = async () => {
+    try { await once(); } catch (e) {}
+    if (run === _bunnyRun) _bunnyTimer = setTimeout(loop, BUNNY_EVERY_MS);
+  };
+  _bunnyTimer = setTimeout(loop, 2500);        // first visit shortly after the page loads
+}
+
+function buildThemeFx() {
+  const theme = document.documentElement.getAttribute("data-theme");
+  const kind = ["halloween", "christmas", "easter"].includes(theme) ? theme : null;
+  const tgl = document.getElementById("animToggle");
+  if (tgl) tgl.classList.toggle("show", !!kind);
+
+  // ---- full-page layer (falling snow, drifting ghosts) ----
+  let layer = document.getElementById("themeFx");
+  if (!kind || kind === "easter") { if (layer) layer.remove(); layer = null; }
+  else if (document.body) {
+    if (!layer) {
+      layer = document.createElement("div");
+      layer.id = "themeFx"; layer.className = "theme-fx"; layer.setAttribute("aria-hidden", "true");
+      document.body.appendChild(layer);
+    }
+    if (layer.dataset.kind !== kind) {
+      layer.dataset.kind = kind;
+      let h = "";
+      if (kind === "christmas") {
+        for (let i = 0; i < 42; i++) {
+          const size = fxRand(9, 20).toFixed(1), left = fxRand(0, 100).toFixed(1);
+          const dur = fxRand(9, 18).toFixed(1), delay = (-fxRand(0, 18)).toFixed(1), sway = fxRand(14, 46).toFixed(0);
+          h += `<i class="flake" style="left:${left}%;font-size:${size}px;animation-duration:${dur}s,${(dur / 3).toFixed(1)}s;animation-delay:${delay}s,${delay}s;--sway:${sway}px;opacity:${fxRand(.55, .95).toFixed(2)}">${i % 3 ? "&#10052;" : "&#10053;"}</i>`;
+        }
+      } else {
+        for (let i = 0; i < 4; i++) {
+          h += `<span class="drift" style="top:${fxRand(15, 75).toFixed(0)}%;animation-duration:${fxRand(26, 44).toFixed(0)}s;animation-delay:${(-fxRand(0, 40)).toFixed(0)}s;transform:scale(${fxRand(.7, 1.15).toFixed(2)})"><span class="bob">${FX_SVG.ghost}</span></span>`;
+        }
+      }
+      layer.innerHTML = h;
+    }
+  }
+
+  // ---- banner strip under the top bar ----
+  const banner = document.getElementById("themeBanner");
+  if (!banner) return;
+  if (!kind) { banner.innerHTML = ""; banner.dataset.kind = ""; stopBunnyCycle(); return; }
+  if (banner.dataset.kind === kind) return;
+  banner.dataset.kind = kind;
+  let b = "";
+  if (kind === "christmas") {
+    for (let i = 0; i < 6; i++) b += `<span class="sprite tree" style="left:${(6 + i * 17).toFixed(0)}%">${FX_SVG.tree}</span>`;
+    for (let i = 0; i < 2; i++) b += `<span class="runner" style="animation-duration:${14 + i * 3}s;animation-delay:${-i * 7}s"><span class="rd">${FX_SVG.reindeer}</span></span>`;
+  } else if (kind === "halloween") {
+    for (let i = 0; i < 7; i++) b += `<span class="sprite pumpkin" style="left:${(4 + i * 15).toFixed(0)}%;animation-delay:${(-fxRand(0, 3)).toFixed(1)}s">${FX_SVG.pumpkin}</span>`;
+    for (let i = 0; i < 3; i++) b += `<span class="floater" style="left:${(14 + i * 33).toFixed(0)}%;animation-delay:${(-i * 2.2).toFixed(1)}s">${FX_SVG.ghost}</span>`;
+  } else {
+    const eggs = [["#ffb3c7", "#fff"], ["#b8e6d8", "#fff7a8"], ["#c9b8f0", "#fff"], ["#ffe08a", "#ff9ab8"]];
+    for (let i = 0; i < 4; i++) b += `<span class="sprite egg" style="left:${(10 + i * 24).toFixed(0)}%">${FX_SVG.egg(...eggs[i])}</span>`;
+    for (let i = 0; i < 3; i++) b += `<span class="chick" style="left:${(18 + i * 30).toFixed(0)}%;animation-delay:${(-i * 0.5).toFixed(1)}s">${FX_SVG.chick}</span>`;
+    b += `<span class="bunny-actor" style="display:none"><span class="b-hop"><span class="b-side">${FX_SVG.bunnySide}</span><span class="b-front" style="display:none">${FX_SVG.bunny}</span></span></span>`;
+  }
+  banner.innerHTML = b;
+  startBunnyCycle();
+}
+document.addEventListener("DOMContentLoaded", buildThemeFx);
 
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const WEEKDAY_ABBR = ["Sun","Mon","Tue","Wed","Thur","Fri","Sat"];
@@ -442,10 +669,81 @@ async function getSession() {
   return data.session ?? null;
 }
 
+/* =====================================================================
+   Outage handling — shown when the portal's backend (Supabase) can't be
+   reached. Instead of a broken page, or being signed out because the
+   profile couldn't be loaded, people get a clear message and the page
+   retries by itself and reloads as soon as the service is back.
+   (If GitHub itself is down the page never loads at all.)
+   ===================================================================== */
+const OUTAGE_CONTACT = "";   // optional, e.g. "Contact Ish Yasin on ext. 1234" — shown on the message
+let _outageShown = false, _outageTimer = null, _profileOutage = false;
+
+function isOutageError(e) {
+  if (!e) return false;
+  const st = e.status, msg = String(e.message || e);
+  return st === 0 || (st >= 500 && st < 600) ||
+    /failed to fetch|networkerror|network request failed|load failed|fetch failed|timed? ?out|gateway/i.test(msg);
+}
+
+async function backendReachable() {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/health`, { headers: { apikey: SUPABASE_ANON_KEY }, cache: "no-store", signal: ctl.signal });
+    return r.status < 500;
+  } catch (e) { return false; }
+  finally { clearTimeout(t); }
+}
+
+function showOutage() {
+  if (_outageShown) return;
+  _outageShown = true;
+  const el = document.createElement("div");
+  el.id = "outageOverlay";
+  el.setAttribute("role", "alertdialog");
+  el.setAttribute("aria-live", "assertive");
+  el.setAttribute("aria-label", "Pharmacy Portal is temporarily unavailable");
+  el.style.cssText = "position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:20px;background:#eef1f5;font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#1a2744;overflow:auto;";
+  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+  el.innerHTML = `
+    <div style="max-width:480px;width:100%;background:#fff;border:1px solid #d9dee7;border-top:4px solid #12a0ad;border-radius:14px;padding:30px 28px;box-shadow:0 20px 50px rgba(26,39,68,.14);text-align:center;">
+      <div style="font-size:22px;font-weight:800;">Pharmacy Portal</div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#667085;margin:3px 0 18px;">by ED&amp;G&trade;</div>
+      <h1 style="font-size:19px;margin:0 0 10px;">${offline ? "You appear to be offline" : "The portal is temporarily unavailable"}</h1>
+      <p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#3b4560;">${offline
+        ? "Your device has lost its internet connection. Check your network and the page will carry on by itself."
+        : "The portal can&rsquo;t reach its server right now. This is usually short-lived and nothing has been lost &mdash; anything saved before this appeared is safe."}</p>
+      <p style="margin:0 0 18px;font-size:13px;color:#667085;" id="outageStatus">Checking again automatically&hellip;</p>
+      <button type="button" id="outageRetry" style="background:#0f7b84;color:#fff;border:0;border-radius:8px;padding:11px 22px;font-size:14px;font-weight:600;cursor:pointer;">Try again now</button>
+      ${OUTAGE_CONTACT ? `<p style="margin:18px 0 0;font-size:13px;color:#3b4560;">${escapeHtml(OUTAGE_CONTACT)}</p>` : ""}
+    </div>`;
+  document.body.appendChild(el);
+
+  const status = el.querySelector("#outageStatus");
+  const check = async () => {
+    status.textContent = "Checking…";
+    if (await backendReachable()) { status.textContent = "Back online — reloading…"; window.location.reload(); return true; }
+    status.textContent = "Still unavailable. Trying again in 15 seconds…";
+    return false;
+  };
+  el.querySelector("#outageRetry").addEventListener("click", check);
+  _outageTimer = setInterval(check, 15000);
+  window.addEventListener("online", check);
+}
+
+// A failed network call that nobody caught (e.g. a page's own data load) also means an outage.
+window.addEventListener("unhandledrejection", (ev) => {
+  if (ev.reason instanceof TypeError || isOutageError(ev.reason)) {
+    backendReachable().then(ok => { if (!ok) showOutage(); });
+  }
+});
+
 async function getCurrentProfile() {
   const session = await getSession();
   if (!session) return null;
   const { data, error } = await sb.from("profiles").select("*").eq("id", session.user.id).single();
+  _profileOutage = !!error && isOutageError(error);
   if (error) return null;
   return data;
 }
@@ -495,12 +793,18 @@ async function requireAuth(allowedRoles) {
   if (!session) { window.location.href = "login.html"; return null; }
 
   const profile = await getCurrentProfile();
+  if (!profile && _profileOutage) {
+    // Backend unreachable — don't sign anyone out for that.
+    showOutage();
+    return null;
+  }
   if (!profile || !profile.active) {
     await sb.auth.signOut();
     window.location.href = "login.html?err=inactive";
     return null;
   }
-  applyTheme(profile.theme);
+  await loadThemeSchedule();
+  applyTheme(scheduledTheme() || profile.theme);
   applyColorMode(profile.color_mode);
   if (profile.must_reset_password && !window.location.pathname.endsWith("reset-password.html")) {
     window.location.href = "reset-password.html";
@@ -578,11 +882,14 @@ function renderTopbar(profile) {
     <div class="nav">${links.map(([href,label,active]) =>
       `<a href="${href}" class="${active?'active':''}">${label}</a>`).join("")}</div>
     <div class="userbox">
+      <button type="button" id="animToggle" class="anim-toggle" title="Stop or start the seasonal animations"></button>
       <select id="colorModeSelect" class="mode-select" aria-label="Display mode">${modeOptions}</select>
       <span>${escapeHtml(profile.full_name)} (${escapeHtml(profile.initials)}) &middot; ${ROLE_LABEL[profile.role]}</span>
       <button onclick="signOut()">Sign out</button>
     </div>`;
   document.getElementById("colorModeSelect").addEventListener("change", (e) => setOwnColorMode(e.target.value));
+  document.getElementById("animToggle").addEventListener("click", toggleAnimations);
+  applyAnimPref();
 
   // A thin decorative strip right under the topbar — cartoon pumpkins/
   // spiders for the Halloween theme, a tree/reindeer/snow for
@@ -605,6 +912,7 @@ function renderTopbar(profile) {
     banner.setAttribute("aria-hidden", "true");
     (document.getElementById("subnav") || el).insertAdjacentElement("afterend", banner);
   }
+  buildThemeFx();
 }
 
 /* ---------------- utils ---------------- */
@@ -700,7 +1008,12 @@ function showMsg(container, text, type) {
 
 /* ---------------- edge function calls ---------------- */
 async function callEdgeFunction(name, payload) {
-  const session = await getSession();
+  let session = await getSession();
+  if (!session) {
+    // Token missing/expired: try to refresh it once before giving up.
+    try { const r = await sb.auth.refreshSession(); session = r && r.data ? r.data.session : null; } catch (e) { session = null; }
+  }
+  if (!session) throw new Error("Your sign-in has expired. Please sign in again (refresh the page), then retry.");
   const res = await fetch(`${EDGE_FUNCTIONS_URL}/${name}`, {
     method: "POST",
     headers: {

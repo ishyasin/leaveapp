@@ -69,6 +69,7 @@
   .portal-tile:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.12);}
   .portal-tile:focus-visible{outline:3px solid var(--teal-light);outline-offset:2px;}
   .portal-tile svg{width:34px;height:34px;color:var(--navy);}
+  :root[data-color-mode="dark"] .portal-tile svg,:root[data-color-mode="inverted"] .portal-tile svg,:root[data-theme="halloween"]:not([data-color-mode="inverted"]) .portal-tile svg,:root[data-theme="christmas"]:not([data-color-mode="inverted"]) .portal-tile svg{color:var(--heading-color);}
   .portal-tile h2{margin:0;font-size:18px;color:var(--heading-color);}
   .portal-tile p{margin:0;font-size:13px;color:var(--text-muted);line-height:1.45;}
 </style>

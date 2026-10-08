@@ -34,7 +34,7 @@
   .week-block{break-inside:avoid;}
   @media print{
     @page{size:A3 landscape;margin:8mm;}
-    .topbar,#subnav,#oncallTabs,.oncall-controls,#bankHolidayCard,#buildCard,#editModeHint{display:none !important;}
+    .topbar,#subnav,#oncallTabs,.oncall-controls,#buildRotaCard,#editModeHint{display:none !important;}
     body{background:#fff;}
     .card{border:none;box-shadow:none;padding:0;}
     .oncall-weekgrid{grid-template-columns:repeat(6,1fr);gap:6px;}
@@ -50,7 +50,7 @@
   .week-block th,.week-block td{height:26px;box-sizing:border-box;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 4px;}
   .week-block th{height:24px;}
   .week-block .person-chip{max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;}
-  .note-dot{color:#374151;font-weight:800;cursor:pointer;padding:0 3px;font-size:13px;}
+  .note-dot{color:inherit;font-weight:800;cursor:pointer;padding:0 3px;font-size:13px;}
   .filter-summary{font-size:13px;margin:6px 0;}
   .person-chip.mine{background:rgba(255,255,255,.55);border-radius:6px;box-shadow:0 0 0 1px rgba(0,0,0,.35);}
   @media print{.oncall-weekgrid{grid-template-columns:repeat(6,1fr);gap:6px;}.week-block{width:auto;}}
@@ -80,6 +80,13 @@
   .swap-pick-list input[type="checkbox"]{width:auto;}
   .bh-tag{display:inline-block;font-size:9px;font-weight:700;color:#7f1d1d;border:1px solid #7f1d1d;border-radius:4px;padding:0 3px;margin-left:4px;vertical-align:middle;}
   .person-chip.warn{background:rgba(255,255,255,.6);color:#7f1d1d;border:1px dashed #7f1d1d;font-weight:700;}
+  .colour-rows{display:flex;flex-wrap:wrap;gap:8px 18px;}
+  .colour-row{display:flex;align-items:center;gap:8px;font-size:13px;}
+  .colour-row input[type=color]{width:42px;height:30px;padding:2px;cursor:pointer;margin:0;}
+  #buildPanel h3{font-size:15px;}
+  .status-pill{display:inline-block;font-size:11px;font-weight:700;border-radius:10px;padding:1px 8px;margin-left:6px;}
+  .status-pill.draft{background:#fff3bf;color:#7a5b00;}
+  .status-pill.done{background:#d3f9d8;color:#1b6b2c;}
   .period-rows{margin-top:8px;}
   .period-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;}
   .holiday-rows{margin-top:8px;max-height:200px;overflow-y:auto;}
@@ -109,8 +116,6 @@
         </select>
         <label style="margin:0;">Rota period</label>
         <select id="periodSelect" style="width:200px;"></select>
-        <button class="secondary" id="periodArchiveBtn" style="display:none;" onclick="toggleArchivePeriod()">Archive</button>
-        <button class="secondary" id="periodNewBtn" style="display:none;" onclick="openPeriodModal()">+ New period</button>
         <span class="spacer"></span>
         <label style="margin:0;">Show</label>
         <select id="personFilter" style="width:210px;" onchange="onPersonFilter()"></select>
@@ -124,64 +129,64 @@
       <div id="rotaGrid" class="oncall-weekgrid"></div>
     </div>
 
-    <div class="card" id="bankHolidayCard" style="display:none;">
-      <h2>On-call bank holidays</h2>
-      <p class="small">Mark which days are bank holidays for the on-call rota (separate from the leave calendar's bank holidays). A bank holiday is shown on the rota in the colour you pick (light blue by default) and flags if its onsite shift is still unfilled. Click a colour swatch below to change it later.</p>
-      <div id="bhMsg"></div>
-      <form id="bhForm" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-        <div>
-          <label>Date</label>
-          <input type="date" id="bhDate" required>
-        </div>
-        <div style="flex:1;min-width:160px;">
-          <label>Label (optional)</label>
-          <input type="text" id="bhLabel" placeholder="e.g. Christmas Day">
-        </div>
-        <div>
-          <label>Colour</label>
-          <input type="color" id="bhColor" value="#bfe3f7" style="width:60px;height:38px;padding:2px;cursor:pointer;">
-        </div>
-        <button type="submit" class="secondary">Add</button>
-      </form>
-      <div class="holiday-rows" id="bhRows"></div>
-    </div>
+    <div class="card" id="buildRotaCard" style="display:none;">
+      <button type="button" id="buildToggleBtn" onclick="toggleBuildPanel()" aria-expanded="false" aria-controls="buildPanel" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;padding:0;cursor:pointer;text-align:left;">
+        <h2 style="margin:0;">+ Build rota</h2>
+        <span id="buildToggleIcon" style="font-size:14px;color:#667085;">&#9660;</span>
+      </button>
+      <div id="buildPanel" style="display:none;margin-top:12px;">
 
-    <div class="card" id="buildCard" style="display:none;">
-      <h2>Build / quick-fill</h2>
-      <p class="small">Assign the same person to the same shift across a block of dates in one go — e.g. Sunday to Tuesday for one pharmacist, then Wednesday to Saturday for another. Days outside the ticked weekdays are skipped. An <strong>Overnight</strong> shift on a Saturday, Sunday or bank holiday automatically puts the same person in that day's <strong>Onsite</strong> slot as well (unless onsite is already held by someone else), so a Sunday-to-Tuesday block also fills the Sunday onsite. Onsite itself only applies to Saturdays, Sundays and bank holidays. Use the grid above to tweak individual days afterwards.</p>
-      <div id="buildMsg"></div>
-      <form id="buildForm">
-        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <h3 style="margin:0 0 4px;">1. Rota period</h3>
+        <p class="small" style="margin-top:0;">The rota is built inside a named period (usually a year). Pick it in the “Rota period” box above, or start a new one.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+          <button type="button" class="secondary" id="periodNewBtn" onclick="openPeriodModal()">+ New period</button>
+          <button type="button" class="secondary" id="periodArchiveBtn" style="display:none;" onclick="toggleArchivePeriod()">Archive</button>
+        </div>
+
+        <h3 style="margin:16px 0 4px;">2. Pharmacist colours</h3>
+        <p class="small" style="margin-top:0;">Each pharmacist's shifts are shown in their own colour on the rota. Click a colour to change it.</p>
+        <div id="colourRows" class="colour-rows"></div>
+
+        <h3 style="margin:16px 0 4px;">3. Bank holidays</h3>
+        <p class="small" style="margin-top:0;">Mark which days are bank holidays for the on-call rota (separate from the leave calendar's). A bank holiday is shown in the colour you pick (light blue by default) and flags if its onsite shift is still unfilled.</p>
+        <div id="bhMsg"></div>
+        <form id="bhForm" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div>
+            <label>Date</label>
+            <input type="date" id="bhDate" required>
+          </div>
           <div style="flex:1;min-width:160px;">
-            <label>Duty type</label>
-            <select id="buildDutyType">
-              <option value="on_call">Overnight (Sat, Sun &amp; bank holidays also fill Onsite)</option>
-              <option value="onsite">Onsite (Sat, Sun &amp; bank holidays only)</option>
-            </select>
+            <label>Label (optional)</label>
+            <input type="text" id="bhLabel" placeholder="e.g. Christmas Day">
           </div>
-          <div style="flex:1;min-width:160px;">
-            <label>Person</label>
-            <select id="buildPerson"></select>
+          <div>
+            <label>Colour</label>
+            <input type="color" id="bhColor" value="#bfe3f7" style="width:60px;height:38px;padding:2px;cursor:pointer;">
           </div>
-        </div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;">
-          <div style="flex:1;min-width:140px;">
-            <label>From</label>
-            <input type="date" id="buildFrom" required>
+          <button type="submit" class="secondary">Add</button>
+        </form>
+        <div class="holiday-rows" id="bhRows"></div>
+
+        <h3 style="margin:16px 0 4px;">4. Quick build</h3>
+        <p class="small" style="margin-top:0;">Choose a pharmacist, then paste their dates in the format <strong>DD/MM/YYYY</strong> (one per line, or separated by spaces or commas). Their name goes into every one of those slots. On a Saturday, Sunday or bank holiday the Onsite slot is filled too. Repeat for each pharmacist, then fine-tune single days in the grid above.</p>
+        <div id="buildMsg"></div>
+        <form id="buildForm">
+          <label for="buildPerson">Pharmacist</label>
+          <select id="buildPerson"></select>
+          <label for="buildDates">Dates (DD/MM/YYYY)</label>
+          <textarea id="buildDates" rows="5" placeholder="04/01/2027&#10;05/01/2027&#10;06/01/2027" spellcheck="false" autocomplete="off"></textarea>
+          <div class="small" id="buildDatesCount" style="margin-top:2px;">0 dates recognised</div>
+          <label for="buildNote">Note (optional, shown on the rota and on hover)</label>
+          <input type="text" id="buildNote" maxlength="200" placeholder="e.g. First on call">
+          <div style="margin-top:12px;">
+            <button type="submit" class="primary" id="buildSubmitBtn">Fill dates</button>
           </div>
-          <div style="flex:1;min-width:140px;">
-            <label>To</label>
-            <input type="date" id="buildTo" required>
-          </div>
-        </div>
-        <label>Days of the week to include</label>
-        <div id="buildWeekdays" style="display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 10px;"></div>
-        <label>Note (optional, shown on the rota and on hover)</label>
-        <input type="text" id="buildNote" placeholder="e.g. First on call">
-        <div style="margin-top:14px;">
-          <button type="submit" class="primary" id="buildSubmitBtn">Fill dates</button>
-        </div>
-      </form>
+        </form>
+
+        <h3 style="margin:18px 0 4px;">5. Complete rota</h3>
+        <p class="small" style="margin-top:0;" id="completeHint"></p>
+        <button type="button" class="primary" id="completeBtn" onclick="completeRota()">Complete rota</button>
+      </div>
     </div>
   </div>
 
@@ -359,17 +364,14 @@ const DEFAULT_BH_COLOR = "#bfe3f7";
 // usual pattern is one pharmacist covering Sun-Tue and a second
 // covering Wed-Sat within the same week block.
 const WEEKDAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const DEFAULT_ONCALL_COLORS = ["#2b6cb0","#2f855a","#b7791f","#9b2c2c","#6b46c1","#047481","#c05621","#3182ce"];
+const DEFAULT_ONCALL_COLORS = ["#a5d8ff","#b2f2bb","#ffec99","#ffc9c9","#d0bfff","#99e9f2","#ffd8a8","#fcc2d7"];
 
 (async () => {
   PROFILE = await requireAuth(null); // any authenticated, active user can view
   if (!PROFILE) return;
 
   if (isLeadPlus(PROFILE)) {
-    document.getElementById("buildCard").style.display = "";
-    document.getElementById("bankHolidayCard").style.display = "";
-    document.getElementById("periodNewBtn").style.display = "";
-    setupBuildWeekdays();
+    document.getElementById("buildRotaCard").style.display = "";
     setupBankHolidayForm();
     setupPeriodForm();
   }
@@ -391,7 +393,7 @@ const DEFAULT_ONCALL_COLORS = ["#2b6cb0","#2f855a","#b7791f","#9b2c2c","#6b46c1"
     await loadAssignments();
     renderRota();
     renderLegend();
-    if (isLeadPlus(PROFILE)) populateBuildPersonSelect();
+    if (isLeadPlus(PROFILE)) { fillBuildPersonOptions(); renderColourRows(); }
   });
   document.getElementById("periodSelect").addEventListener("change", onPeriodSelected);
 
@@ -403,7 +405,7 @@ const DEFAULT_ONCALL_COLORS = ["#2b6cb0","#2f855a","#b7791f","#9b2c2c","#6b46c1"
   await loadAssignments();
   renderRota();
   renderLegend();
-  populateBuildPersonSelect();
+  if (isLeadPlus(PROFILE)) { fillBuildPersonOptions(); renderColourRows(); }
 
   if (isOncallPoolMember(PROFILE)) {
     await loadMyDates();
@@ -459,8 +461,17 @@ function poolFor(site) {
 function profileById(id) { return PROFILES.find(p => p.id === id); }
 function colorFor(p) {
   if (!p) return "#888";
-  return p.oncall_color || DEFAULT_ONCALL_COLORS[Math.abs((p.id || "").split("-")[0].split("").reduce((a, c) => a + c.charCodeAt(0), 0)) % DEFAULT_ONCALL_COLORS.length];
+  return (p.oncall_color || "").toLowerCase() || DEFAULT_ONCALL_COLORS[Math.abs((p.id || "").split("-")[0].split("").reduce((a, c) => a + c.charCodeAt(0), 0)) % DEFAULT_ONCALL_COLORS.length];
 }
+
+// Black or near-black text on light colours, white on dark ones.
+function textOn(hex) {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || "");
+  if (!m) return "#1f2430";
+  const [r, g, b] = [1, 2, 3].map(i => parseInt(m[i], 16));
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? "#1f2430" : "#ffffff";
+}
+function isDraftPeriod() { return !!SELECTED_PERIOD && !SELECTED_PERIOD.completed_at; }
 
 // The whole year (or the chosen rota period) is shown on one page.
 function computeRange() {
@@ -472,6 +483,7 @@ function computeRange() {
     WEEKS_SHOWN = 0;
     title.textContent = `On-Call Rota \u2014 ${SITE_LABEL[SELECTED_SITE] || SELECTED_SITE}`;
     sub.textContent = "";
+    updateCompleteUi();
     return;
   }
   RANGE_FIRST = new Date(SELECTED_PERIOD.start_date + "T00:00:00");
@@ -483,6 +495,11 @@ function computeRange() {
   title.textContent = `On-Call Rota ${SELECTED_PERIOD.label} \u2014 ${SITE_LABEL[SELECTED_SITE] || SELECTED_SITE}`;
   sub.textContent = `${fmt(RANGE_FIRST)} \u2013 ${fmt(RANGE_LAST)} (${days} days)` +
     (SELECTED_PERIOD.status === "archived" ? " \u00b7 archived (read-only)" : "");
+  const pill = SELECTED_PERIOD.completed_at
+    ? `<span class="status-pill done">Completed ${escapeHtml(fmtDate(String(SELECTED_PERIOD.completed_at).slice(0, 10)))}</span>`
+    : `<span class="status-pill draft">Draft</span>`;
+  sub.insertAdjacentHTML("beforeend", pill);
+  updateCompleteUi();
 }
 
 async function loadAssignments() {
@@ -709,11 +726,11 @@ function renderLegend() {
   const wrap = document.getElementById("rotaLegend");
   const pool = poolFor(SELECTED_SITE);
   let html = `<div style="margin:6px 0;">
-    <span class="legend-sw"><i style="background:#cdeccf"></i>Sunday &ndash; Tuesday</span>
-    <span class="legend-sw"><i style="background:#f8d4e1"></i>Wednesday &ndash; Saturday</span>
+    <span class="legend-sw"><i style="background:#cdeccf"></i>Sun &ndash; Tue (day)</span>
+    <span class="legend-sw"><i style="background:#f8d4e1"></i>Wed &ndash; Sat (day)</span>
     <span class="legend-sw"><i style="background:${DEFAULT_BH_COLOR}"></i>Bank holiday (colour set per day)</span>
   </div>`;
-  if (pool.length) html += `<div class="small" style="margin:4px 0;"><strong>Key:</strong> ${pool.map(p => `${escapeHtml(p.initials)} = ${escapeHtml(p.full_name)}`).join(" &middot; ")}</div>`;
+  if (pool.length) html += `<div class="small" style="margin:4px 0;"><strong>Key:</strong> ${pool.map(p => `<span class="legend-sw" style="margin-right:10px;"><i style="background:${escapeHtml(colorFor(p))}"></i>${escapeHtml(p.initials)} = ${escapeHtml(p.full_name)}</span>`).join("")}</div>`;
   if (!pool.length) html += `<p class="small">Nobody is in this site's on-call pool yet — set it up from Admin &rarr; Users &rarr; Edit on-call.</p>`;
   wrap.innerHTML = html;
 }
@@ -777,8 +794,8 @@ function renderWeekBlock(weekStart) {
       <tr class="${isToday ? "today-row" : ""}">
         <td class="daycell" ${cellStyle}>${WEEKDAY_NAMES[i]}${bh ? `<span class="bh-tag" title="${escapeHtml(bh.label || "Bank holiday")}">BH</span>` : ""}</td>
         <td class="datecell" ${cellStyle}${bh && bh.label ? ` title="${escapeHtml(bh.label)}"` : ""}>${day.getDate()}/${day.getMonth() + 1}</td>
-        <td ${cellStyle}>${renderChip(day, "on_call", onCall)}</td>
-        <td ${cellStyle}>${onsiteCell}</td>
+        <td ${shiftStyle(onCall, cellStyle)}>${renderChip(day, "on_call", onCall)}</td>
+        <td ${shiftStyle(onsiteApplies ? onsite : null, cellStyle)}>${onsiteCell}</td>
       </tr>`;
   }
   return `
@@ -790,6 +807,14 @@ function renderWeekBlock(weekStart) {
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+}
+
+// A filled Overnight / Onsite cell takes that pharmacist's own colour.
+function shiftStyle(row, fallback) {
+  const p = row && profileById(row.user_id);
+  if (!p) return fallback;
+  const c = colorFor(p);
+  return `style="background:${escapeHtml(c)};color:${textOn(c)};"`;
 }
 
 function renderChip(day, dutyType, row, requiresOnsite) {
@@ -816,7 +841,8 @@ function renderChip(day, dutyType, row, requiresOnsite) {
   const noteDot = (row.note && !row.replaced_user_id)
     ? `<span class="note-dot" role="button" tabindex="0" title="${escapeHtml(row.note)}" onclick="showNoteDetail(event,'${ymd(day)}','${dutyType}')">&bull;</span>` : "";
   const mine = FILTER_USER ? " mine" : "";
-  return `<span class="${cls}${mine}" data-key="${key}" title="${escapeHtml(title)}"${onclick}>${escapeHtml(label)}</span>${star}${noteDot}`;
+  const tc = textOn(colorFor(p));
+  return `<span class="${cls}${mine}" style="color:${tc};" data-key="${key}" title="${escapeHtml(title)}"${onclick}>${escapeHtml(label)}</span>${star}${noteDot}`;
 }
 
 /* ---------------- manual-swap detail ("*") ---------------- */
@@ -931,11 +957,17 @@ const AUDIT_LABEL = {
   cancel_oncall_swap: "Swap cancelled", apply_oncall_swap: "Swap applied", approve_oncall_swap: "Swap approved", reject_oncall_swap: "Swap rejected",
   set_oncall_bank_holiday: "Bank holiday set", remove_oncall_bank_holiday: "Bank holiday removed",
   create_oncall_rota_period: "Rota period created", archive_oncall_rota_period: "Rota period archived", reopen_oncall_rota_period: "Rota period reopened",
+  complete_oncall_rota_period: "Rota completed", set_oncall_user_color: "Pharmacist colour changed",
   set_oncall_eligibility: "On-call pool changed", set_oncall_swap_mode: "Swap approval mode changed",
 };
 function whoFull(id) { const p = profileById(id); return p ? `${p.full_name} (${p.initials})` : "Unknown"; }
 function dutyWord(d) { return DUTY_LABEL[d] || d; }
 function describeAudit(a) {
+  const text = describeAuditCore(a);
+  return /\[after completion\]/.test(a.note || "") && !/after completion/.test(text)
+    ? text + " (edit made after the rota was completed)" : text.replace(/\s*\[after completion\]/, " (edit made after the rota was completed)");
+}
+function describeAuditCore(a) {
   const b = a.before_state, n = a.after_state;
   const where = (r) => `${dutyWord(r.duty_type)} ${fmtDate(r.shift_date)} (${SITE_LABEL[r.site] || r.site})`;
   if (a.action === "set_oncall_assignment" && n) {
@@ -1042,62 +1074,104 @@ async function clearCell() {
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
 
-/* ---------------- build / quick-fill (superuser+) ---------------- */
-function setupBuildWeekdays() {
-  const wrap = document.getElementById("buildWeekdays");
-  wrap.innerHTML = WEEKDAY_NAMES.map((name, i) => `
-    <label style="display:flex;align-items:center;gap:6px;font-weight:400;">
-      <input type="checkbox" class="build-wd" value="${i}" checked style="width:auto;"> ${name}
-    </label>`).join("");
+/* ---------------- Build rota panel (Lead Pharmacist and above) ---------------- */
+function toggleBuildPanel() {
+  const wrap = document.getElementById("buildPanel");
+  const nowOpen = wrap.style.display === "none";
+  wrap.style.display = nowOpen ? "" : "none";
+  document.getElementById("buildToggleIcon").innerHTML = nowOpen ? "&#9650;" : "&#9660;";
+  document.getElementById("buildToggleBtn").setAttribute("aria-expanded", nowOpen ? "true" : "false");
+  if (nowOpen) { fillBuildPersonOptions(); renderColourRows(); updateCompleteUi(); }
 }
+
 function fillBuildPersonOptions() {
   const sel = document.getElementById("buildPerson");
-  const options = poolFor(SELECTED_SITE);
-  sel.innerHTML = options.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})</option>`).join("");
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = poolFor(SELECTED_SITE).map(p => `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})</option>`).join("");
+  if (prev && poolFor(SELECTED_SITE).some(p => p.id === prev)) sel.value = prev;
 }
-let BUILD_PERSON_LISTENER_ADDED = false;
-function populateBuildPersonSelect() {
-  if (!BUILD_PERSON_LISTENER_ADDED) {
-    document.getElementById("buildDutyType").addEventListener("change", fillBuildPersonOptions);
-    BUILD_PERSON_LISTENER_ADDED = true;
+
+/* ---- pharmacist colours ---- */
+function renderColourRows() {
+  const wrap = document.getElementById("colourRows");
+  if (!wrap) return;
+  const pool = poolFor(SELECTED_SITE);
+  wrap.innerHTML = pool.length ? pool.map(p => `
+    <label class="colour-row" style="margin:0;font-weight:400;">
+      <input type="color" data-uid="${p.id}" value="${escapeHtml(colorFor(p))}" aria-label="Colour for ${escapeHtml(p.full_name)}">
+      ${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})
+    </label>`).join("") : `<span class="small">Nobody is in this site's on-call pool yet.</span>`;
+  wrap.querySelectorAll("input[type=color]").forEach(inp => inp.addEventListener("change", onColourChange));
+}
+async function onColourChange(e) {
+  const id = e.target.dataset.uid, color = e.target.value;
+  const msg = document.getElementById("buildMsg");
+  try {
+    const { error } = await sb.rpc("set_oncall_user_color", { p_user_id: id, p_color: color });
+    if (error) throw error;
+    const p = profileById(id); if (p) p.oncall_color = color.toLowerCase();
+    AUDIT_LOADED = false;
+    renderLegend(); renderRota();
+  } catch (err) {
+    showMsg(msg, err.message || "Could not save that colour.", "error");
+    renderColourRows();
   }
-  fillBuildPersonOptions();
 }
+
+/* ---- quick build: pharmacist + pasted DD/MM/YYYY dates ---- */
+// Returns { dates: ["YYYY-MM-DD", ...] (unique, sorted), bad: ["text", ...] }
+function parseUkDates(text) {
+  const out = new Set(), bad = [];
+  String(text || "").split(/[\s,;]+/).filter(Boolean).forEach(tok => {
+    const m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/.exec(tok);
+    if (!m) { bad.push(tok); return; }
+    const d = +m[1], mo = +m[2], y = +m[3];
+    const dt = new Date(y, mo - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) { bad.push(tok); return; }
+    out.add(ymd(dt));
+  });
+  return { dates: Array.from(out).sort(), bad };
+}
+document.getElementById("buildDates").addEventListener("input", () => {
+  const r = parseUkDates(document.getElementById("buildDates").value);
+  document.getElementById("buildDatesCount").textContent =
+    `${r.dates.length} date${r.dates.length === 1 ? "" : "s"} recognised` + (r.bad.length ? ` — ${r.bad.length} not understood` : "");
+});
 
 document.getElementById("buildForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const msg = document.getElementById("buildMsg");
   const btn = document.getElementById("buildSubmitBtn");
-  const from = document.getElementById("buildFrom").value;
-  const to = document.getElementById("buildTo").value;
   const person = document.getElementById("buildPerson").value;
-  const dutyType = document.getElementById("buildDutyType").value;
   const note = document.getElementById("buildNote").value.trim() || null;
-  const color = null;
-  const allowedWeekdays = new Set(Array.from(document.querySelectorAll(".build-wd:checked")).map(el => parseInt(el.value, 10)));
-
-  if (!person) { showMsg(msg, "Pick a person.", "error"); return; }
-  if (!from || !to || from > to) { showMsg(msg, "Pick a valid date range.", "error"); return; }
-
-  const dates = [];
-  let cur = new Date(from + "T00:00:00");
-  const last = new Date(to + "T00:00:00");
-  while (cur <= last) {
-    const wd = cur.getDay(); // 0=Sun..6=Sat, matching WEEKDAY_NAMES
-    if (allowedWeekdays.has(wd) && (dutyType !== "onsite" || wd === 0 || wd === 6 || isBankHoliday(cur))) dates.push(ymd(cur));
-    cur = addDays(cur, 1);
+  msg.innerHTML = "";
+  if (!SELECTED_PERIOD) { showMsg(msg, "Create or choose a rota period first.", "error"); return; }
+  if (SELECTED_PERIOD.status === "archived") { showMsg(msg, "This rota period is archived. Reopen it to make changes.", "error"); return; }
+  if (!person) { showMsg(msg, "Pick a pharmacist.", "error"); return; }
+  const parsed = parseUkDates(document.getElementById("buildDates").value);
+  if (parsed.bad.length) { showMsg(msg, `These aren’t valid DD/MM/YYYY dates: ${parsed.bad.slice(0, 8).join(", ")}${parsed.bad.length > 8 ? "…" : ""}. Nothing was changed.`, "error"); return; }
+  if (!parsed.dates.length) { showMsg(msg, "Paste at least one date, e.g. 04/01/2027.", "error"); return; }
+  const outside = parsed.dates.filter(d => d < SELECTED_PERIOD.start_date || d > SELECTED_PERIOD.end_date);
+  if (outside.length) {
+    showMsg(msg, `${outside.length} date${outside.length === 1 ? " is" : "s are"} outside the ${SELECTED_PERIOD.label} rota period (${outside.slice(0, 5).map(fmtDate).join(", ")}${outside.length > 5 ? "…" : ""}). Nothing was changed — remove ${outside.length === 1 ? "it" : "them"} and try again.`, "error");
+    return;
   }
-  if (!dates.length) { showMsg(msg, "No dates matched the selected weekdays (onsite only applies to Sat, Sun and bank holidays).", "error"); return; }
-
+  const p = profileById(person);
+  if (!await uiConfirm(`Put ${p ? p.full_name : "this pharmacist"} on ${parsed.dates.length} date${parsed.dates.length === 1 ? "" : "s"} at ${SITE_LABEL[SELECTED_SITE]}? Anyone already on those slots will be replaced.`)) return;
   btn.disabled = true; btn.textContent = "Filling…";
   try {
     const { error } = await sb.rpc("bulk_set_oncall_assignments", {
-      p_site: SELECTED_SITE, p_duty_type: dutyType, p_user_id: person,
-      p_dates: dates, p_note: note, p_highlight_color: color,
+      p_site: SELECTED_SITE, p_duty_type: "on_call", p_user_id: person,
+      p_dates: parsed.dates, p_note: note, p_highlight_color: null,
     });
     if (error) throw error;
-    const auto = dutyType === "on_call" ? dates.filter(isOnsiteDay).length : 0;
-    showMsg(msg, `Filled ${dates.length} date(s)` + (auto ? `; the onsite slot was also filled on ${auto} weekend/bank-holiday date${auto === 1 ? "" : "s"}.` : "."), "ok");
+    const auto = parsed.dates.filter(isOnsiteDay).length;
+    showMsg(msg, `Filled ${parsed.dates.length} date${parsed.dates.length === 1 ? "" : "s"} for ${p ? p.full_name : "the pharmacist"}` +
+      (auto ? `; the onsite slot was also filled on ${auto} weekend/bank-holiday date${auto === 1 ? "" : "s"}.` : "."), "ok");
+    document.getElementById("buildDates").value = "";
+    document.getElementById("buildDates").dispatchEvent(new Event("input"));
+    AUDIT_LOADED = false;
     await loadAssignments();
     renderRota();
   } catch (err) {
@@ -1106,6 +1180,34 @@ document.getElementById("buildForm").addEventListener("submit", async (e) => {
     btn.disabled = false; btn.textContent = "Fill dates";
   }
 });
+
+/* ---- complete rota ---- */
+function updateCompleteUi() {
+  const btn = document.getElementById("completeBtn"), hint = document.getElementById("completeHint");
+  if (!btn || !hint) return;
+  if (!SELECTED_PERIOD) { btn.style.display = "none"; hint.textContent = "Choose or create a rota period first."; return; }
+  if (SELECTED_PERIOD.completed_at) {
+    btn.style.display = "none";
+    hint.textContent = `This rota was marked complete on ${fmtDate(String(SELECTED_PERIOD.completed_at).slice(0, 10))}. Any change to it from now on is recorded in the Audit Trail.`;
+  } else {
+    btn.style.display = "";
+    hint.textContent = "While the rota is a draft, changes are not individually logged. When you have finished building it, press Complete rota — after that, every edit is listed in the Audit Trail.";
+  }
+}
+async function completeRota() {
+  if (!SELECTED_PERIOD || SELECTED_PERIOD.completed_at) return;
+  if (!await uiConfirm(`Mark the ${SELECTED_PERIOD.label} rota as complete? You can still edit it afterwards, but every change will be listed in the Audit Trail.`)) return;
+  const msg = document.getElementById("buildMsg");
+  try {
+    const { error } = await sb.rpc("complete_oncall_rota_period", { p_period_id: SELECTED_PERIOD.id });
+    if (error) throw error;
+    AUDIT_LOADED = false;
+    await loadPeriods();
+    await loadAssignments();
+    renderRota();
+    showMsg(msg, "Rota marked as complete. Further edits will appear in the Audit Trail.", "ok");
+  } catch (err) { showMsg(msg, err.message || "Could not complete the rota.", "error"); }
+}
 
 /* ---------------- my on-call dates ---------------- */
 async function loadMyDates() {
