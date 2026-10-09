@@ -451,7 +451,10 @@ function sameDate(d) { const t = new Date(); return ymd(d) === ymd(t); }
 
 /* ---------------- data loading ---------------- */
 async function loadProfiles() {
-  const { data } = await sb.from("profiles").select("id, full_name, initials, role, active, oncall_worthing, oncall_st_richards, oncall_color");
+  // Names-only RPC so every signed-in user (not just Lead Pharmacist+) can
+  // see who is on call; the profiles table itself is own-row only.
+  const { data, error } = await sb.rpc("get_oncall_people");
+  if (error) console.error("get_oncall_people", error);
   PROFILES = data || [];
 }
 function poolFor(site) {
