@@ -119,8 +119,10 @@
         <span class="spacer"></span>
         <label style="margin:0;">Show</label>
         <select id="personFilter" style="width:210px;" onchange="onPersonFilter()"></select>
+        <button class="secondary" id="swapModeBtn" style="display:none;" onclick="toggleSwapMode()" title="Tap shifts to select them, without needing Ctrl/Cmd">Select shifts to swap</button>
         <button class="secondary" onclick="window.print()">Print</button>
       </div>
+      <p class="small" id="swapHint" style="display:none;margin:8px 0 0;"><strong>Swapping a shift?</strong> Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on a Mac) and click one or more of <em>your own</em> shifts, then click one or more shifts belonging to <em>one</em> colleague, then press <strong>Request swap</strong>. You must include at least one of your own shifts. On a phone or tablet use <strong>Select shifts to swap</strong> instead.</p>
       <h1 id="rotaTitle" style="margin:10px 0 2px;"></h1>
       <p class="small" id="rotaSubtitle" style="margin:0 0 6px;"></p>
       <div id="rotaLegend"></div>
@@ -281,6 +283,7 @@
   <select id="selPerson" aria-label="Person"></select>
   <input type="text" id="selNote" placeholder="Reason (optional), e.g. sickness" maxlength="200">
   <button class="primary" id="selApplyBtn" onclick="applySelection()">Assign</button>
+  <button class="primary" id="selSwapBtn" style="display:none;" onclick="requestSwapFromSelection()">Request swap</button>
   <button class="secondary" onclick="clearSelection()">Cancel</button>
 </div>
 
@@ -378,6 +381,8 @@ const DEFAULT_ONCALL_COLORS = ["#a5d8ff","#b2f2bb","#ffec99","#ffc9c9","#d0bfff"
   if (isOncallPoolMember(PROFILE)) {
     document.getElementById("tabBtn-mydates").style.display = "";
     document.getElementById("tabBtn-swaps").style.display = "";
+    document.getElementById("swapModeBtn").style.display = "";
+    document.getElementById("swapHint").style.display = "";
   }
   if (isLeadPlus(PROFILE)) {
     document.getElementById("tabBtn-approvals").style.display = "";
@@ -822,6 +827,8 @@ function shiftStyle(row, fallback) {
 
 function renderChip(day, dutyType, row, requiresOnsite) {
   const editable = isLeadPlus(PROFILE) && !FILTER_USER;   // viewing one person: read-only
+  // On-call pharmacists (who are not Lead+) can select filled shifts to request a swap.
+  const swappable = !editable && !FILTER_USER && isOncallPoolMember(PROFILE);
   if (FILTER_USER && (!row || row.user_id !== FILTER_USER)) return "";
   const key = `${ymd(day)}|${dutyType}`;
   const selCls = SELECTED.has(key) ? " sel" : "";
@@ -835,9 +842,10 @@ function renderChip(day, dutyType, row, requiresOnsite) {
   }
   const p = profileById(row.user_id);
   const label = p ? p.initials : "?";
-  const title = row.note ? `${p ? p.full_name : "Unknown"} \u2014 ${row.note}` : (p ? p.full_name : "Unknown");
-  const cls = "person-chip" + (editable ? " clickable" : "") + selCls;
-  const onclick = editable ? ` onclick="cellClick(event,'${ymd(day)}','${dutyType}')"` : "";
+  let title = row.note ? `${p ? p.full_name : "Unknown"} \u2014 ${row.note}` : (p ? p.full_name : "Unknown");
+  if (swappable) title += " \u2014 Ctrl/Cmd-click to select for a swap";
+  const cls = "person-chip" + ((editable || swappable) ? " clickable" : "") + selCls;
+  const onclick = (editable || swappable) ? ` onclick="cellClick(event,'${ymd(day)}','${dutyType}')"` : "";
   const star = row.replaced_user_id
     ? `<span class="swap-star" role="button" tabindex="0" title="Manually swapped \u2014 click for details" onclick="showSwapDetail(event,'${ymd(day)}','${dutyType}')" onkeydown="if(event.key==='Enter')showSwapDetail(event,'${ymd(day)}','${dutyType}')">*</span>`
     : "";
@@ -878,8 +886,16 @@ function showSwapDetail(e, dateStr, dutyType) {
 
 /* ---------------- Ctrl/Cmd multi-select ---------------- */
 const SELECTED = new Set();   // "YYYY-MM-DD|duty_type"
+let SWAP_MODE = false;   // tap-to-select (phones/tablets have no Ctrl key)
+function toggleSwapMode() {
+  SWAP_MODE = !SWAP_MODE;
+  const b = document.getElementById("swapModeBtn");
+  b.textContent = SWAP_MODE ? "Stop selecting" : "Select shifts to swap";
+  b.className = SWAP_MODE ? "primary" : "secondary";
+  if (!SWAP_MODE) clearSelection();
+}
 function cellClick(e, dateStr, dutyType) {
-  if (e.ctrlKey || e.metaKey) {
+  if (e.ctrlKey || e.metaKey || SWAP_MODE) {
     e.preventDefault();
     const key = `${dateStr}|${dutyType}`;
     if (SELECTED.has(key)) SELECTED.delete(key); else SELECTED.add(key);
@@ -887,6 +903,7 @@ function cellClick(e, dateStr, dutyType) {
     updateSelBar();
     return;
   }
+  if (!isLeadPlus(PROFILE)) return;   // on-call pharmacists only select (Ctrl/Cmd or swap mode)
   if (SELECTED.size) clearSelection();
   openCellModal(dateStr, dutyType);
 }
@@ -898,7 +915,14 @@ function isOnsiteDay(dateStr) {
 function updateSelBar() {
   const bar = document.getElementById("selBar");
   document.getElementById("selCount").textContent = `${SELECTED.size} shift${SELECTED.size === 1 ? "" : "s"} selected`;
-  if (SELECTED.size) {
+  const lead = isLeadPlus(PROFILE);
+  document.getElementById("selPerson").style.display = lead ? "" : "none";
+  document.getElementById("selApplyBtn").style.display = lead ? "" : "none";
+  document.getElementById("selSwapBtn").style.display = isOncallPoolMember(PROFILE) ? "" : "none";
+  document.getElementById("selNote").placeholder = lead
+    ? "Reason / message (optional), e.g. sickness"
+    : "Message to your colleague (optional)";
+  if (SELECTED.size && lead) {
     const sel = document.getElementById("selPerson");
     if (!sel.options.length || sel.dataset.site !== SELECTED_SITE) {
       sel.innerHTML = poolFor(SELECTED_SITE).map(p => `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})</option>`).join("");
@@ -913,6 +937,55 @@ function clearSelection() {
   updateSelBar();
 }
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && SELECTED.size) clearSelection(); });
+
+// Request a swap straight from the rota: select your own shift(s) AND one
+// colleague's shift(s), then press Request swap. At least one of the
+// shifts must be your own — you can't broker a swap between two others.
+async function requestSwapFromSelection() {
+  const today = ymd(new Date());
+  const rows = []; let empty = 0;
+  SELECTED.forEach(k => {
+    const [d, duty] = k.split("|");
+    const r = ASSIGNMENTS.find(a => a.shift_date === d && a.duty_type === duty);
+    if (r) rows.push(r); else empty++;
+  });
+  if (empty) { uiAlert("Some of the selected cells are empty. Only shifts that someone is rostered on can be swapped.", "Can't request swap"); return; }
+  if (rows.some(r => r.shift_date < today)) { uiAlert("Shifts in the past can't be swapped. Deselect them and try again.", "Can't request swap"); return; }
+  const mine = rows.filter(r => r.user_id === PROFILE.id);
+  const theirs = rows.filter(r => r.user_id !== PROFILE.id);
+  if (!mine.length) { uiAlert("Select at least one of your own shifts to give away. A swap has to include your own dates.", "Can't request swap"); return; }
+  if (!theirs.length) { uiAlert("Now also select the shift(s) you would like to take from a colleague.", "Can't request swap"); return; }
+  const owners = new Set(theirs.map(r => r.user_id));
+  if (owners.size > 1) { uiAlert("The shifts you want to take must all belong to the same colleague. Request a separate swap for each person.", "Can't request swap"); return; }
+  const other = profileById(theirs[0].user_id);
+  if (!other || !other.active) { uiAlert("That colleague is no longer active.", "Can't request swap"); return; }
+  const list = rs => rs.slice().sort((a, b) => a.shift_date.localeCompare(b.shift_date))
+    .map(r => `${fmtDate(r.shift_date)} (${DUTY_LABEL[r.duty_type] || r.duty_type})`).join(", ");
+  if (!await uiConfirm(`Ask ${other.full_name} to swap?\n\nYou give: ${list(mine)}\nYou take: ${list(theirs)}`)) return;
+  const btn = document.getElementById("selSwapBtn");
+  btn.disabled = true; btn.textContent = "Sending…";
+  try {
+    const { error } = await sb.rpc("request_oncall_swap", {
+      p_counterparty_id: other.id,
+      p_give_assignment_ids: mine.map(r => r.id),
+      p_take_assignment_ids: theirs.map(r => r.id),
+      p_note: document.getElementById("selNote").value.trim() || null,
+    });
+    if (error) throw error;
+    document.getElementById("selNote").value = "";
+    SWAP_MODE = false;
+    const b = document.getElementById("swapModeBtn"); b.textContent = "Select shifts to swap"; b.className = "secondary";
+    clearSelection();
+    AUDIT_LOADED = false;
+    await loadMySwaps();
+    await refreshSwapPickLists();
+    uiAlert(`Swap request sent to ${other.full_name}. You can track it in the Swaps tab.`, "Swap requested");
+  } catch (err) {
+    uiAlert(err.message || "Could not send the swap request.", "Error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Request swap";
+  }
+}
 
 async function applySelection() {
   const person = document.getElementById("selPerson").value;
@@ -1285,7 +1358,8 @@ document.getElementById("swapReqForm").addEventListener("submit", async (e) => {
   const giveIds = Array.from(document.querySelectorAll(".give-pick:checked")).map(el => el.value);
   const takeIds = Array.from(document.querySelectorAll(".take-pick:checked")).map(el => el.value);
   if (!counterpartyId) { showMsg(msg, "Pick who you're swapping with.", "error"); return; }
-  if (!giveIds.length && !takeIds.length) { showMsg(msg, "Pick at least one shift to offer or request.", "error"); return; }
+  if (!giveIds.length) { showMsg(msg, "Pick at least one of your own shifts to offer.", "error"); return; }
+  if (!takeIds.length) { showMsg(msg, "Pick at least one of their shifts to take.", "error"); return; }
 
   btn.disabled = true; btn.textContent = "Sending…";
   try {
