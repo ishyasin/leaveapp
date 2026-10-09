@@ -55,6 +55,9 @@
   .person-chip.mine{background:rgba(255,255,255,.55);border-radius:6px;box-shadow:0 0 0 1px rgba(0,0,0,.35);}
   @media print{.oncall-weekgrid{grid-template-columns:repeat(6,1fr);gap:6px;}.week-block{width:auto;}}
   .swap-star{color:#b91c1c;font-weight:800;cursor:pointer;margin-left:1px;padding:0 3px;font-size:13px;line-height:1;}
+  .person-chip.swap-pending{outline:2px dashed #b45309;outline-offset:1px;border-radius:6px;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 4px,transparent 4px 8px);}
+  .swap-flag{display:inline-block;margin-left:2px;padding:0 3px;border-radius:8px;background:#b45309;color:#fff;font-size:10.5px;font-weight:700;line-height:15px;vertical-align:middle;cursor:help;white-space:nowrap;}
+  .swap-flag.review{background:#6d28d9;}
   .person-chip.sel{outline:2px solid #1d4ed8;background:rgba(29,78,216,.22);border-radius:6px;}
   .selbar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:50;background:var(--surface);border:2px solid #1d4ed8;border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.28);padding:10px 14px;display:none;gap:10px;align-items:center;flex-wrap:wrap;max-width:94vw;}
   .selbar select,.selbar input{width:auto;min-width:150px;margin:0;}
@@ -510,7 +513,17 @@ function computeRange() {
   updateCompleteUi();
 }
 
+let PENDING_SWAPS = {};   // assignment_id -> { request_id, status, requested_by, counterparty_id }
+async function loadPendingSwaps() {
+  const { data, error } = await sb.rpc("get_oncall_pending_swaps");
+  if (error) { console.error("get_oncall_pending_swaps", error); }
+  PENDING_SWAPS = {};
+  (data || []).forEach(r => { PENDING_SWAPS[r.assignment_id] = r; });
+}
+async function refreshRota() { await loadAssignments(); renderRota(); }
+
 async function loadAssignments() {
+  await loadPendingSwaps();
   const msg = document.getElementById("rotaMsg");
   if (!SELECTED_PERIOD) { ASSIGNMENTS = []; populateFilter(); return; }
   const start = ymd(RANGE_START);
@@ -738,6 +751,7 @@ function renderLegend() {
     <span class="legend-sw"><i style="background:#f8d4e1"></i>Wed &ndash; Sat (day)</span>
     <span class="legend-sw"><i style="background:${DEFAULT_BH_COLOR}"></i>Bank holiday (colour set per day)</span>
   </div>`;
+  html += `<div class="small" style="margin:4px 0;"><span class="swap-flag">\u21C4</span> + dashed outline = a swap has been requested for that shift and is awaiting a reply &nbsp; <span class="swap-flag review">\u21C4</span> (purple) = agreed, awaiting Lead Pharmacist approval &nbsp; Hover over the symbol for details.</div>`;
   if (pool.length) html += `<div class="small" style="margin:4px 0;"><strong>Key:</strong> ${pool.map(p => `<span class="legend-sw" style="margin-right:10px;"><i style="background:${escapeHtml(colorFor(p))}"></i>${escapeHtml(p.initials)} = ${escapeHtml(p.full_name)}</span>`).join("")}</div>`;
   if (!pool.length) html += `<p class="small">Nobody is in this site's on-call pool yet — set it up from Admin &rarr; Users &rarr; Edit on-call.</p>`;
   wrap.innerHTML = html;
@@ -853,7 +867,18 @@ function renderChip(day, dutyType, row, requiresOnsite) {
     ? `<span class="note-dot" role="button" tabindex="0" title="${escapeHtml(row.note)}" onclick="showNoteDetail(event,'${ymd(day)}','${dutyType}')">&bull;</span>` : "";
   const mine = FILTER_USER ? " mine" : "";
   const tc = textOn(colorFor(p));
-  return `<span class="${cls}${mine}" style="color:${tc};" data-key="${key}" title="${escapeHtml(title)}"${onclick}>${escapeHtml(label)}</span>${star}${noteDot}`;
+  const ps = PENDING_SWAPS[row.id];
+  let pend = "", pendCls = "";
+  if (ps) {
+    const a = profileById(ps.requested_by), b = profileById(ps.counterparty_id);
+    const pair = `${a ? a.initials : "?"} \u21C4 ${b ? b.initials : "?"}`;
+    const review = ps.status === "awaiting_approval";
+    const tip = `Swap requested (${pair}) \u2014 ${review ? "agreed, awaiting Lead Pharmacist approval" : "awaiting " + (b ? b.full_name : "the other pharmacist") + "'s reply"}. This date can't be offered in another swap until it is cancelled or declined.`;
+    pendCls = " swap-pending";
+    title += " \u2014 SWAP REQUESTED (" + pair + ")";
+    pend = `<span class="swap-flag${review ? " review" : ""}" title="${escapeHtml(tip)}">\u21C4</span>`;
+  }
+  return `<span class="${cls}${mine}${pendCls}" style="color:${tc};" data-key="${key}" title="${escapeHtml(title)}"${onclick}>${escapeHtml(label)}</span>${pend}${star}${noteDot}`;
 }
 
 /* ---------------- manual-swap detail ("*") ---------------- */
@@ -951,6 +976,11 @@ async function requestSwapFromSelection() {
   });
   if (empty) { uiAlert("Some of the selected cells are empty. Only shifts that someone is rostered on can be swapped.", "Can't request swap"); return; }
   if (rows.some(r => r.shift_date < today)) { uiAlert("Shifts in the past can't be swapped. Deselect them and try again.", "Can't request swap"); return; }
+  const busy = rows.filter(r => PENDING_SWAPS[r.id]);
+  if (busy.length) {
+    uiAlert(`${busy.map(r => fmtDate(r.shift_date)).join(", ")} already ha${busy.length === 1 ? "s" : "ve"} a swap request in progress. A date can only be in one swap at a time: cancel that request, or wait for it to be declined, before offering it again.`, "Can't request swap");
+    return;
+  }
   const mine = rows.filter(r => r.user_id === PROFILE.id);
   const theirs = rows.filter(r => r.user_id !== PROFILE.id);
   if (!mine.length) { uiAlert("Select at least one of your own shifts to give away. A swap has to include your own dates.", "Can't request swap"); return; }
@@ -979,6 +1009,7 @@ async function requestSwapFromSelection() {
     AUDIT_LOADED = false;
     await loadMySwaps();
     await refreshSwapPickLists();
+    await refreshRota();
     uiAlert(`Swap request sent to ${other.full_name}. You can track it in the Swaps tab.`, "Swap requested");
   } catch (err) {
     uiAlert(err.message || "Could not send the swap request.", "Error");
@@ -1334,8 +1365,8 @@ async function refreshSwapPickLists() {
   const { data: mine } = await sb.from("oncall_assignments").select("*")
     .eq("user_id", PROFILE.id).gte("shift_date", today).order("shift_date");
   document.getElementById("swapGiveList").innerHTML = (mine || []).map(a => `
-    <label><input type="checkbox" class="give-pick" value="${a.id}">
-      ${fmtDate(a.shift_date)} &mdash; ${escapeHtml(SITE_LABEL[a.site] || a.site)} &mdash; ${escapeHtml(DUTY_LABEL[a.duty_type] || a.duty_type)}
+    <label${PENDING_SWAPS[a.id] ? ' style="opacity:.55" title="A swap request is already in progress for this date"' : ""}><input type="checkbox" class="give-pick" value="${a.id}"${PENDING_SWAPS[a.id] ? " disabled" : ""}>
+      ${fmtDate(a.shift_date)} &mdash; ${escapeHtml(SITE_LABEL[a.site] || a.site)} &mdash; ${escapeHtml(DUTY_LABEL[a.duty_type] || a.duty_type)}${PENDING_SWAPS[a.id] ? " <em>(swap in progress)</em>" : ""}
     </label>`).join("") || `<p class="small">You have no upcoming shifts to offer.</p>`;
 
   if (!counterpartyId) {
@@ -1345,8 +1376,8 @@ async function refreshSwapPickLists() {
   const { data: theirs } = await sb.from("oncall_assignments").select("*")
     .eq("user_id", counterpartyId).gte("shift_date", today).order("shift_date");
   document.getElementById("swapTakeList").innerHTML = (theirs || []).map(a => `
-    <label><input type="checkbox" class="take-pick" value="${a.id}">
-      ${fmtDate(a.shift_date)} &mdash; ${escapeHtml(SITE_LABEL[a.site] || a.site)} &mdash; ${escapeHtml(DUTY_LABEL[a.duty_type] || a.duty_type)}
+    <label${PENDING_SWAPS[a.id] ? ' style="opacity:.55" title="A swap request is already in progress for this date"' : ""}><input type="checkbox" class="take-pick" value="${a.id}"${PENDING_SWAPS[a.id] ? " disabled" : ""}>
+      ${fmtDate(a.shift_date)} &mdash; ${escapeHtml(SITE_LABEL[a.site] || a.site)} &mdash; ${escapeHtml(DUTY_LABEL[a.duty_type] || a.duty_type)}${PENDING_SWAPS[a.id] ? " <em>(swap in progress)</em>" : ""}
     </label>`).join("") || `<p class="small">They have no upcoming shifts.</p>`;
 }
 
@@ -1372,6 +1403,7 @@ document.getElementById("swapReqForm").addEventListener("submit", async (e) => {
     if (error) throw error;
     showMsg(msg, "Swap request sent.", "ok");
     document.getElementById("swapReqForm").reset();
+    await refreshRota();
     await refreshSwapPickLists();
     await loadMySwaps();
   } catch (err) {
@@ -1475,6 +1507,8 @@ async function cancelSwap(requestId) {
     const { error } = await sb.rpc("cancel_oncall_swap", { p_request_id: requestId });
     if (error) throw error;
     await loadMySwaps();
+    await refreshRota();
+    await refreshSwapPickLists();
   } catch (err) { showMsg(document.getElementById("mySwapsMsg"), err.message, "error"); }
 }
 
