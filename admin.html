@@ -119,7 +119,23 @@
     </div>
     <div class="card">
       <h2>Existing users</h2>
-      <input type="text" id="usersSearch" placeholder="Search by name, initials, or User ID…" style="margin-bottom:12px;">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+        <input type="search" id="usersSearch" placeholder="Search by name, initials or User ID…" aria-label="Search users by name" style="flex:1 1 260px;min-width:200px;margin:0;">
+        <select id="usersSiteFilter" aria-label="Filter by site" style="width:auto;margin:0;">
+          <option value="">All sites</option>
+          <option value="worthing">Worthing only</option>
+          <option value="st_richards">St Richard's only</option>
+          <option value="cross">Cross site</option>
+        </select>
+        <select id="usersRoleFilter" aria-label="Filter by role" style="width:auto;margin:0;">
+          <option value="">All roles</option>
+          <option value="pharmacist">Pharmacist</option>
+          <option value="lead_pharmacist">Lead Pharmacist</option>
+          <option value="superuser">Team Leader (Clinical Team Lead)</option>
+        </select>
+        <button type="button" class="secondary" id="usersFilterClear" style="display:none;">Clear filters</button>
+      </div>
+      <p class="small" id="usersCount" style="margin:0 0 10px;"></p>
       <div id="usersMsg"></div>
       <table>
         <thead><tr><th>Name</th><th>Initials</th><th>User ID</th><th>Role</th><th>Site</th><th>Status</th><th></th></tr></thead>
@@ -820,7 +836,16 @@ async function loadUsers() {
   if (isDeveloper(PROFILE) && document.getElementById("bulkThemeUserList")) renderBulkThemeUserList();
 }
 
-document.getElementById("usersSearch").addEventListener("input", () => renderUsersTable());
+["usersSearch","usersSiteFilter","usersRoleFilter"].forEach(id => {
+  const ev = id === "usersSearch" ? "input" : "change";
+  document.getElementById(id).addEventListener(ev, () => renderUsersTable());
+});
+document.getElementById("usersFilterClear").addEventListener("click", () => {
+  document.getElementById("usersSearch").value = "";
+  document.getElementById("usersSiteFilter").value = "";
+  document.getElementById("usersRoleFilter").value = "";
+  renderUsersTable();
+});
 
 function renderUsersTable() {
   const tbody = document.getElementById("usersRows");
@@ -839,6 +864,18 @@ function renderUsersTable() {
       p.user_id.toLowerCase().includes(q)
     );
   }
+  const siteF = document.getElementById("usersSiteFilter").value;
+  const roleF = document.getElementById("usersRoleFilter").value;
+  const total = visible.length;
+  if (siteF === "cross") visible = visible.filter(p => p.cross_site);
+  else if (siteF) visible = visible.filter(p => !p.cross_site && p.primary_site === siteF);
+  if (roleF) visible = visible.filter(p => p.role === roleF);
+  const filtered = !!(q || siteF || roleF);
+  document.getElementById("usersFilterClear").style.display = filtered ? "" : "none";
+  document.getElementById("usersCount").textContent = filtered
+    ? `Showing ${visible.length} of ${total} user${total === 1 ? "" : "s"}`
+    : `${total} user${total === 1 ? "" : "s"}`;
+  empty.textContent = "No users match those filters.";
   empty.style.display = visible.length === 0 ? "" : "none";
 
   visible.forEach(p => {
