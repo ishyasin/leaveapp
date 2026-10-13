@@ -69,7 +69,7 @@
   .portal-tile:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.12);}
   .portal-tile:focus-visible{outline:3px solid var(--teal-light);outline-offset:2px;}
   .portal-tile svg{width:34px;height:34px;color:var(--navy);}
-  :root[data-color-mode="dark"] .portal-tile svg,:root[data-color-mode="inverted"] .portal-tile svg,:root[data-theme="halloween"]:not([data-color-mode="inverted"]) .portal-tile svg,:root[data-theme="christmas"]:not([data-color-mode="inverted"]) .portal-tile svg,:root[data-theme="antimicrobial"]:not([data-color-mode="inverted"]) .portal-tile svg{color:var(--heading-color);}
+  :root[data-color-mode="dark"] .portal-tile svg,:root[data-color-mode="inverted"] .portal-tile svg,:root[data-theme="halloween"]:not([data-color-mode="inverted"]) .portal-tile svg,:root[data-theme="christmas"]:not([data-color-mode="inverted"]) .portal-tile svg,:root[data-theme="antimicrobial"]:not([data-color-mode="inverted"]) .portal-tile svg,:root[data-theme="fairytale"]:not([data-color-mode="inverted"]) .portal-tile svg{color:var(--heading-color);}
   .portal-tile h2{margin:0;font-size:18px;color:var(--heading-color);}
   .portal-tile p{margin:0;font-size:13px;color:var(--text-muted);line-height:1.45;}
   .hb-wrap{display:flex;flex-direction:column;gap:10px;margin:6px 0 16px;}
@@ -154,7 +154,7 @@
 <div class="overlay" id="bannerOverlay" style="display:none;">
   <div class="modal modal-wide" style="max-height:92vh;overflow-y:auto;">
     <h3>Home-screen banners</h3>
-    <p class="small">A live banner is shown at the top of the home page to <strong>everyone at Worthing and St Richard's</strong>. Use dates to schedule it or let it expire by itself, or untick “Show” to hide it without deleting.</p>
+    <p class="small">Only a Clinical Team Lead or Developer can post banners. A live banner is shown at the top of the home page to <strong>everyone at Worthing and St Richard's</strong>. Use dates to schedule it or let it expire by itself, or untick “Show” to hide it without deleting.</p>
     <div id="bnMsg"></div>
     <div id="bnList"></div>
     <h4 id="bnFormTitle" style="margin:16px 0 6px;">New banner</h4>
@@ -185,7 +185,7 @@
   if (!profile) return;
   document.getElementById("welcome").textContent = `Welcome, ${profile.full_name}`;
   PROFILE_ = profile;
-  if (isLeadPlus(profile)) {
+  if (isSuperuserPlus(profile)) {          // Clinical Team Lead / Developer only
     document.getElementById("bannerManage").style.display = "";
     wireBannerManager();
   }
@@ -193,7 +193,7 @@
 })();
 
 /* ---------------- home-screen banners ---------------- */
-let PROFILE_ = null, BANNERS = [], BN_EDIT = null;
+let PROFILE_ = null, BANNERS = [], BN_EDIT = null, BN_NAMES = {};
 function todayUK() { return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" }); }
 function bannerState(b) {
   const t = todayUK();
@@ -235,7 +235,20 @@ function updateBannerPreview() {
   document.getElementById("bnPreview").innerHTML = t.trim()
     ? `<div class="small" style="margin-bottom:4px;">Preview</div>` + bannerHtml({ message: t, severity: document.getElementById("bnSeverity").value }) : "";
 }
-function openBannerManager() { renderBannerList(); resetBannerForm(); document.getElementById("bannerOverlay").style.display = "flex"; }
+async function openBannerManager() {
+  // Clinical Team Lead / Developer can read every profile, so who posted each banner can be named.
+  const { data } = await sb.from("profiles").select("id, full_name, initials");
+  BN_NAMES = {};
+  (data || []).forEach(p => { BN_NAMES[p.id] = `${p.full_name} (${p.initials})`; });
+  renderBannerList(); resetBannerForm();
+  document.getElementById("bannerOverlay").style.display = "flex";
+}
+function bnWho(id) { return id ? (BN_NAMES[id] || "a removed account") : "an unknown user"; }
+function bnPostedLine(b) {
+  const edited = b.updated_at && b.updated_at !== b.created_at && (b.updated_by !== b.created_by || Math.abs(new Date(b.updated_at) - new Date(b.created_at)) > 1000);
+  return `Posted by <strong>${escapeHtml(bnWho(b.created_by))}</strong> on ${escapeHtml(fmtDateTime(b.created_at))}`
+    + (edited ? ` &middot; last edited by <strong>${escapeHtml(bnWho(b.updated_by))}</strong> on ${escapeHtml(fmtDateTime(b.updated_at))}` : "");
+}
 function closeBannerManager() { document.getElementById("bannerOverlay").style.display = "none"; }
 function renderBannerList() {
   const el = document.getElementById("bnList");
@@ -243,7 +256,7 @@ function renderBannerList() {
     const st = bannerState(b);
     const dates = (b.starts_on || b.ends_on) ? ` &middot; ${b.starts_on ? "from " + fmtDate(b.starts_on) : ""}${b.starts_on && b.ends_on ? " " : ""}${b.ends_on ? "until " + fmtDate(b.ends_on) : ""}` : "";
     return `<div class="bn-row" data-id="${b.id}">
-      <div class="msg"><span class="bn-pill ${st === "Live" ? "live" : ""}">${st}</span>${escapeHtml(b.message)}<div class="small">${escapeHtml(b.severity)}${dates}</div></div>
+      <div class="msg"><span class="bn-pill ${st === "Live" ? "live" : ""}">${st}</span>${escapeHtml(b.message)}<div class="small">${escapeHtml(b.severity)}${dates}</div><div class="small">${bnPostedLine(b)}</div></div>
       <div style="display:flex;gap:6px;"><button type="button" class="secondary" data-bn="toggle">${b.active ? "Hide" : "Show"}</button>
         <button type="button" class="secondary" data-bn="edit">Edit</button><button type="button" class="danger" data-bn="delete">Delete</button></div>
     </div>`;
@@ -274,7 +287,7 @@ async function onBannerListClick(e) {
       document.getElementById("bnStart").value = b.starts_on || "";
       document.getElementById("bnEnd").value = b.ends_on || "";
       document.getElementById("bnActive").checked = b.active;
-      document.getElementById("bnFormTitle").textContent = "Edit banner";
+      document.getElementById("bnFormTitle").innerHTML = `Edit banner <span class="small" style="font-weight:400;">&mdash; ${bnPostedLine(b)}</span>`;
       document.getElementById("bnSave").textContent = "Save changes";
       document.getElementById("bnCancelEdit").style.display = "";
       updateBannerPreview();

@@ -263,7 +263,7 @@
     </div>
     <div class="card">
       <h2>Swap confirmation mode</h2>
-      <p class="small">Once both people in a swap have agreed, this controls what happens next. <strong>Automatic</strong> applies the swap immediately. <strong>Requires approval</strong> queues it for a Lead Pharmacist, Clinical Team Lead, or Developer to approve or reject on the On-Call page first. Developer only to change.</p>
+      <p class="small">Once both people in a swap have agreed, this controls what happens next. <strong>Automatic</strong> applies the swap immediately. <strong>Requires approval</strong> queues it for a Lead Pharmacist, Clinical Team Lead, or Developer to approve or reject on the On-Call page first. Clinical Team Lead or Developer can change this.</p>
       <div id="oncallSettingsMsg"></div>
       <div id="oncallSettingsRows"></div>
     </div>
@@ -412,11 +412,11 @@
     </div>
   </div>
 
-  <!-- APPEARANCE (Developer only) -->
+  <!-- APPEARANCE (Clinical Team Lead + Developer) -->
   <div id="tab-appearance" style="display:none;">
     <div class="card">
       <h2>Apply a theme</h2>
-      <p class="small">Developer only. Sets the colour theme shown throughout the app — including the seasonal ones (Halloween/Christmas/Easter) — for one or more accounts at once. This is the same Developer-controlled palette as Admin → Users → Edit theme, just applied in bulk; it's separate from each person's own Light/Dark/Inverted display mode (their own choice, from the topbar).</p>
+      <p class="small">Clinical Team Lead and Developer. Sets the colour theme shown throughout the app — including the seasonal and fun ones — for one or more accounts at once. This is the same palette as Admin → Users → Edit theme (Developer), just applied to everyone or a chosen group; it's separate from each person's own Light/Dark/Inverted display mode (their own choice, from the topbar).</p>
       <div id="bulkThemeMsg"></div>
       <form id="bulkThemeForm">
         <label>Theme</label>
@@ -599,9 +599,10 @@ let PROFILES = [];
   if (isDeveloper(PROFILE)) {
     document.getElementById("tabBtn-import").style.display = "";
     document.getElementById("tabBtn-reset").style.display = "";
-    document.getElementById("tabBtn-appearance").style.display = "";
-    setupBulkThemeTab();
   }
+  // Appearance (apply a theme to everyone / by month): Clinical Team Lead and Developer.
+  document.getElementById("tabBtn-appearance").style.display = "";
+  setupBulkThemeTab();
   setupRoleOptions();
   setupInviteRoles();
   generateTempPw();
@@ -854,7 +855,7 @@ async function loadUsers() {
   // Keeps the Appearance tab's "Selected users" checklist in sync with
   // every other place PROFILES gets reloaded (creating/hiding/deleting
   // a user, etc.), not just on first page load.
-  if (isDeveloper(PROFILE) && document.getElementById("bulkThemeUserList")) renderBulkThemeUserList();
+  if (document.getElementById("bulkThemeUserList")) renderBulkThemeUserList();
 }
 
 ["usersSearch","usersSiteFilter","usersRoleFilter"].forEach(id => {
@@ -1429,8 +1430,8 @@ document.getElementById("themeForm").addEventListener("submit", async (e) => {
   }
 });
 
-/* ---------------- Appearance: bulk theme apply (Developer only) ---------------- */
-/* ---------------- Appearance: theme by month (Developer only) ---------------- */
+/* ---------------- Appearance: bulk theme apply (Clinical Team Lead / Developer) ---------------- */
+/* ---------------- Appearance: theme by month (Clinical Team Lead / Developer) ---------------- */
 function renderMonthThemes() {
   const wrap = document.getElementById("monthThemeRows");
   const opts = `<option value="none">No theme (use each person's own)</option>` +
@@ -1790,7 +1791,7 @@ async function loadOncallSettings() {
   wrap.innerHTML = (data || []).map(s => `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
       <label style="margin:0;min-width:140px;">${SITE_LABEL[s.site] || s.site}</label>
-      ${isDeveloper(PROFILE)
+      ${isSuperuserPlus(PROFILE)
         ? `<select id="oncallMode-${s.site}" style="width:220px;">
              <option value="auto"${s.swap_approval_mode==='auto'?' selected':''}>Automatic</option>
              <option value="lead_approval"${s.swap_approval_mode==='lead_approval'?' selected':''}>Requires approval</option>

@@ -55,9 +55,21 @@
 :root[data-theme="easter"]{
   --navy:#5b4b8a; --navy-light:#6f5da3; --teal:#3fa796; --teal-light:#6fc9ba; --honey:#f4a6c1; --honey-dark:#e58aab;
 }
+:root[data-theme="swiftie"]{
+  --navy:#4a2f86; --navy-light:#6a49a8; --teal:#d6458f; --teal-light:#ee79b3; --honey:#f5c451; --honey-dark:#d9a62a;
+}
 :root[data-theme="antimicrobial"]{
   --navy:#0c3b44; --navy-light:#12505b; --teal:#14a58f; --teal-light:#3fd0b8; --honey:#a3e635; --honey-dark:#7fb81f;
 }
+
+:root[data-theme="barbie"]{--navy:#c2185b; --navy-light:#e0306f; --teal:#ff4fa3; --teal-light:#ff86c1; --honey:#ffd1ea; --honey-dark:#ff9ac9;}
+:root[data-theme="fairytale"]{--navy:#1c2570; --navy-light:#2d3a9a; --teal:#7a5af5; --teal-light:#a48bff; --honey:#f6c945; --honey-dark:#d8a920;}
+:root[data-theme="autumn"]{--navy:#6b3a17; --navy-light:#8a4e22; --teal:#c8561c; --teal-light:#e8812f; --honey:#e8b923; --honey-dark:#c4981a;}
+:root[data-theme="winter"]{--navy:#1f4e79; --navy-light:#2f6ba3; --teal:#4a9fd8; --teal-light:#86c5ee; --honey:#c9e6f7; --honey-dark:#9fcbe6;}
+:root[data-theme="spring"]{--navy:#2f7d4f; --navy-light:#44a068; --teal:#e75c9a; --teal-light:#f58bba; --honey:#ffd23f; --honey-dark:#e0b520;}
+:root[data-theme="summer"]{--navy:#0e7fa8; --navy-light:#22a0cc; --teal:#ff8a1f; --teal-light:#ffae4d; --honey:#ffd23f; --honey-dark:#e0b520;}
+:root[data-theme="seaside"]{--navy:#0b5f8a; --navy-light:#1a7fb8; --teal:#16a5a0; --teal-light:#4cd0c9; --honey:#f2d27a; --honey-dark:#d8b658;}
+:root[data-theme="hills"]{--navy:#3d6b2e; --navy-light:#58894a; --teal:#5c8bb0; --teal-light:#8bb4d3; --honey:#e8c94a; --honey-dark:#c7a82c;}
 
 /* ---- theme decorations + animations (Halloween / Christmas / Easter).
    A banner strip under the top bar plus a click-through full-page layer;
@@ -67,11 +79,22 @@
 :root[data-theme="halloween"] .theme-banner,
 :root[data-theme="christmas"] .theme-banner,
 :root[data-theme="easter"] .theme-banner,
-:root[data-theme="antimicrobial"] .theme-banner{display:block;}
+:root[data-theme="antimicrobial"] .theme-banner,
+:root[data-theme="swiftie"] .theme-banner,
+:root[data-theme="barbie"] .theme-banner,
+:root[data-theme="fairytale"] .theme-banner,
+:root[data-theme="autumn"] .theme-banner,
+:root[data-theme="winter"] .theme-banner,
+:root[data-theme="spring"] .theme-banner,
+:root[data-theme="summer"] .theme-banner,
+:root[data-theme="seaside"] .theme-banner,
+:root[data-theme="hills"] .theme-banner{display:block;}
 :root[data-theme="halloween"] .theme-banner{background:linear-gradient(#150f1c,#2a1f33);}
 :root[data-theme="christmas"] .theme-banner{background:linear-gradient(#5a0f19,#7a1621);}
 :root[data-theme="easter"] .theme-banner{background:linear-gradient(#6f5da3,#8d7cc0);}
 :root[data-theme="antimicrobial"] .theme-banner{background:radial-gradient(120% 200% at 20% 0%,#16606b 0%,#0c3b44 60%,#082a31 100%);}
+:root[data-theme="swiftie"] .theme-banner{background:linear-gradient(100deg,#6f4fc4,#e66fae,#79bdf0,#f5c451,#b58be8,#6f4fc4);background-size:500% 100%;animation:fxEras 40s linear infinite;}
+@keyframes fxEras{from{background-position:0 0}to{background-position:100% 0}}
 .theme-banner .sprite,.theme-banner .floater,.theme-banner .chick{position:absolute;line-height:0;}
 .theme-banner .sprite{bottom:2px;}
 .theme-banner .sprite.tree{bottom:0;}
@@ -116,7 +139,7 @@
 .theme-banner .chick{bottom:2px;transform-origin:50% 100%;animation:fxPeck 1.3s ease-in-out infinite;}
 @keyframes fxPeck{0%,60%,100%{transform:translateY(0) rotate(0)}15%{transform:translateY(-9px)}30%{transform:translateY(0) rotate(14deg)}42%{transform:translateY(0) rotate(0)}48%{transform:translateY(0) rotate(14deg)}}
 @media (prefers-reduced-motion:reduce){
-  .theme-banner *,.theme-fx *{animation:none !important;}
+  .theme-banner,.theme-banner *,.theme-fx *{animation:none !important;}
   .theme-banner .runner{position:absolute;left:46%;}
   .theme-banner .germb{left:var(--still,40%);}
   .theme-fx{display:none;}
@@ -129,6 +152,73 @@
 .anim-toggle{display:none;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;}
 .anim-toggle.show{display:inline-block;}
 .anim-toggle:hover{background:rgba(255,255,255,.22);}
+
+/* swiftie: glitter, sparkles, hearts, music notes, disco ball, friendship bracelets */
+.theme-fx .sp{position:absolute;line-height:1;font-style:normal;pointer-events:none;animation:fxSparkle ease-in-out infinite;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 12px currentColor;}
+@keyframes fxSparkle{0%,100%{opacity:.1;transform:scale(.5) rotate(0)}50%{opacity:.85;transform:scale(1.15) rotate(35deg)}}
+.theme-fx .rise{position:absolute;top:0;left:0;line-height:1;font-style:normal;opacity:.55;animation:fxGermRise linear infinite;will-change:transform;text-shadow:0 0 8px rgba(255,255,255,.8);}
+.theme-banner .disco{position:absolute;top:0;line-height:0;transform-origin:50% 0;animation:fxSwing 5s ease-in-out infinite alternate;filter:drop-shadow(0 0 8px rgba(255,255,255,.8));}
+.theme-banner .disco svg{display:block;}
+.theme-banner .disco .shine{animation:fxShine 2.2s linear infinite;transform-origin:50% 50%;}
+@keyframes fxSwing{from{transform:rotate(-5deg)}to{transform:rotate(5deg)}}
+@keyframes fxShine{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.theme-banner .bracelet{position:absolute;line-height:0;animation:fxFloat 4.5s ease-in-out infinite;filter:drop-shadow(0 0 4px rgba(255,255,255,.7));}
+.theme-banner .bracelet svg{display:block;}
+.theme-banner .bsp{position:absolute;line-height:1;font-style:normal;animation:fxSparkle ease-in-out infinite;text-shadow:0 0 6px #fff,0 0 12px currentColor;}
+:root[data-anim="off"] .theme-banner{animation:none !important;}
+:root[data-anim="off"] .theme-banner .bsp{opacity:.8;}
+
+:root[data-theme="barbie"] .theme-banner{background:linear-gradient(#e5177f,#ff5fb1);}
+:root[data-theme="fairytale"] .theme-banner{background:linear-gradient(#0e1450,#2b2f8f 60%,#5a3fa8);}
+:root[data-theme="autumn"] .theme-banner{background:linear-gradient(#f2b45c,#e98a3a 70%,#c8561c);}
+:root[data-theme="winter"] .theme-banner{background:linear-gradient(#6fa8d6,#bfe0f5);}
+:root[data-theme="spring"] .theme-banner{background:linear-gradient(#a8dcf5,#e3f5d6);}
+:root[data-theme="summer"] .theme-banner{background:linear-gradient(#35b8ec,#9be0f8);}
+:root[data-theme="seaside"] .theme-banner{background:linear-gradient(#8ad4f2,#d7f1fa 70%,#f6e6b8);}
+:root[data-theme="hills"] .theme-banner{background:linear-gradient(#8cc4ea,#d6eefb);}
+:root[data-theme="fairytale"]:not([data-color-mode="inverted"]){--grey-bg:#0e1233; --surface:#171d4a; --surface-alt:#1f2759; --surface-subtle:#1a2150; --text:#eceeff; --text-muted:#a4aad6; --border:#323c82; --heading-color:#f6d97a;}
+/* ---- scene themes: shared sprite classes ---- */
+.theme-banner .bx{position:absolute;line-height:0;}
+.theme-banner .bx svg,.theme-banner .scn{display:block;}
+.theme-banner .bx svg{width:calc(var(--w,30) * 1px);height:auto;}
+.theme-banner .scn{position:absolute;left:0;bottom:0;width:100%;height:100%;}
+.theme-banner .bgrd{position:absolute;left:0;right:0;bottom:0;height:6px;}
+.theme-banner .bbob{animation:fxFloat 4s ease-in-out infinite;}
+.theme-banner .bcross{left:0;animation:fxRun linear infinite;will-change:transform;}
+.theme-banner .brise{bottom:-14px;animation:fxBRise linear infinite;opacity:.9;}
+@keyframes fxBRise{from{transform:translateY(0);opacity:.9}to{transform:translateY(-80px);opacity:0}}
+.theme-banner .bsway{transform-origin:50% 100%;animation:fxBSway 3.6s ease-in-out infinite alternate;}
+@keyframes fxBSway{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
+.theme-banner .bfall{top:-16px;animation:fxBFall linear infinite;opacity:.9;}
+@keyframes fxBFall{from{transform:translate(0,0) rotate(0)}to{transform:translate(var(--dx,0px),80px) rotate(200deg)}}
+.theme-banner .bsnow{position:absolute;top:-14px;color:#fff;font-style:normal;line-height:1;animation:fxBFall linear infinite;}
+.theme-banner .bfw{animation:fxFw ease-out infinite;transform-origin:50% 50%;}
+@keyframes fxFw{0%{transform:scale(.1);opacity:0}15%{opacity:1}60%{transform:scale(1);opacity:.9}100%{transform:scale(1.15);opacity:0}}
+.theme-banner .bsun svg .spin-sun{transform-origin:42px 42px;animation:fxShine 40s linear infinite;}
+.theme-banner .bbounce{transform-origin:50% 100%;animation:fxHop 1.8s ease-in-out infinite;}
+.theme-banner .bgraze .head{transform-box:fill-box;transform-origin:30% 50%;animation:fxGraze 3.2s ease-in-out infinite;}
+.theme-banner .bgraze{animation-delay:inherit;}
+@keyframes fxGraze{0%,100%{transform:rotate(0)}40%,60%{transform:rotate(35deg) translateY(2px)}}
+.theme-banner .sails{animation:fxShine 14s linear infinite;}
+.theme-banner .wings{transform-box:fill-box;transform-origin:50% 50%;animation:fxFlap .5s ease-in-out infinite alternate;}
+@keyframes fxFlap{from{transform:scaleY(1)}to{transform:scaleY(.45)}}
+.theme-banner .scn-wave{position:absolute;left:0;bottom:0;width:200%;height:36px;animation:fxWave 9s linear infinite;}
+.theme-banner .scn-wave.wvB{animation-duration:6s;animation-direction:reverse;bottom:-4px;}
+@keyframes fxWave{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.theme-banner .beam{position:absolute;width:90px;height:16px;margin-top:0;background:linear-gradient(90deg,rgba(255,240,150,.85),rgba(255,240,150,0));clip-path:polygon(0 35%,100% 0,100% 100%,0 65%);transform-origin:0 50%;animation:fxBeam 5s ease-in-out infinite alternate;}
+@keyframes fxBeam{from{opacity:.2}to{opacity:.95}}
+.theme-fx .bob{display:block;animation:fxFloat 3.5s ease-in-out infinite;}
+.theme-fx .xing{position:absolute;left:0;line-height:0;opacity:.8;animation:fxRun linear infinite;will-change:transform;}
+.theme-fx .xing svg{width:calc(var(--w,30) * 1px);height:auto;display:block;}
+.theme-fx .fall{position:absolute;top:-30px;line-height:1;font-style:normal;animation-name:fxFall,fxSway;animation-timing-function:linear,ease-in-out;animation-iteration-count:infinite,infinite;animation-direction:normal,alternate;}
+.theme-fx .fall svg{width:100%;height:auto;display:block;}
+.theme-fx .snowW{color:#fff;text-shadow:0 0 4px rgba(90,150,220,.9);}
+.theme-fx .rise svg{width:100%;height:auto;display:block;}
+.theme-fx .wings{transform-box:fill-box;transform-origin:50% 50%;animation:fxFlap .5s ease-in-out infinite alternate;}
+.theme-fx .shoot{position:absolute;width:90px;height:2px;background:linear-gradient(90deg,#fff,transparent);opacity:0;transform:rotate(25deg);animation:fxShoot 12s linear infinite;}
+@keyframes fxShoot{0%{opacity:0;transform:translate(0,0) rotate(25deg)}3%{opacity:1}12%{opacity:0;transform:translate(300px,140px) rotate(25deg)}100%{opacity:0}}
+:root[data-anim="off"] .theme-banner .bcross{left:var(--still,40%);}
+:root[data-anim="off"] .theme-banner .bfw{opacity:.8;transform:scale(.9);}
 
 /* antimicrobial: floating bacteria and viruses */
 .theme-fx .germ{position:absolute;top:0;left:0;line-height:0;opacity:.42;will-change:transform;animation:fxGermRise linear infinite;}

@@ -53,6 +53,15 @@ const THEMES = {
   christmas: "Christmas",
   easter:    "Easter",
   antimicrobial: "Antimicrobial",
+  swiftie:   "Swiftie (sparkles & bracelets)",
+  barbie:    "Barbie-style (pink)",
+  fairytale: "Fairytale (Disney-style)",
+  autumn:    "Autumn",
+  winter:    "Winter",
+  spring:    "Spring",
+  summer:    "Summer",
+  seaside:   "Seaside",
+  hills:     "South Downs (hills)",
 };
 const COLOR_MODES = {
   light:    "Light",
@@ -189,6 +198,19 @@ const FX_SVG = {
     <circle cx="10.5" cy="25" r="2.3" fill="#ffb199" opacity=".8"/><circle cx="29.5" cy="25" r="2.3" fill="#ffb199" opacity=".8"/>
     <g stroke="#ff9a1f" stroke-width="2" stroke-linecap="round"><line x1="15" y1="35" x2="15" y2="39"/><line x1="25" y1="35" x2="25" y2="39"/></g>
   </svg>`,
+  // ---- swiftie: generic sparkle motifs only (no likeness, lyrics, logos or album art) ----
+  disco: `<svg viewBox="0 0 44 66" width="40" height="60" aria-hidden="true">
+    <defs><radialGradient id="dbG" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#cfd6e6"/><stop offset="1" stop-color="#7d86a3"/></radialGradient></defs>
+    <line x1="22" y1="0" x2="22" y2="16" stroke="#e8e8f2" stroke-width="1.4"/>
+    <circle cx="22" cy="40" r="22" fill="url(#dbG)"/>
+    <g stroke="#8d96b3" stroke-width=".8" fill="none" opacity=".85"><ellipse cx="22" cy="40" rx="22" ry="8"/><ellipse cx="22" cy="40" rx="22" ry="15"/><ellipse cx="22" cy="40" rx="8" ry="22"/><ellipse cx="22" cy="40" rx="15" ry="22"/><line x1="0" y1="40" x2="44" y2="40"/><line x1="22" y1="18" x2="22" y2="62"/></g>
+    <g class="shine"><path d="M14,30 l2,-5 l2,5 l5,2 l-5,2 l-2,5 l-2,-5 l-5,-2z" fill="#fff"/><circle cx="31" cy="46" r="2" fill="#fff"/><circle cx="16" cy="51" r="1.4" fill="#fff"/></g>
+  </svg>`,
+  bracelet: (colors) => {
+    let b = ""; const n = colors.length;
+    for (let i = 0; i < n; i++) b += `<circle cx="${(9 + i * (102 / (n - 1))).toFixed(1)}" cy="${(11 + Math.sin(i * 1.3) * 2).toFixed(1)}" r="5.6" fill="${colors[i]}" stroke="#fff" stroke-width="1"/><circle cx="${(7.5 + i * (102 / (n - 1))).toFixed(1)}" cy="${(9 + Math.sin(i * 1.3) * 2).toFixed(1)}" r="1.5" fill="#fff" opacity=".7"/>`;
+    return `<svg viewBox="0 0 120 24" width="108" height="22" aria-hidden="true"><path d="M2,11 Q60,17 118,11" stroke="#fff" stroke-width="1.6" fill="none" opacity=".9"/>${b}</svg>`;
+  },
   // ---- antimicrobial: bacteria and viruses (stylised, friendly) ----
   bacillus: `<svg viewBox="0 0 64 28" aria-hidden="true">
     <path d="M54,12 Q60,6 63,10 M54,16 Q59,22 63,19" stroke="#b6f5d2" stroke-width="1.3" fill="none" stroke-linecap="round"/>
@@ -308,9 +330,189 @@ if (PRE_LOGIN_PAGE) {
   try { localStorage.removeItem("lm_theme"); } catch (e) {}
 }
 
+/* =====================================================================
+   Scene themes (Barbie-style, Fairytale, Autumn, Winter, Spring, Summer,
+   Seaside, South Downs hills). Every picture is generic artwork drawn
+   here as inline SVG — no characters, logos or brand imagery. Each theme
+   supplies layer() (the faint full-page animation) and banner() (the
+   strip under the top bar), both returning HTML strings.
+   ===================================================================== */
+const SCN = {
+  heart: (c) => `<svg viewBox="0 0 24 22" aria-hidden="true"><path d="M12,21 C3,14 0,9 0,6 A6,6 0 0 1 12,4 A6,6 0 0 1 24,6 C24,9 21,14 12,21Z" fill="${c}"/></svg>`,
+  sparkle: (c) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,0 C13,8 16,11 24,12 C16,13 13,16 12,24 C11,16 8,13 0,12 C8,11 11,8 12,0Z" fill="${c}"/></svg>`,
+  shades: `<svg viewBox="0 0 54 22" aria-hidden="true"><path d="M1,5 H53" stroke="#d81b7a" stroke-width="2.6" stroke-linecap="round"/><path d="M4,6 H25 L23,16 Q21,21 14,21 Q7,21 5.5,15Z" fill="#ff2d95" stroke="#fff" stroke-width="1.3"/><path d="M29,6 H50 L48.5,15 Q47,21 40,21 Q33,21 31,16Z" fill="#ff2d95" stroke="#fff" stroke-width="1.3"/><path d="M8,9 L13,8" stroke="#fff" stroke-width="1.5" opacity=".7" stroke-linecap="round"/><path d="M33,9 L38,8" stroke="#fff" stroke-width="1.5" opacity=".7" stroke-linecap="round"/></svg>`,
+  convertible: `<svg viewBox="0 0 96 42" aria-hidden="true"><path d="M3,28 Q3,19 14,18 L36,17 L45,9 L54,10 L57,17 L84,18 Q94,19 94,28 L94,33 H3Z" fill="#ff5fb1" stroke="#fff" stroke-width="1.4"/><path d="M45,9 L54,10 L57,17 L38,17Z" fill="#c9ecff" stroke="#fff" stroke-width="1"/><path d="M8,26 H90" stroke="#fff" stroke-width="1.4" opacity=".6"/><circle cx="24" cy="33" r="8" fill="#3b3b4a"/><circle cx="24" cy="33" r="3.2" fill="#e8e8f0"/><circle cx="72" cy="33" r="8" fill="#3b3b4a"/><circle cx="72" cy="33" r="3.2" fill="#e8e8f0"/></svg>`,
+  castle: `<svg viewBox="0 0 130 74" aria-hidden="true">
+    <g fill="#2a3790" stroke="#4d5fc8" stroke-width="1"><rect x="22" y="40" width="86" height="34"/><rect x="8" y="32" width="16" height="42"/><rect x="106" y="32" width="16" height="42"/><rect x="52" y="14" width="26" height="60"/><rect x="34" y="30" width="12" height="44"/><rect x="84" y="30" width="12" height="44"/></g>
+    <g fill="#f6c945"><polygon points="8,32 16,12 24,32"/><polygon points="106,32 114,12 122,32"/><polygon points="52,14 65,-4 78,14"/></g>
+    <g fill="#9a7cf5"><polygon points="34,30 40,16 46,30"/><polygon points="84,30 90,16 96,30"/></g>
+    <g stroke="#f6c945" stroke-width="1.2"><line x1="16" y1="12" x2="16" y2="4"/><line x1="114" y1="12" x2="114" y2="4"/><line x1="65" y1="-4" x2="65" y2="-12"/></g>
+    <g fill="#f6c945"><polygon points="16,4 24,6 16,8"/><polygon points="114,4 122,6 114,8"/><polygon points="65,-12 74,-9 65,-6"/></g>
+    <g fill="#ffe27a"><rect x="60" y="24" width="10" height="14" rx="5"/><rect x="12" y="44" width="6" height="9" rx="3"/><rect x="112" y="44" width="6" height="9" rx="3"/><rect x="37" y="42" width="6" height="9" rx="3"/><rect x="87" y="42" width="6" height="9" rx="3"/><rect x="58" y="52" width="14" height="22" rx="7"/></g>
+  </svg>`,
+  burst: (c) => { let l = ""; for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2, x = Math.cos(a), y = Math.sin(a); l += `<line x1="${(30 + 8 * x).toFixed(1)}" y1="${(30 + 8 * y).toFixed(1)}" x2="${(30 + 22 * x).toFixed(1)}" y2="${(30 + 22 * y).toFixed(1)}" stroke="${c}" stroke-width="2" stroke-linecap="round"/><circle cx="${(30 + 27 * x).toFixed(1)}" cy="${(30 + 27 * y).toFixed(1)}" r="2" fill="#fff"/>`; } return `<svg viewBox="0 0 60 60" aria-hidden="true">${l}</svg>`; },
+  leaf: (c) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,2 C20,6 22,15 12,22 C2,15 4,6 12,2Z" fill="${c}"/><path d="M12,5 V21" stroke="rgba(0,0,0,.25)" stroke-width="1"/></svg>`,
+  autumnTree: (c) => `<svg viewBox="0 0 44 58" aria-hidden="true"><rect x="19" y="30" width="6" height="28" fill="#6b4423"/><path d="M22,40 L12,30 M22,36 L33,27" stroke="#6b4423" stroke-width="3" fill="none"/><circle cx="22" cy="20" r="14" fill="${c}"/><circle cx="11" cy="28" r="9" fill="${c}"/><circle cx="33" cy="28" r="9" fill="${c}"/><circle cx="17" cy="15" r="4" fill="#fff" opacity=".18"/></svg>`,
+  pine: `<svg viewBox="0 0 40 58" aria-hidden="true"><rect x="18" y="50" width="5" height="8" fill="#6b4423"/><polygon points="20,2 34,26 6,26" fill="#2f7d52"/><polygon points="20,14 38,40 2,40" fill="#2f7d52"/><polygon points="20,26 40,52 0,52" fill="#2f7d52"/><polygon points="20,2 26,13 14,13" fill="#fff"/><polygon points="20,14 29,27 11,27" fill="#fff"/><polygon points="20,27 31,43 9,43" fill="#fff"/></svg>`,
+  snowman: `<svg viewBox="0 0 40 56" aria-hidden="true"><circle cx="20" cy="44" r="11" fill="#fff" stroke="#c6dcef"/><circle cx="20" cy="26" r="8.5" fill="#fff" stroke="#c6dcef"/><circle cx="20" cy="12" r="6.5" fill="#fff" stroke="#c6dcef"/><rect x="13" y="3" width="14" height="3" fill="#333"/><rect x="15.5" y="-3" width="9" height="7" fill="#333"/><polygon points="20,12 29,14 20,15" fill="#ff8a1f"/><circle cx="17.5" cy="10" r="1" fill="#222"/><circle cx="22.5" cy="10" r="1" fill="#222"/><circle cx="20" cy="26" r="1.2" fill="#555"/><circle cx="20" cy="31" r="1.2" fill="#555"/><path d="M13,19 Q20,24 27,19" stroke="#3b82c4" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M11,30 L2,24 M29,30 L38,24" stroke="#6b4423" stroke-width="2" stroke-linecap="round"/></svg>`,
+  tulip: (c) => `<svg viewBox="0 0 20 42" aria-hidden="true"><path d="M10,40 V16" stroke="#3f9a4d" stroke-width="2.4" fill="none"/><path d="M10,36 Q2,32 3,22 Q9,26 10,34 M10,32 Q18,29 17,20 Q11,24 10,31" fill="#4fb860"/><path d="M3,10 Q3,18 10,19 Q17,18 17,10 L14,13 L10,6 L6,13Z" fill="${c}"/></svg>`,
+  butterfly: (a, b) => `<svg viewBox="0 0 32 26" aria-hidden="true"><g class="wings"><ellipse cx="9" cy="8" rx="8" ry="7" fill="${a}"/><ellipse cx="23" cy="8" rx="8" ry="7" fill="${a}"/><ellipse cx="10" cy="18" rx="6" ry="5.5" fill="${b}"/><ellipse cx="22" cy="18" rx="6" ry="5.5" fill="${b}"/></g><rect x="15" y="4" width="2" height="18" rx="1" fill="#4a3a55"/><path d="M15.5,4 Q13,0 11,1 M16.5,4 Q19,0 21,1" stroke="#4a3a55" stroke-width=".9" fill="none"/></svg>`,
+  bee: `<svg viewBox="0 0 34 24" aria-hidden="true"><g class="wings"><ellipse cx="13" cy="6" rx="7" ry="5" fill="#fff" opacity=".8"/><ellipse cx="21" cy="6" rx="7" ry="5" fill="#fff" opacity=".8"/></g><ellipse cx="17" cy="15" rx="11" ry="7" fill="#ffd23f"/><path d="M12,9 V21 M18,8.5 V21.5 M24,9.5 V20.5" stroke="#3a2e1a" stroke-width="2.4"/><circle cx="29" cy="14" r="3.2" fill="#3a2e1a"/></svg>`,
+  petal: (c) => `<svg viewBox="0 0 14 18" aria-hidden="true"><path d="M7,1 C13,5 13,13 7,17 C1,13 1,5 7,1Z" fill="${c}"/></svg>`,
+  sun: `<svg viewBox="0 0 84 84" aria-hidden="true"><g class="spin-sun" stroke="#ffc400" stroke-width="4" stroke-linecap="round">${(() => { let r = ""; for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; r += `<line x1="${(42 + 26 * Math.cos(a)).toFixed(1)}" y1="${(42 + 26 * Math.sin(a)).toFixed(1)}" x2="${(42 + 38 * Math.cos(a)).toFixed(1)}" y2="${(42 + 38 * Math.sin(a)).toFixed(1)}"/>`; } return r; })()}</g><circle cx="42" cy="42" r="21" fill="#ffd93d" stroke="#fff3a8" stroke-width="2"/></svg>`,
+  cloud: `<svg viewBox="0 0 90 38" aria-hidden="true"><g fill="#fff"><circle cx="24" cy="24" r="12"/><circle cx="40" cy="17" r="15"/><circle cx="58" cy="22" r="13"/><circle cx="72" cy="26" r="9"/><rect x="14" y="24" width="64" height="11" rx="5"/></g></svg>`,
+  sunflower: `<svg viewBox="0 0 38 58" aria-hidden="true"><path d="M19,56 V26" stroke="#3f9a4d" stroke-width="3"/><path d="M19,46 Q7,44 6,34 Q16,36 19,44 M19,42 Q31,40 32,30 Q22,32 19,40" fill="#4fb860"/><g fill="#ffcf1f">${(() => { let r = ""; for (let i = 0; i < 12; i++) r += `<ellipse cx="19" cy="9" rx="3.6" ry="7" transform="rotate(${i * 30} 19 19)"/>`; return r; })()}</g><circle cx="19" cy="19" r="6.5" fill="#6b3e1b"/></svg>`,
+  beachball: `<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#fff" stroke="#e8eef5"/><path d="M16,16 L16,1 A15,15 0 0 1 29,8.5Z" fill="#ff5a5f"/><path d="M16,16 L29,23.5 A15,15 0 0 1 16,31Z" fill="#ffd23f"/><path d="M16,16 L3,23.5 A15,15 0 0 1 3,8.5Z" fill="#3b9de0"/><circle cx="16" cy="16" r="3" fill="#fff"/></svg>`,
+  gull: `<svg viewBox="0 0 44 22" aria-hidden="true"><g class="wings"><path d="M2,15 Q11,1 22,13 Q33,1 42,15 Q33,9 22,17 Q11,9 2,15Z" fill="#fff" stroke="#7b8ba0" stroke-width=".9" stroke-linejoin="round"/></g></svg>`,
+  sailboat: `<svg viewBox="0 0 52 52" aria-hidden="true"><path d="M26,4 V38" stroke="#6b4423" stroke-width="2"/><path d="M27,6 Q44,22 46,36 H27Z" fill="#fff" stroke="#cfdcea"/><path d="M25,12 Q12,24 8,36 H25Z" fill="#ffd7a8" stroke="#e9c28f"/><path d="M4,38 H48 L42,47 Q26,50 10,47Z" fill="#c0392b"/></svg>`,
+  lighthouse: `<svg viewBox="0 0 34 66" aria-hidden="true"><polygon points="11,22 23,22 26,62 8,62" fill="#fff" stroke="#cfdcea"/><polygon points="10.2,34 23.8,34 24.6,44 9.4,44" fill="#d64545"/><polygon points="9,50 25,50 25.8,58 8.2,58" fill="#d64545"/><rect x="9" y="14" width="16" height="8" fill="#ffe27a"/><rect x="7" y="21" width="20" height="3" fill="#555"/><polygon points="9,14 17,4 25,14" fill="#d64545"/><rect x="6" y="62" width="22" height="4" fill="#8b9aae"/></svg>`,
+  sheep: `<svg viewBox="0 0 42 28" aria-hidden="true"><g stroke="#4a4a52" stroke-width="2" stroke-linecap="round"><line x1="12" y1="20" x2="12" y2="27"/><line x1="18" y1="21" x2="18" y2="27"/><line x1="27" y1="21" x2="27" y2="27"/><line x1="32" y1="20" x2="32" y2="27"/></g><g fill="#fff" stroke="#e4e4ea"><circle cx="13" cy="14" r="7"/><circle cx="21" cy="11" r="8"/><circle cx="29" cy="14" r="7"/><circle cx="20" cy="18" r="7"/></g><g class="head"><ellipse cx="36.5" cy="14" rx="4.5" ry="3.8" fill="#4a4a52"/><ellipse cx="34" cy="10.5" rx="2" ry="1.2" fill="#4a4a52" transform="rotate(-30 34 10.5)"/></g></svg>`,
+  windmill: `<svg viewBox="0 0 64 74" aria-hidden="true"><polygon points="22,30 42,30 46,70 18,70" fill="#fff" stroke="#c9d3de"/><polygon points="20,30 32,18 44,30" fill="#5b4636"/><rect x="28" y="52" width="8" height="18" rx="4" fill="#6b4423"/><rect x="26" y="38" width="5" height="6" fill="#8aa5bd"/><rect x="33" y="38" width="5" height="6" fill="#8aa5bd"/><g class="sails" style="transform-origin:32px 24px"><g stroke="#5b4636" stroke-width="2"><line x1="32" y1="24" x2="32" y2="-2"/><line x1="32" y1="24" x2="32" y2="50"/><line x1="32" y1="24" x2="6" y2="24"/><line x1="32" y1="24" x2="58" y2="24"/></g><g fill="#fff" opacity=".85" stroke="#c9d3de" stroke-width=".6"><rect x="33" y="0" width="7" height="14"/><rect x="24" y="34" width="7" height="14"/><rect x="8" y="17" width="14" height="7"/><rect x="42" y="25" width="14" height="7"/></g><circle cx="32" cy="24" r="2.6" fill="#5b4636"/></g></svg>`,
+  kite: `<svg viewBox="0 0 56 24" aria-hidden="true"><g class="wings"><path d="M2,13 Q16,3 28,10 Q40,3 54,13 Q42,10 28,16 Q14,10 2,13Z" fill="#a0522d" stroke="#6b3a1f" stroke-width=".8"/></g><path d="M25,15 L22,23 L28,19 L34,23 L31,15Z" fill="#c0642f"/></svg>`,
+};
+function scnWaves(color, opacity, cls, amp, yBase) {
+  let d = "M0,40 "; const W = 2400, step = 40;
+  for (let x = 0; x <= W; x += step) d += `L${x},${(yBase + amp * Math.sin(x / 200 * Math.PI)).toFixed(1)} `;
+  d += `L${W},40 Z`;
+  return `<svg class="scn-wave ${cls}" viewBox="0 0 2400 40" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" fill="${color}" opacity="${opacity}"/></svg>`;
+}
+function scnRidge(color, base, amp, phase, k) {
+  let d = "M0,60 "; for (let x = 0; x <= 1200; x += 20) d += `L${x},${(base + amp * Math.sin(x / 1200 * Math.PI * 2 * k + phase) + amp * .45 * Math.sin(x / 1200 * Math.PI * 2 * k * 2.3 + phase * 1.7)).toFixed(1)} `;
+  return `<path d="${d}L1200,60Z" fill="${color}"/>`;
+}
+const SBX = (cls, html, style) => `<span class="bx ${cls}" style="${style || ""}">${html}</span>`;
+const pick = (a, i) => a[i % a.length];
+
+const THEME_SCENES = {
+  barbie: {
+    layer() {
+      const cols = ["#fff", "#ffd1ea", "#ff9ac9", "#ffe3f3"]; let h = "";
+      for (let i = 0; i < 22; i++) h += `<i class="sp" style="left:${fxRand(1, 97).toFixed(1)}%;top:${fxRand(3, 95).toFixed(1)}%;font-size:${fxRand(10, 22).toFixed(0)}px;color:${pick(cols, i)};animation-duration:${fxRand(2.5, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">&#10022;</i>`;
+      for (let i = 0; i < 14; i++) h += `<i class="rise" style="--dx:${fxRand(-80, 80).toFixed(0)}px;left:${fxRand(2, 96).toFixed(1)}%;font-size:${fxRand(14, 28).toFixed(0)}px;color:${pick(["#ff6fb5", "#ff9ac9", "#ff4fa3"], i)};animation-duration:${fxRand(28, 55).toFixed(0)}s;animation-delay:${(-fxRand(0, 55)).toFixed(0)}s">${i % 3 ? "&#9829;" : "&#9825;"}</i>`;
+      return h;
+    },
+    banner() {
+      let b = `<span class="bgrd" style="background:#e5177f"></span>`;
+      b += SBX("bbob", SCN.shades, "left:10%;top:8px;--w:44") + SBX("bbob", SCN.shades, "left:62%;top:12px;--w:34;animation-delay:-1.5s");
+      b += SBX("bcross", SCN.convertible, "left:0;bottom:5px;--w:70;--still:34%;animation-duration:16s");
+      for (let i = 0; i < 9; i++) b += SBX("brise", SCN.heart(pick(["#fff", "#ffd1ea", "#ffe3f3"], i)), `left:${fxRand(3, 95).toFixed(0)}%;--w:${fxRand(10, 20).toFixed(0)};animation-duration:${fxRand(4, 8).toFixed(1)}s;animation-delay:${(-fxRand(0, 8)).toFixed(1)}s`);
+      for (let i = 0; i < 16; i++) b += `<i class="bsp" style="left:${fxRand(2, 97).toFixed(0)}%;top:${fxRand(4, 70).toFixed(0)}%;font-size:${fxRand(9, 17).toFixed(0)}px;color:#fff;animation-duration:${fxRand(1.8, 4).toFixed(1)}s;animation-delay:${(-fxRand(0, 4)).toFixed(1)}s">&#10022;</i>`;
+      return b;
+    },
+  },
+  fairytale: {
+    layer() {
+      let h = ""; const cols = ["#fff", "#ffe9a8", "#cfd8ff", "#f6c945"];
+      for (let i = 0; i < 40; i++) h += `<i class="sp" style="left:${fxRand(1, 98).toFixed(1)}%;top:${fxRand(2, 96).toFixed(1)}%;font-size:${fxRand(8, 20).toFixed(0)}px;color:${pick(cols, i)};animation-duration:${fxRand(2.2, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">${i % 5 === 4 ? "&#10023;" : "&#10022;"}</i>`;
+      for (let i = 0; i < 2; i++) h += `<i class="shoot" style="top:${(8 + i * 22)}%;left:${(10 + i * 30)}%;animation-delay:${(-i * 6)}s"></i>`;
+      return h;
+    },
+    banner() {
+      let b = "";
+      for (let i = 0; i < 26; i++) b += `<i class="bsp" style="left:${fxRand(1, 98).toFixed(0)}%;top:${fxRand(2, 60).toFixed(0)}%;font-size:${fxRand(7, 14).toFixed(0)}px;color:${pick(["#fff", "#ffe9a8", "#cfd8ff"], i)};animation-duration:${fxRand(1.8, 4.5).toFixed(1)}s;animation-delay:${(-fxRand(0, 4)).toFixed(1)}s">&#10022;</i>`;
+      b += SBX("", SCN.castle, "left:50%;margin-left:-60px;bottom:0;--w:120");
+      [["#ffd34d", 14], ["#ff7eb6", 76], ["#7fc3f0", 90], ["#b79cff", 30]].forEach(([c, l], i) => { b += SBX("bfw", SCN.burst(c), `left:${l}%;top:${(i % 2) * 4 - 2}px;--w:50;animation-duration:${(3.2 + i * .7).toFixed(1)}s;animation-delay:${(-i * 1.1).toFixed(1)}s`); });
+      return b;
+    },
+  },
+  autumn: {
+    layer() {
+      const cols = ["#d9531e", "#e6962b", "#c0392b", "#b8860b", "#a0522d", "#e8b923"]; let h = "";
+      for (let i = 0; i < 18; i++) h += `<i class="fall" style="left:${fxRand(0, 98).toFixed(1)}%;width:${fxRand(14, 26).toFixed(0)}px;animation-duration:${fxRand(11, 20).toFixed(1)}s,${fxRand(3, 5).toFixed(1)}s;animation-delay:${(-fxRand(0, 20)).toFixed(1)}s,${(-fxRand(0, 5)).toFixed(1)}s;--sway:${fxRand(20, 70).toFixed(0)}px;opacity:.8">${SCN.leaf(pick(cols, i))}</i>`;
+      return h;
+    },
+    banner() {
+      const cols = ["#d9531e", "#e6962b", "#c0392b", "#e8b923", "#b8860b"]; let b = `<span class="bgrd" style="background:#7a4b22;height:8px"></span>`;
+      for (let i = 0; i < 7; i++) b += SBX("bsway", SCN.autumnTree(pick(cols, i)), `left:${(3 + i * 14.5).toFixed(0)}%;bottom:5px;--w:${(40 + (i % 3) * 8)};animation-delay:${(-i * .7).toFixed(1)}s`);
+      for (let i = 0; i < 12; i++) b += SBX("bfall", SCN.leaf(pick(cols, i)), `left:${fxRand(2, 96).toFixed(0)}%;--w:${fxRand(10, 17).toFixed(0)};--dx:${fxRand(-40, 60).toFixed(0)}px;animation-duration:${fxRand(5, 10).toFixed(1)}s;animation-delay:${(-fxRand(0, 10)).toFixed(1)}s`);
+      return b;
+    },
+  },
+  winter: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 40; i++) h += `<i class="fall snowW" style="left:${fxRand(0, 99).toFixed(1)}%;font-size:${fxRand(9, 20).toFixed(0)}px;animation-duration:${fxRand(9, 18).toFixed(1)}s,${fxRand(3, 5).toFixed(1)}s;animation-delay:${(-fxRand(0, 18)).toFixed(1)}s,${(-fxRand(0, 5)).toFixed(1)}s;--sway:${fxRand(14, 46).toFixed(0)}px">${i % 3 ? "&#10052;" : "&#10053;"}</i>`;
+      return h;
+    },
+    banner() {
+      let ic = "M0,0 "; for (let x = 0; x < 1200; x += 24) { const hgt = 6 + ((x / 24) * 7 % 11); ic += `L${x},0 L${x + 12},${hgt} L${x + 24},0 `; }
+      let b = `<svg class="scn" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true"><path d="${ic}Z" fill="#fff" opacity=".9"/><path d="M0,60 L0,52 Q300,44 600,52 T1200,52 L1200,60Z" fill="#fff"/></svg>`;
+      for (let i = 0; i < 6; i++) b += SBX("", SCN.pine, `left:${(4 + i * 15).toFixed(0)}%;bottom:2px;--w:${(26 + (i % 2) * 8)}`);
+      b += SBX("bsway", SCN.snowman, "left:80%;bottom:2px;--w:34;animation-duration:5s");
+      for (let i = 0; i < 16; i++) b += `<i class="bsnow" style="left:${fxRand(1, 98).toFixed(0)}%;font-size:${fxRand(7, 13).toFixed(0)}px;--dx:${fxRand(-30, 30).toFixed(0)}px;animation-duration:${fxRand(4, 8).toFixed(1)}s;animation-delay:${(-fxRand(0, 8)).toFixed(1)}s">&#10052;</i>`;
+      return b;
+    },
+  },
+  spring: {
+    layer() {
+      const cols = ["#ffc2d9", "#ff9ec2", "#fff", "#ffd9e8"]; let h = "";
+      for (let i = 0; i < 16; i++) h += `<i class="fall" style="left:${fxRand(0, 98).toFixed(1)}%;width:${fxRand(9, 15).toFixed(0)}px;animation-duration:${fxRand(12, 22).toFixed(1)}s,${fxRand(3, 5).toFixed(1)}s;animation-delay:${(-fxRand(0, 22)).toFixed(1)}s,${(-fxRand(0, 5)).toFixed(1)}s;--sway:${fxRand(20, 60).toFixed(0)}px;opacity:.85">${SCN.petal(pick(cols, i))}</i>`;
+      for (let i = 0; i < 3; i++) h += `<span class="xing" style="top:${(18 + i * 24)}%;animation-duration:${(34 + i * 9)}s;animation-delay:${(-i * 13)}s;--w:30"><span class="bob">${SCN.butterfly(pick(["#ff9ec2", "#ffd23f", "#9ad0ff"], i), pick(["#ffd9e8", "#fff3a8", "#d3ecff"], i))}</span></span>`;
+      return h;
+    },
+    banner() {
+      let b = `<svg class="scn" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true">${scnRidge("#b8e08a", 44, 5, 0.6, 2)}${scnRidge("#7fc56a", 52, 4, 2.1, 3)}</svg>`;
+      const tc = ["#ff5f9e", "#ffd23f", "#fff", "#c58bff", "#ff8a65"];
+      for (let i = 0; i < 9; i++) b += SBX("bsway", SCN.tulip(pick(tc, i)), `left:${(3 + i * 10.6).toFixed(0)}%;bottom:2px;--w:${(14 + (i % 3) * 3)};animation-delay:${(-i * .5).toFixed(1)}s`);
+      for (let i = 0; i < 3; i++) b += SBX("bcross", SCN.butterfly(pick(["#ff9ec2", "#ffd23f", "#9ad0ff"], i), pick(["#ffd9e8", "#fff3a8", "#d3ecff"], i)), `left:0;top:${(6 + i * 11)}px;--w:26;--still:${(20 + i * 28)}%;animation-duration:${(22 + i * 6)}s;animation-delay:${(-i * 7)}s`);
+      for (let i = 0; i < 8; i++) b += SBX("bfall", SCN.petal(pick(["#ffc2d9", "#fff", "#ff9ec2"], i)), `left:${fxRand(2, 96).toFixed(0)}%;--w:${fxRand(7, 11).toFixed(0)};--dx:${fxRand(-30, 40).toFixed(0)}px;animation-duration:${fxRand(5, 9).toFixed(1)}s;animation-delay:${(-fxRand(0, 9)).toFixed(1)}s`);
+      return b;
+    },
+  },
+  summer: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 16; i++) h += `<i class="sp" style="left:${fxRand(1, 98).toFixed(1)}%;top:${fxRand(3, 96).toFixed(1)}%;font-size:${fxRand(9, 20).toFixed(0)}px;color:${pick(["#ffd23f", "#fff3a8", "#ffae4d"], i)};animation-duration:${fxRand(2.5, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">&#10022;</i>`;
+      for (let i = 0; i < 2; i++) h += `<span class="xing" style="top:${(25 + i * 35)}%;animation-duration:${(38 + i * 12)}s;animation-delay:${(-i * 17)}s;--w:30"><span class="bob">${SCN.bee}</span></span>`;
+      return h;
+    },
+    banner() {
+      let b = SBX("bsun", SCN.sun, "left:6%;top:-6px;--w:66");
+      for (let i = 0; i < 2; i++) b += SBX("bcross", SCN.cloud, `left:0;top:${6 + i * 14}px;--w:${70 - i * 16};--still:${28 + i * 36}%;opacity:.95;animation-duration:${(46 + i * 18)}s;animation-delay:${(-i * 22)}s`);
+      for (let i = 0; i < 7; i++) b += SBX("bsway", SCN.sunflower, `left:${(24 + i * 11).toFixed(0)}%;bottom:0;--w:${(24 + (i % 3) * 5)};animation-delay:${(-i * .6).toFixed(1)}s`);
+      b += SBX("bbounce", SCN.beachball, "left:14%;bottom:2px;--w:24");
+      b += `<span class="bgrd" style="background:#f2d27a;height:5px"></span>`;
+      return b;
+    },
+  },
+  seaside: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 14; i++) h += `<i class="rise" style="--dx:${fxRand(-40, 40).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(8, 20).toFixed(0)}px;opacity:.5;animation-duration:${fxRand(22, 45).toFixed(0)}s;animation-delay:${(-fxRand(0, 45)).toFixed(0)}s"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="rgba(255,255,255,.35)" stroke="#7fc8e6"/><circle cx="4" cy="4" r="1.2" fill="#fff"/></svg></i>`;
+      for (let i = 0; i < 3; i++) h += `<span class="xing" style="top:${(10 + i * 22)}%;animation-duration:${(30 + i * 11)}s;animation-delay:${(-i * 12)}s;--w:${34 - i * 4}"><span class="bob">${SCN.gull}</span></span>`;
+      return h;
+    },
+    banner() {
+      let b = SBX("", SCN.lighthouse, "left:6%;bottom:6px;--w:26") + `<span class="beam" style="left:calc(6% + 13px);bottom:46px"></span>`;
+      b += SBX("bbob", SCN.sailboat, "left:58%;bottom:7px;--w:40;animation-duration:5s");
+      for (let i = 0; i < 3; i++) b += SBX("bcross", SCN.gull, `left:0;top:${6 + i * 9}px;--w:${28 - i * 3};--still:${(20 + i * 25)}%;animation-duration:${(20 + i * 7)}s;animation-delay:${(-i * 6)}s`);
+      b += scnWaves("#2f9fd1", .75, "wvA", 4, 18) + scnWaves("#1a7fb8", .9, "wvB", 3, 28);
+      return b;
+    },
+  },
+  hills: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 4; i++) h += `<span class="xing" style="top:${(6 + i * 18)}%;animation-duration:${(70 + i * 25)}s;animation-delay:${(-i * 30)}s;--w:${130 + i * 30};opacity:.5"><span class="bob">${SCN.cloud}</span></span>`;
+      for (let i = 0; i < 10; i++) h += `<i class="rise" style="--dx:${fxRand(-70, 70).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;font-size:${fxRand(12, 22).toFixed(0)}px;color:#fff;opacity:.6;animation-duration:${fxRand(35, 70).toFixed(0)}s;animation-delay:${(-fxRand(0, 70)).toFixed(0)}s;text-shadow:0 0 6px rgba(120,160,100,.7)">&#10023;</i>`;
+      for (let i = 0; i < 2; i++) h += `<span class="xing" style="top:${(30 + i * 30)}%;animation-duration:${(44 + i * 14)}s;animation-delay:${(-i * 20)}s;--w:28"><span class="bob">${SCN.butterfly(pick(["#ffd23f", "#9ad0ff"], i), "#fff")}</span></span>`;
+      return h;
+    },
+    banner() {
+      let b = `<svg class="scn" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true">${scnRidge("#a9d68a", 36, 6, 0.3, 1.5)}${scnRidge("#82bb5e", 44, 6, 2.2, 2)}${scnRidge("#5d9a43", 52, 4, 4.1, 2.6)}</svg>`;
+      for (let i = 0; i < 3; i++) b += SBX("bcross", SCN.cloud, `left:0;top:${3 + i * 9}px;--w:${58 - i * 8};--still:${(15 + i * 33)}%;animation-duration:${(60 + i * 22)}s;animation-delay:${(-i * 25)}s`);
+      b += SBX("bcross", SCN.kite, "left:0;top:12px;--w:40;--still:55%;animation-duration:38s;animation-delay:-10s");
+      b += SBX("", SCN.windmill, "left:22%;bottom:10px;--w:46");
+      [[40, 9], [48, 5], [62, 8], [70, 4], [86, 7], [8, 4]].forEach(([l, bt], i) => { b += SBX("bgraze", SCN.sheep, `left:${l}%;bottom:${bt}px;--w:${26 + (i % 2) * 5};animation-delay:${(-i * 1.1).toFixed(1)}s`); });
+      return b;
+    },
+  },
+};
+
 function buildThemeFx() {
   const theme = document.documentElement.getAttribute("data-theme");
-  const kind = ["halloween", "christmas", "easter", "antimicrobial"].includes(theme) ? theme : null;
+  const SCENE = THEME_SCENES[theme];
+  const kind = (["halloween", "christmas", "easter", "antimicrobial", "swiftie"].includes(theme) || SCENE) ? theme : null;
   const tgl = document.getElementById("animToggle");
   if (tgl) tgl.classList.toggle("show", !!kind);
 
@@ -331,6 +533,18 @@ function buildThemeFx() {
           const size = fxRand(9, 20).toFixed(1), left = fxRand(0, 100).toFixed(1);
           const dur = fxRand(9, 18).toFixed(1), delay = (-fxRand(0, 18)).toFixed(1), sway = fxRand(14, 46).toFixed(0);
           h += `<i class="flake" style="left:${left}%;font-size:${size}px;animation-duration:${dur}s,${(dur / 3).toFixed(1)}s;animation-delay:${delay}s,${delay}s;--sway:${sway}px;opacity:${fxRand(.55, .95).toFixed(2)}">${i % 3 ? "&#10052;" : "&#10053;"}</i>`;
+        }
+      } else if (SCENE) {
+        h = SCENE.layer();
+      } else if (kind === "swiftie") {
+        const cols = ["#ffffff", "#ffd1ea", "#d9c2ff", "#bfe3ff", "#ffe9a8"];
+        for (let i = 0; i < 26; i++) {
+          const c = cols[i % cols.length];
+          h += `<i class="sp" style="left:${fxRand(1, 97).toFixed(1)}%;top:${fxRand(3, 95).toFixed(1)}%;font-size:${fxRand(10, 22).toFixed(0)}px;color:${c};animation-duration:${fxRand(2.5, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">${i % 4 === 3 ? "&#10023;" : "&#10022;"}</i>`;
+        }
+        const glyphs = ["&#9825;", "&#9834;", "&#9835;", "&#9825;", "&#10022;"], gc = ["#ff9ac9", "#b79cff", "#7fc3f0", "#f5c451", "#ff7eb6"];
+        for (let i = 0; i < 12; i++) {
+          h += `<i class="rise" style="--dx:${fxRand(-90, 90).toFixed(0)}px;left:${fxRand(2, 96).toFixed(1)}%;font-size:${fxRand(14, 26).toFixed(0)}px;color:${gc[i % gc.length]};animation-duration:${fxRand(30, 60).toFixed(0)}s;animation-delay:${(-fxRand(0, 60)).toFixed(0)}s">${glyphs[i % glyphs.length]}</i>`;
         }
       } else if (kind === "antimicrobial") {
         const types = ["bacillus", "virus", "cocci", "phage", "spirillum", "virus", "bacillus"];
@@ -357,6 +571,14 @@ function buildThemeFx() {
   if (kind === "christmas") {
     for (let i = 0; i < 6; i++) b += `<span class="sprite tree" style="left:${(6 + i * 17).toFixed(0)}%">${FX_SVG.tree}</span>`;
     for (let i = 0; i < 2; i++) b += `<span class="runner" style="animation-duration:${14 + i * 3}s;animation-delay:${-i * 7}s"><span class="rd">${FX_SVG.reindeer}</span></span>`;
+  } else if (SCENE) {
+    b = SCENE.banner();
+  } else if (kind === "swiftie") {
+    b += `<span class="disco" style="left:7%">${FX_SVG.disco}</span><span class="disco" style="left:78%;zoom:.8;animation-delay:-2s">${FX_SVG.disco}</span>`;
+    const sets = [["#ff9ac9", "#fff", "#b79cff", "#7fc3f0", "#ffe08a", "#ff9ac9", "#fff", "#b79cff"], ["#7fc3f0", "#ffe08a", "#ff9ac9", "#fff", "#b79cff", "#7fc3f0", "#ffe08a", "#ff9ac9"], ["#fff", "#b79cff", "#ffe08a", "#ff9ac9", "#7fc3f0", "#fff", "#b79cff", "#ffe08a"]];
+    sets.forEach((c, i) => { b += `<span class="bracelet" style="left:${(22 + i * 19).toFixed(0)}%;bottom:${(8 + (i % 2) * 14)}px;animation-delay:${(-i * 1.4).toFixed(1)}s">${FX_SVG.bracelet(c)}</span>`; });
+    const cols = ["#fff", "#ffd1ea", "#fff3b0", "#d9c2ff"];
+    for (let i = 0; i < 18; i++) b += `<i class="bsp" style="left:${fxRand(2, 97).toFixed(0)}%;top:${fxRand(4, 70).toFixed(0)}%;font-size:${fxRand(9, 17).toFixed(0)}px;color:${cols[i % 4]};animation-duration:${fxRand(1.8, 4).toFixed(1)}s;animation-delay:${(-fxRand(0, 4)).toFixed(1)}s">${i % 5 === 4 ? "&#9834;" : "&#10022;"}</i>`;
   } else if (kind === "antimicrobial") {
     const types = ["bacillus", "virus", "cocci", "phage", "spirillum", "virus", "bacillus", "cocci"];
     for (let i = 0; i < 8; i++) {
