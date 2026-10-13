@@ -447,14 +447,14 @@ const THEME_SCENES = {
     layer() {
       const cols = ["#ffc2d9", "#ff9ec2", "#fff", "#ffd9e8"]; let h = "";
       for (let i = 0; i < 16; i++) h += `<i class="fall" style="left:${fxRand(0, 98).toFixed(1)}%;width:${fxRand(9, 15).toFixed(0)}px;animation-duration:${fxRand(12, 22).toFixed(1)}s,${fxRand(3, 5).toFixed(1)}s;animation-delay:${(-fxRand(0, 22)).toFixed(1)}s,${(-fxRand(0, 5)).toFixed(1)}s;--sway:${fxRand(20, 60).toFixed(0)}px;opacity:.85">${SCN.petal(pick(cols, i))}</i>`;
-      for (let i = 0; i < 3; i++) h += `<span class="xing" style="top:${(18 + i * 24)}%;animation-duration:${(34 + i * 9)}s;animation-delay:${(-i * 13)}s;--w:30"><span class="bob">${SCN.butterfly(pick(["#ff9ec2", "#ffd23f", "#9ad0ff"], i), pick(["#ffd9e8", "#fff3a8", "#d3ecff"], i))}</span></span>`;
+      for (let i = 0; i < 3; i++) h += fly("butterfly", SCN.butterfly(pick(["#ff9ec2", "#ffd23f", "#9ad0ff"], i), pick(["#ffd9e8", "#fff3a8", "#d3ecff"], i)), 30);
       return h;
     },
     banner() {
       let b = `<svg class="scn" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true">${scnRidge("#b8e08a", 44, 5, 0.6, 2)}${scnRidge("#7fc56a", 52, 4, 2.1, 3)}</svg>`;
       const tc = ["#ff5f9e", "#ffd23f", "#fff", "#c58bff", "#ff8a65"];
       for (let i = 0; i < 9; i++) b += SBX("bsway", SCN.tulip(pick(tc, i)), `left:${(3 + i * 10.6).toFixed(0)}%;bottom:2px;--w:${(14 + (i % 3) * 3)};animation-delay:${(-i * .5).toFixed(1)}s`);
-      for (let i = 0; i < 3; i++) b += SBX("bcross", SCN.butterfly(pick(["#ff9ec2", "#ffd23f", "#9ad0ff"], i), pick(["#ffd9e8", "#fff3a8", "#d3ecff"], i)), `left:0;top:${(6 + i * 11)}px;--w:26;--still:${(20 + i * 28)}%;animation-duration:${(22 + i * 6)}s;animation-delay:${(-i * 7)}s`);
+      for (let i = 0; i < 3; i++) b += fly("butterfly", SCN.butterfly(pick(["#ff9ec2", "#ffd23f", "#9ad0ff"], i), pick(["#ffd9e8", "#fff3a8", "#d3ecff"], i)), 24);
       for (let i = 0; i < 8; i++) b += SBX("bfall", SCN.petal(pick(["#ffc2d9", "#fff", "#ff9ec2"], i)), `left:${fxRand(2, 96).toFixed(0)}%;--w:${fxRand(7, 11).toFixed(0)};--dx:${fxRand(-30, 40).toFixed(0)}px;animation-duration:${fxRand(5, 9).toFixed(1)}s;animation-delay:${(-fxRand(0, 9)).toFixed(1)}s`);
       return b;
     },
@@ -463,7 +463,7 @@ const THEME_SCENES = {
     layer() {
       let h = "";
       for (let i = 0; i < 16; i++) h += `<i class="sp" style="left:${fxRand(1, 98).toFixed(1)}%;top:${fxRand(3, 96).toFixed(1)}%;font-size:${fxRand(9, 20).toFixed(0)}px;color:${pick(["#ffd23f", "#fff3a8", "#ffae4d"], i)};animation-duration:${fxRand(2.5, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">&#10022;</i>`;
-      for (let i = 0; i < 2; i++) h += `<span class="xing" style="top:${(25 + i * 35)}%;animation-duration:${(38 + i * 12)}s;animation-delay:${(-i * 17)}s;--w:30"><span class="bob">${SCN.bee}</span></span>`;
+      for (let i = 0; i < 2; i++) h += fly("bee", SCN.bee, 30);
       return h;
     },
     banner() {
@@ -479,13 +479,13 @@ const THEME_SCENES = {
     layer() {
       let h = "";
       for (let i = 0; i < 14; i++) h += `<i class="rise" style="--dx:${fxRand(-40, 40).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(8, 20).toFixed(0)}px;opacity:.5;animation-duration:${fxRand(22, 45).toFixed(0)}s;animation-delay:${(-fxRand(0, 45)).toFixed(0)}s"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="rgba(255,255,255,.35)" stroke="#7fc8e6"/><circle cx="4" cy="4" r="1.2" fill="#fff"/></svg></i>`;
-      for (let i = 0; i < 3; i++) h += `<span class="xing" style="top:${(10 + i * 22)}%;animation-duration:${(30 + i * 11)}s;animation-delay:${(-i * 12)}s;--w:${34 - i * 4}"><span class="bob">${SCN.gull}</span></span>`;
+      for (let i = 0; i < 3; i++) h += fly("gull", SCN.gull, 34 - i * 4);
       return h;
     },
     banner() {
       let b = SBX("", SCN.lighthouse, "left:6%;bottom:6px;--w:26") + `<span class="beam" style="left:calc(6% + 13px);bottom:46px"></span>`;
       b += SBX("bbob", SCN.sailboat, "left:58%;bottom:7px;--w:40;animation-duration:5s");
-      for (let i = 0; i < 3; i++) b += SBX("bcross", SCN.gull, `left:0;top:${6 + i * 9}px;--w:${28 - i * 3};--still:${(20 + i * 25)}%;animation-duration:${(20 + i * 7)}s;animation-delay:${(-i * 6)}s`);
+      for (let i = 0; i < 3; i++) b += fly("gull", SCN.gull, 28 - i * 3);
       b += scnWaves("#2f9fd1", .75, "wvA", 4, 18) + scnWaves("#1a7fb8", .9, "wvB", 3, 28);
       return b;
     },
@@ -495,19 +495,141 @@ const THEME_SCENES = {
       let h = "";
       for (let i = 0; i < 4; i++) h += `<span class="xing" style="top:${(6 + i * 18)}%;animation-duration:${(70 + i * 25)}s;animation-delay:${(-i * 30)}s;--w:${130 + i * 30};opacity:.5"><span class="bob">${SCN.cloud}</span></span>`;
       for (let i = 0; i < 10; i++) h += `<i class="rise" style="--dx:${fxRand(-70, 70).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;font-size:${fxRand(12, 22).toFixed(0)}px;color:#fff;opacity:.6;animation-duration:${fxRand(35, 70).toFixed(0)}s;animation-delay:${(-fxRand(0, 70)).toFixed(0)}s;text-shadow:0 0 6px rgba(120,160,100,.7)">&#10023;</i>`;
-      for (let i = 0; i < 2; i++) h += `<span class="xing" style="top:${(30 + i * 30)}%;animation-duration:${(44 + i * 14)}s;animation-delay:${(-i * 20)}s;--w:28"><span class="bob">${SCN.butterfly(pick(["#ffd23f", "#9ad0ff"], i), "#fff")}</span></span>`;
+      for (let i = 0; i < 2; i++) h += fly("butterfly", SCN.butterfly(pick(["#ffd23f", "#9ad0ff"], i), "#fff"), 28);
       return h;
     },
     banner() {
       let b = `<svg class="scn" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true">${scnRidge("#a9d68a", 36, 6, 0.3, 1.5)}${scnRidge("#82bb5e", 44, 6, 2.2, 2)}${scnRidge("#5d9a43", 52, 4, 4.1, 2.6)}</svg>`;
       for (let i = 0; i < 3; i++) b += SBX("bcross", SCN.cloud, `left:0;top:${3 + i * 9}px;--w:${58 - i * 8};--still:${(15 + i * 33)}%;animation-duration:${(60 + i * 22)}s;animation-delay:${(-i * 25)}s`);
-      b += SBX("bcross", SCN.kite, "left:0;top:12px;--w:40;--still:55%;animation-duration:38s;animation-delay:-10s");
+      b += fly("kite", SCN.kite, 40);
       b += SBX("", SCN.windmill, "left:22%;bottom:10px;--w:46");
       [[40, 9], [48, 5], [62, 8], [70, 4], [86, 7], [8, 4]].forEach(([l, bt], i) => { b += SBX("bgraze", SCN.sheep, `left:${l}%;bottom:${bt}px;--w:${26 + (i % 2) * 5};animation-delay:${(-i * 1.1).toFixed(1)}s`); });
       return b;
     },
   },
 };
+
+/* =====================================================================
+   Flyers — butterflies, bees, gulls and the red kite.
+   Instead of sliding in a straight line, each creature follows a path
+   shaped like the real animal's flight:
+     butterfly  erratic, fluttering wander: lurches and drifts, bobs with
+                each wingbeat, flaps in short bursts then glides, turns to
+                face where it is heading, never leaves the screen
+     bee        fast, direct, buzzing wander with hovering loops, facing
+                the way it is going
+     gull       long, lazy soaring arcs, wings held out in glides with
+                occasional bursts of flapping, banking gently in turns
+     kite       slow thermal circling while drifting across the sky
+   Driven by one requestAnimationFrame loop; pauses when the tab is hidden,
+   when animations are switched off, and respects prefers-reduced-motion.
+   ===================================================================== */
+const FLY_REDUCED = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const fly = (kind, svg, w) => `<span class="fly" data-fly="${kind}" style="--w:${w}"><span class="fi">${svg}</span></span>`;
+const flyR = (a, b) => a + Math.random() * (b - a);
+const flyClamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const flyWrapAngle = (a) => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
+let _flyRaf = 0, _flyLast = 0;
+
+function flyInit(el) {
+  const p = el.parentElement, W = p.clientWidth || 800, H = p.clientHeight || 60;
+  const kind = el.dataset.fly, w = parseFloat(getComputedStyle(el).getPropertyValue("--w")) || 30;
+  const s = { kind, w, W, H, t: flyR(0, 100), ph: [flyR(0, 6.28), flyR(0, 6.28), flyR(0, 6.28)], rot: 0, face: 1, wing: 1 };
+  s.x = flyR(w, Math.max(w + 1, W - w)); s.y = flyR(H * .15, H * .85);
+  if (kind === "butterfly" || kind === "bee") {
+    s.th = flyR(0, 6.28); s.base = kind === "bee" ? flyR(70, 110) : flyR(34, 58);
+    s.flap = true; s.flapT = flyR(0.6, 1.8);
+  } else if (kind === "gull") {
+    s.dir = Math.random() < .5 ? 1 : -1; s.v = flyR(36, 62); s.y0 = flyR(H * .12, H * .6);
+    s.A1 = Math.max(6, flyR(H * .03, H * .07)); s.A2 = Math.max(2, flyR(H * .01, H * .03)); s.f1 = flyR(.07, .13); s.f2 = flyR(.2, .34);
+    s.flap = false; s.flapT = flyR(1, 3);
+  } else if (kind === "kite") {
+    s.cx = s.x; s.dir = Math.random() < .5 ? 1 : -1; s.rx = flyR(.8, 1.4) * Math.min(120, W * .1);
+    s.ry = Math.max(4, H * flyR(.07, .12)); s.ang = flyR(0, 6.28); s.om = flyR(.28, .42) * s.dir; s.drift = flyR(8, 14) * s.dir;
+    s.y0 = H * .4; s.flap = false; s.flapT = flyR(3, 7);
+  }
+  el.__f = s; return s;
+}
+
+function flyStep(el, dt) {
+  const s = el.__f || flyInit(el), p = el.parentElement;
+  s.W = p.clientWidth || s.W; s.H = p.clientHeight || s.H;
+  const W = s.W, H = s.H, k = s.kind; s.t += dt;
+  let x = s.x, y = s.y, rot = 0, flipX = 1, wing = 1, bob = 0;
+
+  if (k === "butterfly" || k === "bee") {
+    const bee = k === "bee";
+    // wandering heading: smooth turning punctuated by sudden direction changes
+    const turn = (bee ? 2.6 : 3.2) * Math.sin(s.t * 1.3 + s.ph[0]) * Math.sin(s.t * .7 + s.ph[1]) + flyR(-1, 1) * (bee ? 1.2 : 2.2) * dt * 10;
+    s.th += turn * dt;
+    // soft walls: steer back toward the middle when close to an edge
+    const m = Math.min(70, W * .08), mv = Math.min(24, H * .35);
+    let ex = 0, ey = 0;
+    if (x < m) ex = 1; else if (x > W - m) ex = -1;
+    if (y < mv) ey = 1; else if (y > H - mv) ey = -1;
+    if (ex || ey) { const want = Math.atan2(ey || 0, ex || 0); const d = flyWrapAngle(want - s.th); s.th += d * Math.min(1, 3.2 * dt); }
+    // speed: lurching, with brief near-stops for butterflies
+    const lurch = bee ? .75 + .35 * Math.sin(s.t * 2.1 + s.ph[2]) : .35 + .85 * Math.pow(Math.abs(Math.sin(s.t * .8 + s.ph[2])), 1.5);
+    const v = s.base * lurch;
+    x += Math.cos(s.th) * v * dt; y += Math.sin(s.th) * v * dt * (H < 120 ? .45 : 1);
+    x = flyClamp(x, -4, W + 4); y = flyClamp(y, 2, H - 2);
+    // wingbeats
+    if (bee) { wing = .55 + .45 * Math.cos(s.t * 2 * Math.PI * 16); bob = Math.sin(s.t * 9) * 1.2; }
+    else {
+      s.flapT -= dt; if (s.flapT <= 0) { s.flap = !s.flap; s.flapT = s.flap ? flyR(.7, 2.2) : flyR(.15, .6); }
+      wing = s.flap ? .55 + .45 * Math.cos(s.t * 2 * Math.PI * 7.5) : .8 + .06 * Math.sin(s.t * 3);
+      bob = (s.flap ? Math.sin(s.t * 2 * Math.PI * 7.5 + 1.2) * 3.2 : 1.5) * (H < 120 ? .5 : 1);
+    }
+    // facing: butterflies point their head along the heading; bees flip left/right
+    const want = s.th + Math.PI / 2;
+    s.rot = bee ? Math.sin(s.th) * .25 : (s.rot + flyWrapAngle(want - s.rot) * Math.min(1, 5 * dt));
+    rot = s.rot; if (bee) flipX = Math.cos(s.th) < 0 ? -1 : 1;
+  } else if (k === "gull") {
+    x += s.dir * s.v * dt;
+    const yn = s.y0 + s.A1 * Math.sin(s.t * s.f1 * 6.283 + s.ph[0]) + s.A2 * Math.sin(s.t * s.f2 * 6.283 + s.ph[1]);
+    const dy = yn - y; y = yn;
+    // soar with the odd burst of flapping, climbing a little while flapping
+    s.flapT -= dt; if (s.flapT <= 0) { s.flap = !s.flap; s.flapT = s.flap ? flyR(1.2, 2.6) : flyR(2.5, 6); }
+    wing = s.flap ? .55 + .5 * Math.cos(s.t * 2 * Math.PI * 2.2) : .92 + .04 * Math.sin(s.t * 1.1);
+    rot = flyClamp(Math.atan2(dy, Math.max(1, s.v * dt)) * .9, -.35, .35) * s.dir + Math.sin(s.t * .5 + s.ph[2]) * .05;
+    if ((s.dir > 0 && x > W + s.w) || (s.dir < 0 && x < -s.w)) {
+      s.dir *= -1; x = s.dir > 0 ? -s.w : W + s.w; s.v = flyR(36, 62); s.y0 = flyR(H * .12, H * .6);
+    }
+  } else if (k === "kite") {
+    s.ang += s.om * dt; s.cx += s.drift * dt;
+    x = s.cx + Math.cos(s.ang) * s.rx; y = s.y0 + Math.sin(s.ang) * s.ry;
+    if ((s.drift > 0 && s.cx > W + s.rx + s.w) || (s.drift < 0 && s.cx < -s.rx - s.w)) s.cx = s.drift > 0 ? -s.rx - s.w : W + s.rx + s.w;
+    // bank into the turn; mostly gliding with a lazy flap now and then
+    rot = -Math.cos(s.ang) * Math.sign(s.om) * .22;
+    flipX = Math.sin(s.ang) * Math.sign(s.om) > 0 ? 1 : 1;
+    s.flapT -= dt; if (s.flapT <= 0) { s.flap = !s.flap; s.flapT = s.flap ? flyR(1, 2) : flyR(4, 9); }
+    wing = s.flap ? .6 + .45 * Math.cos(s.t * 2 * Math.PI * 1.8) : .95;
+  }
+  s.x = x; s.y = y;
+  el.style.transform = `translate3d(${(x - s.w / 2).toFixed(1)}px,${(y + bob - s.w / 4).toFixed(1)}px,0)`;
+  const fi = el.firstElementChild;
+  fi.style.transform = `rotate(${rot.toFixed(3)}rad) scaleX(${flipX})`;
+  const wg = el.querySelector(".wings");
+  if (wg) wg.style.transform = (k === "butterfly") ? `scaleX(${wing.toFixed(3)})` : `scaleY(${wing.toFixed(3)})`;
+}
+
+function flyFrame(now) {
+  _flyRaf = 0;
+  const els = document.querySelectorAll(".fly");
+  if (!els.length) return;
+  const off = document.documentElement.getAttribute("data-anim") === "off" || FLY_REDUCED() || document.hidden;
+  const dt = Math.min(.05, (now - (_flyLast || now)) / 1000); _flyLast = now;
+  if (off) {
+    // one still pose per creature, then check back occasionally
+    els.forEach((el) => { if (!el.__f) flyStep(el, .016); });
+    setTimeout(flyKick, 800);
+    return;
+  }
+  els.forEach((el) => { flyStep(el, dt); });
+  _flyRaf = requestAnimationFrame(flyFrame);
+}
+function flyKick() { if (!_flyRaf) { _flyLast = 0; _flyRaf = requestAnimationFrame(flyFrame); } }
+document.addEventListener("visibilitychange", () => { if (!document.hidden) flyKick(); });
 
 function buildThemeFx() {
   const theme = document.documentElement.getAttribute("data-theme");
@@ -557,7 +679,7 @@ function buildThemeFx() {
           h += `<span class="drift" style="top:${fxRand(15, 75).toFixed(0)}%;animation-duration:${fxRand(26, 44).toFixed(0)}s;animation-delay:${(-fxRand(0, 40)).toFixed(0)}s;transform:scale(${fxRand(.7, 1.15).toFixed(2)})"><span class="bob">${FX_SVG.ghost}</span></span>`;
         }
       }
-      layer.innerHTML = h;
+      layer.innerHTML = h; flyKick();
     }
   }
 
@@ -596,6 +718,7 @@ function buildThemeFx() {
     b += `<span class="bunny-actor" style="display:none"><span class="b-hop"><span class="b-side">${FX_SVG.bunnySide}</span><span class="b-front" style="display:none">${FX_SVG.bunny}</span></span></span>`;
   }
   banner.innerHTML = b;
+  flyKick();
   startBunnyCycle();
 }
 document.addEventListener("DOMContentLoaded", buildThemeFx);

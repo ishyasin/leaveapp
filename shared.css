@@ -429,3 +429,11 @@ tr.clash-row{background:#fff8e1;}
 .month-theme-row{display:flex;align-items:center;gap:10px;margin:0;font-weight:400;}
 .month-theme-row span{width:84px;font-weight:600;}
 .month-theme-row select{flex:1;margin:0;}
+
+/* ---- flyers (butterflies, bees, gulls, kite): positioned by JS in shared.js ---- */
+.fly{position:absolute;left:0;top:0;line-height:0;will-change:transform;pointer-events:none;}
+.fly .fi{display:block;transform-origin:50% 50%;}
+.fly svg{width:calc(var(--w,30) * 1px);height:auto;display:block;}
+.theme-fx .fly{opacity:.85;}
+.fly .wings{animation:none !important;transform-box:fill-box;transform-origin:50% 50%;}
+.fly[data-fly="gull"] .wings,.fly[data-fly="kite"] .wings,.fly[data-fly="bee"] .wings{transform-origin:50% 90%;}
