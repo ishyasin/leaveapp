@@ -52,6 +52,7 @@ const THEMES = {
   halloween: "Halloween",
   christmas: "Christmas",
   easter:    "Easter",
+  antimicrobial: "Antimicrobial",
 };
 const COLOR_MODES = {
   light:    "Light",
@@ -188,6 +189,44 @@ const FX_SVG = {
     <circle cx="10.5" cy="25" r="2.3" fill="#ffb199" opacity=".8"/><circle cx="29.5" cy="25" r="2.3" fill="#ffb199" opacity=".8"/>
     <g stroke="#ff9a1f" stroke-width="2" stroke-linecap="round"><line x1="15" y1="35" x2="15" y2="39"/><line x1="25" y1="35" x2="25" y2="39"/></g>
   </svg>`,
+  // ---- antimicrobial: bacteria and viruses (stylised, friendly) ----
+  bacillus: `<svg viewBox="0 0 64 28" aria-hidden="true">
+    <path d="M54,12 Q60,6 63,10 M54,16 Q59,22 63,19" stroke="#b6f5d2" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <rect x="3" y="4" width="52" height="20" rx="10" fill="#4fd08f" stroke="#c8ffe3" stroke-width="1.6"/>
+    <ellipse cx="18" cy="11" rx="6" ry="2.3" fill="#fff" opacity=".35"/>
+    <circle cx="30" cy="16" r="2.2" fill="#238a5b" opacity=".6"/><circle cx="41" cy="12" r="1.7" fill="#238a5b" opacity=".6"/><circle cx="24" cy="17" r="1.4" fill="#238a5b" opacity=".6"/>
+  </svg>`,
+  cocci: `<svg viewBox="0 0 54 50" aria-hidden="true">
+    <g fill="#ffd45c" stroke="#fff0b0" stroke-width="1.5">
+      <circle cx="18" cy="14" r="9.5"/><circle cx="36" cy="14" r="9.5"/><circle cx="27" cy="30" r="9.5"/>
+      <circle cx="11" cy="32" r="8.5"/><circle cx="43" cy="32" r="8.5"/><circle cx="27" cy="44" r="5.5"/>
+    </g>
+    <g fill="#fff" opacity=".45"><circle cx="15" cy="11" r="2.6"/><circle cx="33" cy="11" r="2.6"/><circle cx="24" cy="27" r="2.6"/></g>
+  </svg>`,
+  spirillum: `<svg viewBox="0 0 72 30" aria-hidden="true">
+    <path d="M4,15 Q12,1 20,15 T36,15 T52,15 T68,15" stroke="#b27cf5" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path d="M4,15 Q12,1 20,15 T36,15 T52,15 T68,15" stroke="#e6d3ff" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".8"/>
+  </svg>`,
+  virus: (() => {
+    let sp = "";
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+      sp += `<line x1="${(25 + 14 * c).toFixed(1)}" y1="${(25 + 14 * s).toFixed(1)}" x2="${(25 + 20.5 * c).toFixed(1)}" y2="${(25 + 20.5 * s).toFixed(1)}" stroke="#ff9db1" stroke-width="2"/><circle cx="${(25 + 22 * c).toFixed(1)}" cy="${(25 + 22 * s).toFixed(1)}" r="2.7" fill="#ff7d96"/>`;
+    }
+    return `<svg viewBox="0 0 50 50" aria-hidden="true">${sp}<circle cx="25" cy="25" r="14.5" fill="#ff6b8a" stroke="#ffd0da" stroke-width="1.5"/><circle cx="20" cy="21" r="3.2" fill="#fff" opacity=".4"/><circle cx="29" cy="29" r="2" fill="#c43d5e" opacity=".6"/><circle cx="30" cy="20" r="1.6" fill="#c43d5e" opacity=".6"/></svg>`;
+  })(),
+  phage: `<svg viewBox="0 0 44 64" aria-hidden="true">
+    <polygon points="22,2 34,9 34,23 22,30 10,23 10,9" fill="#ffb454" stroke="#ffe3b3" stroke-width="1.5"/>
+    <polygon points="22,2 34,9 22,16 10,9" fill="#fff" opacity=".3"/>
+    <rect x="17" y="30" width="10" height="3.5" rx="1.5" fill="#e28f26"/>
+    <rect x="19.5" y="33" width="5" height="16" fill="#ffcf8a" stroke="#e28f26" stroke-width=".8"/>
+    <g stroke="#ffcf8a" stroke-width="2" stroke-linecap="round" fill="none"><path d="M22,49 L7,61"/><path d="M22,49 L22,62"/><path d="M22,49 L37,61"/></g>
+  </svg>`,
+  capsule: `<svg viewBox="0 0 46 20" width="40" height="17" aria-hidden="true">
+    <rect x="1" y="1" width="44" height="18" rx="9" fill="#fff" stroke="#d8f5ff" stroke-width="1"/>
+    <path d="M23,1 H36 A9,9 0 0 1 36,19 H23 Z" fill="#a3e635"/>
+    <ellipse cx="12" cy="6" rx="6" ry="1.8" fill="#bfeaff" opacity=".7"/>
+  </svg>`,
   egg: (c1, c2) => `<svg viewBox="0 0 24 30" width="20" height="25" aria-hidden="true"><ellipse cx="12" cy="17" rx="10" ry="12" fill="${c1}"/><path d="M3,15 Q7,11 12,15 T21,15" stroke="${c2}" stroke-width="2.2" fill="none"/><path d="M4,21 Q8,18 12,21 T20,21" stroke="${c2}" stroke-width="1.6" fill="none"/></svg>`,
   tree: `<svg viewBox="0 0 40 52" width="34" height="44" aria-hidden="true">
     <polygon points="20,2 22,7 27,7 23,10 24.5,15 20,12 15.5,15 17,10 13,7 18,7" fill="#d4af37"/>
@@ -271,7 +310,7 @@ if (PRE_LOGIN_PAGE) {
 
 function buildThemeFx() {
   const theme = document.documentElement.getAttribute("data-theme");
-  const kind = ["halloween", "christmas", "easter"].includes(theme) ? theme : null;
+  const kind = ["halloween", "christmas", "easter", "antimicrobial"].includes(theme) ? theme : null;
   const tgl = document.getElementById("animToggle");
   if (tgl) tgl.classList.toggle("show", !!kind);
 
@@ -293,6 +332,12 @@ function buildThemeFx() {
           const dur = fxRand(9, 18).toFixed(1), delay = (-fxRand(0, 18)).toFixed(1), sway = fxRand(14, 46).toFixed(0);
           h += `<i class="flake" style="left:${left}%;font-size:${size}px;animation-duration:${dur}s,${(dur / 3).toFixed(1)}s;animation-delay:${delay}s,${delay}s;--sway:${sway}px;opacity:${fxRand(.55, .95).toFixed(2)}">${i % 3 ? "&#10052;" : "&#10053;"}</i>`;
         }
+      } else if (kind === "antimicrobial") {
+        const types = ["bacillus", "virus", "cocci", "phage", "spirillum", "virus", "bacillus"];
+        for (let i = 0; i < 20; i++) {
+          const t = types[i % types.length];
+          h += `<span class="germ" style="--s:${fxRand(.6, 1.5).toFixed(2)};--dx:${fxRand(-140, 140).toFixed(0)}px;left:${fxRand(0, 96).toFixed(1)}%;animation-duration:${fxRand(45, 90).toFixed(0)}s;animation-delay:${(-fxRand(0, 90)).toFixed(0)}s"><span class="g" style="--r:${fxRand(20, 70).toFixed(0)}deg;animation-duration:${fxRand(6, 12).toFixed(1)}s">${FX_SVG[t]}</span></span>`;
+        }
       } else {
         for (let i = 0; i < 4; i++) {
           h += `<span class="drift" style="top:${fxRand(15, 75).toFixed(0)}%;animation-duration:${fxRand(26, 44).toFixed(0)}s;animation-delay:${(-fxRand(0, 40)).toFixed(0)}s;transform:scale(${fxRand(.7, 1.15).toFixed(2)})"><span class="bob">${FX_SVG.ghost}</span></span>`;
@@ -312,6 +357,13 @@ function buildThemeFx() {
   if (kind === "christmas") {
     for (let i = 0; i < 6; i++) b += `<span class="sprite tree" style="left:${(6 + i * 17).toFixed(0)}%">${FX_SVG.tree}</span>`;
     for (let i = 0; i < 2; i++) b += `<span class="runner" style="animation-duration:${14 + i * 3}s;animation-delay:${-i * 7}s"><span class="rd">${FX_SVG.reindeer}</span></span>`;
+  } else if (kind === "antimicrobial") {
+    const types = ["bacillus", "virus", "cocci", "phage", "spirillum", "virus", "bacillus", "cocci"];
+    for (let i = 0; i < 8; i++) {
+      b += `<span class="germb" style="--s:${fxRand(.55, .95).toFixed(2)};--y0:${fxRand(2, 18).toFixed(0)}px;--y1:${fxRand(10, 28).toFixed(0)}px;--still:${(6 + i * 12).toFixed(0)}%;animation-duration:${fxRand(24, 40).toFixed(0)}s;animation-delay:${(-fxRand(0, 40)).toFixed(0)}s"><span class="g" style="--r:${fxRand(15, 45).toFixed(0)}deg">${FX_SVG[types[i]]}</span></span>`;
+    }
+    for (let i = 0; i < 3; i++) b += `<span class="capsule" style="left:${(18 + i * 30).toFixed(0)}%;animation-delay:${(-i * 1.3).toFixed(1)}s">${FX_SVG.capsule}</span>`;
+    for (let i = 0; i < 9; i++) b += `<span class="bubble" style="left:${fxRand(2, 96).toFixed(0)}%;animation-duration:${fxRand(3, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s"></span>`;
   } else if (kind === "halloween") {
     for (let i = 0; i < 7; i++) b += `<span class="sprite pumpkin" style="left:${(4 + i * 15).toFixed(0)}%;animation-delay:${(-fxRand(0, 3)).toFixed(1)}s">${FX_SVG.pumpkin}</span>`;
     for (let i = 0; i < 3; i++) b += `<span class="floater" style="left:${(14 + i * 33).toFixed(0)}%;animation-delay:${(-i * 2.2).toFixed(1)}s">${FX_SVG.ghost}</span>`;

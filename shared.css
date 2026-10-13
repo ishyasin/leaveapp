@@ -55,6 +55,9 @@
 :root[data-theme="easter"]{
   --navy:#5b4b8a; --navy-light:#6f5da3; --teal:#3fa796; --teal-light:#6fc9ba; --honey:#f4a6c1; --honey-dark:#e58aab;
 }
+:root[data-theme="antimicrobial"]{
+  --navy:#0c3b44; --navy-light:#12505b; --teal:#14a58f; --teal-light:#3fd0b8; --honey:#a3e635; --honey-dark:#7fb81f;
+}
 
 /* ---- theme decorations + animations (Halloween / Christmas / Easter).
    A banner strip under the top bar plus a click-through full-page layer;
@@ -63,10 +66,12 @@
 .theme-banner{display:none;position:relative;height:60px;overflow:hidden;border-bottom:3px solid var(--honey);background:var(--navy);}
 :root[data-theme="halloween"] .theme-banner,
 :root[data-theme="christmas"] .theme-banner,
-:root[data-theme="easter"] .theme-banner{display:block;}
+:root[data-theme="easter"] .theme-banner,
+:root[data-theme="antimicrobial"] .theme-banner{display:block;}
 :root[data-theme="halloween"] .theme-banner{background:linear-gradient(#150f1c,#2a1f33);}
 :root[data-theme="christmas"] .theme-banner{background:linear-gradient(#5a0f19,#7a1621);}
 :root[data-theme="easter"] .theme-banner{background:linear-gradient(#6f5da3,#8d7cc0);}
+:root[data-theme="antimicrobial"] .theme-banner{background:radial-gradient(120% 200% at 20% 0%,#16606b 0%,#0c3b44 60%,#082a31 100%);}
 .theme-banner .sprite,.theme-banner .floater,.theme-banner .chick{position:absolute;line-height:0;}
 .theme-banner .sprite{bottom:2px;}
 .theme-banner .sprite.tree{bottom:0;}
@@ -113,6 +118,7 @@
 @media (prefers-reduced-motion:reduce){
   .theme-banner *,.theme-fx *{animation:none !important;}
   .theme-banner .runner{position:absolute;left:46%;}
+  .theme-banner .germb{left:var(--still,40%);}
   .theme-fx{display:none;}
 }
 @media print{.theme-banner,.theme-fx{display:none !important;}}
@@ -123,6 +129,28 @@
 .anim-toggle{display:none;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;}
 .anim-toggle.show{display:inline-block;}
 .anim-toggle:hover{background:rgba(255,255,255,.22);}
+
+/* antimicrobial: floating bacteria and viruses */
+.theme-fx .germ{position:absolute;top:0;left:0;line-height:0;opacity:.42;will-change:transform;animation:fxGermRise linear infinite;}
+.theme-fx .germ .g{display:block;animation:fxGermSpin ease-in-out infinite alternate;filter:drop-shadow(0 0 5px rgba(120,255,220,.55));}
+.theme-fx .germ svg{display:block;width:calc(46px * var(--s,1));height:auto;}
+@keyframes fxGermRise{from{transform:translate(0,108vh)}to{transform:translate(var(--dx,0px),-16vh)}}
+@keyframes fxGermSpin{from{transform:rotate(calc(var(--r,40deg) * -1)) translateX(-8px)}to{transform:rotate(var(--r,40deg)) translateX(8px)}}
+.theme-banner .germb{position:absolute;line-height:0;opacity:.9;animation:fxGermBanner linear infinite;filter:drop-shadow(0 0 6px rgba(120,255,220,.7));}
+.theme-banner .germb svg{display:block;width:calc(40px * var(--s,1));height:auto;}
+.theme-banner .germb .g{display:block;animation:fxGermSpin 5s ease-in-out infinite alternate;}
+@keyframes fxGermBanner{0%{transform:translate(-70px,var(--y0,10px))}50%{transform:translate(50vw,var(--y1,24px))}100%{transform:translate(100vw,var(--y0,10px))}}
+.theme-banner .capsule{position:absolute;bottom:6px;line-height:0;filter:drop-shadow(0 0 6px rgba(190,255,120,.6));animation:fxFloat 4s ease-in-out infinite;}
+.theme-banner .capsule svg{display:block;}
+.theme-banner .bubble{position:absolute;bottom:-12px;width:10px;height:10px;border-radius:50%;border:1.5px solid rgba(170,255,235,.55);animation:fxBubble linear infinite;}
+@keyframes fxBubble{from{transform:translateY(0);opacity:.8}to{transform:translateY(-80px);opacity:0}}
+:root[data-anim="off"] .theme-banner .germb{left:var(--still,40%);}
+
+/* Antimicrobial is dark too (unless Inverted): deep petri-dish teal. */
+:root[data-theme="antimicrobial"]:not([data-color-mode="inverted"]){
+  --grey-bg:#0a1a1d; --surface:#11262a; --surface-alt:#173238; --surface-subtle:#142b30;
+  --text:#e3f1ef; --text-muted:#93b4b0; --border:#285058; --heading-color:#7fe3cf;
+}
 
 /* Halloween is always dark (unless the person chose Inverted). */
 :root[data-theme="halloween"]:not([data-color-mode="inverted"]){
@@ -265,6 +293,7 @@ th{color:var(--heading-color);background:var(--surface-alt);}
 .cal-grid td.tile.pending{background:var(--pending) !important;}
 .cal-grid td.tile.approved{background:var(--approved) !important;}
 .cal-grid td.tile.rejected{background:var(--rejected) !important;text-decoration:line-through;opacity:.85;}
+.cal-grid td.tile.after-last-day{background:#c9ccd1 !important;color:#6b7280;text-decoration:line-through;opacity:.8;}
 .cal-grid td.tile.study{background:var(--study) !important;}
 .cal-grid td.tile.study.study-pending{opacity:.65;}
 .cal-grid td.tile.toil-pending{background:var(--toil-light) !important;color:#3d1259;}

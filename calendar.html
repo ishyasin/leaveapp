@@ -320,6 +320,7 @@ function tileTooltip(r, ownerProfile, stacked) {
   if (stacked) {
     lines.push("Additional request — this person has another live request for the same date.");
   }
+  if (afterLastDay(r)) lines.push(`Greyed out — after their last working day (${fmtDate(ownerProfile.suspended_last_day)}).`);
 
   // Allocated leave always shows who allocated it and when, even to a
   // plain Pharmacist looking at their own tile — that transparency
@@ -446,12 +447,20 @@ async function refreshCalendar() {
   renderGrid();
 }
 
+// Leave dated after the owner's last working day (set when their account
+// was suspended as a leaver) is shown greyed out and doesn't count towards
+// capacity. Reactivating the account clears the date, restoring it.
+function afterLastDay(r) {
+  const p = profileById(r.user_id);
+  return !!(p && p.suspended_last_day && r.leave_date > p.suspended_last_day);
+}
+
 // Distinct pharmacists with an approved-or-pending request (any leave
 // type) at this site on this day.
 function capacityCountFor(site, iso) {
   const ids = new Set();
   REQUESTS.forEach(r => {
-    if (r.leave_date === iso && (r.status === "pending" || r.status === "approved")) {
+    if (r.leave_date === iso && (r.status === "pending" || r.status === "approved") && !afterLastDay(r)) {
       if (requestInSite(r, site)) ids.add(r.user_id);
     }
   });
@@ -662,6 +671,7 @@ function renderSiteGrid(site) {
           } else {
             statusClass = r.status;
           }
+          if (afterLastDay(r)) statusClass = "after-last-day";
           const pendingModifier = statusClass === "study" && r.status === "pending" ? " study-pending" : "";
           // An "additional" request — someone already has a live TOIL
           // or study-leave request for this same date (see the relaxed
@@ -1130,6 +1140,7 @@ async function openDetail(id) {
   document.getElementById("detBody").innerHTML = `
     <p><strong>${escapeHtml(owner?.full_name || "?")}</strong> (${escapeHtml(owner?.initials || "?")})</p>
     <p>${leaveTypeLine(r)} &middot; ${fmtDate(r.leave_date)}</p>
+    ${afterLastDay(r) ? `<p class="small" style="font-weight:700;">Greyed out: this is after their last working day (${fmtDate(owner.suspended_last_day)}).</p>` : ""}
     ${rangesAmendmentNote(r) ? `<p class="small" style="font-weight:700;">${escapeHtml(rangesAmendmentNote(r))}</p>` : ""}
     <p>Status: <span class="badge ${r.status}">${r.status}</span></p>
     ${showRequestAudit ? `<p class="small">${isAllocated ? "Allocated" : "Requested"} by ${escapeHtml(requester?.full_name || "?")} on ${fmtDateTime(r.requested_at)}</p>` : ""}

@@ -506,6 +506,27 @@
 </div>
 
 <!-- Edit role modal -->
+<div class="overlay" id="suspendOverlay" style="display:none;">
+  <div class="modal">
+    <h3 id="suspendTitle">Suspend account</h3>
+    <p class="small" id="suspendName"></p>
+    <p class="small">They are signed out and can no longer use the app. Any leave dated <strong>after</strong> their last day turns grey on the calendar. Unsuspending the account restores everything.</p>
+    <div id="suspendMsg"></div>
+    <form id="suspendForm">
+      <label for="suspendLastDay">Last working day</label>
+      <input type="date" id="suspendLastDay" required>
+      <label for="suspendTime">Leaving time on that day <span class="small">(optional)</span></label>
+      <input type="time" id="suspendTime">
+      <label for="suspendNote">Note <span class="small">(optional)</span></label>
+      <textarea id="suspendNote" rows="3" maxlength="500" placeholder="e.g. Moving to another Trust, leaving 17:00"></textarea>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeSuspendModal()">Cancel</button>
+        <button type="submit" class="danger" id="suspendSaveBtn">Suspend account</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="overlay" id="roleOverlay" style="display:none;">
   <div class="modal">
     <h3>Edit role</h3>
@@ -930,9 +951,12 @@ function renderUsersTable() {
       </td>
       <td>${ROLE_LABEL[p.role]}</td>
       <td>${escapeHtml(siteText)}</td>
-      <td>${p.active ? '<span class="badge approved">active</span>' : '<span class="badge rejected">inactive</span>'}</td>
+      <td>${p.active ? '<span class="badge approved">active</span>' : '<span class="badge rejected">suspended</span>' + suspendedInfo(p)}</td>
       <td style="white-space:nowrap;">
-        ${canToggleActive ? `<button class="secondary" onclick="toggleActive('${p.id}', ${!p.active})">${p.active ? "Deactivate" : "Reactivate"}</button>` : ""}
+        ${canToggleActive ? (p.active
+          ? `<button class="secondary" onclick="openSuspendModal('${p.id}')">Suspend</button>`
+          : `<button class="secondary" onclick="toggleActive('${p.id}', true)">Unsuspend</button>
+             <button class="secondary" onclick="openSuspendModal('${p.id}')">Edit leaving details</button>`) : ""}
         ${canResetPw ? `<button class="secondary" onclick="resetPw('${p.id}')">Reset password</button>` : ""}
         ${canEditSite ? `<button class="secondary" onclick="openSiteModal('${p.id}')">Edit site</button>` : ""}
         ${canEditRole ? `<button class="secondary" onclick="openRoleModal('${p.id}')">Edit role</button>` : ""}
@@ -1195,8 +1219,64 @@ document.getElementById("resetOncallForm").addEventListener("submit", async (e) 
   }
 });
 
+/* ---------------- suspend with last day ---------------- */
+function fmtLastDay(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+function suspendedInfo(p) {
+  if (!p.suspended_last_day) return "";
+  const t = p.suspended_leave_time ? ` at ${p.suspended_leave_time.slice(0, 5)}` : "";
+  const note = p.suspended_note ? ` title="${escapeHtml(p.suspended_note)}"` : "";
+  return `<div class="small"${note}>Last day ${escapeHtml(fmtLastDay(p.suspended_last_day))}${t}${p.suspended_note ? " \u00b7 note" : ""}</div>`;
+}
+let SUSPEND_USER_ID = null;
+function openSuspendModal(id) {
+  const p = PROFILES.find(x => x.id === id);
+  if (!p) return;
+  SUSPEND_USER_ID = id;
+  const editing = !p.active;
+  document.getElementById("suspendMsg").innerHTML = "";
+  document.getElementById("suspendTitle").textContent = editing ? "Edit leaving details" : "Suspend account";
+  document.getElementById("suspendSaveBtn").textContent = editing ? "Save" : "Suspend account";
+  document.getElementById("suspendName").textContent = `${p.full_name} (${p.initials})`;
+  document.getElementById("suspendLastDay").value = p.suspended_last_day || "";
+  document.getElementById("suspendTime").value = p.suspended_leave_time ? p.suspended_leave_time.slice(0, 5) : "";
+  document.getElementById("suspendNote").value = p.suspended_note || "";
+  document.getElementById("suspendOverlay").style.display = "flex";
+}
+function closeSuspendModal() { document.getElementById("suspendOverlay").style.display = "none"; }
+document.getElementById("suspendForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("suspendMsg");
+  const btn = document.getElementById("suspendSaveBtn");
+  const p = PROFILES.find(x => x.id === SUSPEND_USER_ID);
+  const lastDay = document.getElementById("suspendLastDay").value;
+  if (!lastDay) { showMsg(msg, "Pick their last working day.", "error"); return; }
+  if (p && p.active && !await uiConfirm(`Suspend ${p.full_name}? They will be signed out straight away. Leave after ${fmtLastDay(lastDay)} will turn grey on the calendar.`)) return;
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const { error } = await sb.rpc("suspend_user", {
+      p_user_id: SUSPEND_USER_ID,
+      p_last_day: lastDay,
+      p_leave_time: document.getElementById("suspendTime").value || null,
+      p_note: document.getElementById("suspendNote").value.trim() || null,
+    });
+    if (error) throw error;
+    closeSuspendModal();
+    await loadUsers();
+  } catch (err) {
+    showMsg(msg, err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
+});
+
 async function toggleActive(id, makeActive) {
   const msg = document.getElementById("usersMsg");
+  const who = PROFILES.find(x => x.id === id);
+  if (makeActive && !await uiConfirm(`Unsuspend ${who ? who.full_name : "this account"}? Their access is restored and any leave that was greyed out returns to normal.`)) return;
   try {
     const { error } = await sb.rpc("set_user_active", { p_user_id: id, p_active: makeActive });
     if (error) throw error;
