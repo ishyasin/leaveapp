@@ -26,6 +26,8 @@ const ROLE_LABEL = {
   lead_pharmacist: "Lead Pharmacist",
   superuser: "Clinical Team Lead",
   developer: "Developer",
+  viewer: "Read-only (Huddle & Links)",
+  huddle_poster: "Read-only + Huddle poster",
 };
 
 const SITE_LABEL = {
@@ -62,6 +64,10 @@ const THEMES = {
   summer:    "Summer",
   seaside:   "Seaside",
   hills:     "South Downs (hills)",
+  stdavid:   "St David's Day (Wales)",
+  stgeorge:  "St George's Day (England)",
+  stpatrick: "St Patrick's Day (Ireland)",
+  standrew:  "St Andrew's Day (Scotland)",
 };
 const COLOR_MODES = {
   light:    "Light",
@@ -447,14 +453,12 @@ const THEME_SCENES = {
     layer() {
       const cols = ["#ffc2d9", "#ff9ec2", "#fff", "#ffd9e8"]; let h = "";
       for (let i = 0; i < 16; i++) h += `<i class="fall" style="left:${fxRand(0, 98).toFixed(1)}%;width:${fxRand(9, 15).toFixed(0)}px;animation-duration:${fxRand(12, 22).toFixed(1)}s,${fxRand(3, 5).toFixed(1)}s;animation-delay:${(-fxRand(0, 22)).toFixed(1)}s,${(-fxRand(0, 5)).toFixed(1)}s;--sway:${fxRand(20, 60).toFixed(0)}px;opacity:.85">${SCN.petal(pick(cols, i))}</i>`;
-      for (let i = 0; i < 3; i++) h += fly("butterfly", SCN.butterfly(pick(["#ff9ec2", "#ffd23f", "#9ad0ff"], i), pick(["#ffd9e8", "#fff3a8", "#d3ecff"], i)), 30);
       return h;
     },
     banner() {
       let b = `<svg class="scn" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true">${scnRidge("#b8e08a", 44, 5, 0.6, 2)}${scnRidge("#7fc56a", 52, 4, 2.1, 3)}</svg>`;
       const tc = ["#ff5f9e", "#ffd23f", "#fff", "#c58bff", "#ff8a65"];
       for (let i = 0; i < 9; i++) b += SBX("bsway", SCN.tulip(pick(tc, i)), `left:${(3 + i * 10.6).toFixed(0)}%;bottom:2px;--w:${(14 + (i % 3) * 3)};animation-delay:${(-i * .5).toFixed(1)}s`);
-      for (let i = 0; i < 3; i++) b += fly("butterfly", SCN.butterfly(pick(["#ff9ec2", "#ffd23f", "#9ad0ff"], i), pick(["#ffd9e8", "#fff3a8", "#d3ecff"], i)), 24);
       for (let i = 0; i < 8; i++) b += SBX("bfall", SCN.petal(pick(["#ffc2d9", "#fff", "#ff9ec2"], i)), `left:${fxRand(2, 96).toFixed(0)}%;--w:${fxRand(7, 11).toFixed(0)};--dx:${fxRand(-30, 40).toFixed(0)}px;animation-duration:${fxRand(5, 9).toFixed(1)}s;animation-delay:${(-fxRand(0, 9)).toFixed(1)}s`);
       return b;
     },
@@ -463,7 +467,6 @@ const THEME_SCENES = {
     layer() {
       let h = "";
       for (let i = 0; i < 16; i++) h += `<i class="sp" style="left:${fxRand(1, 98).toFixed(1)}%;top:${fxRand(3, 96).toFixed(1)}%;font-size:${fxRand(9, 20).toFixed(0)}px;color:${pick(["#ffd23f", "#fff3a8", "#ffae4d"], i)};animation-duration:${fxRand(2.5, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">&#10022;</i>`;
-      for (let i = 0; i < 2; i++) h += fly("bee", SCN.bee, 30);
       return h;
     },
     banner() {
@@ -479,13 +482,11 @@ const THEME_SCENES = {
     layer() {
       let h = "";
       for (let i = 0; i < 14; i++) h += `<i class="rise" style="--dx:${fxRand(-40, 40).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(8, 20).toFixed(0)}px;opacity:.5;animation-duration:${fxRand(22, 45).toFixed(0)}s;animation-delay:${(-fxRand(0, 45)).toFixed(0)}s"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="rgba(255,255,255,.35)" stroke="#7fc8e6"/><circle cx="4" cy="4" r="1.2" fill="#fff"/></svg></i>`;
-      for (let i = 0; i < 3; i++) h += fly("gull", SCN.gull, 34 - i * 4);
       return h;
     },
     banner() {
       let b = SBX("", SCN.lighthouse, "left:6%;bottom:6px;--w:26") + `<span class="beam" style="left:calc(6% + 13px);bottom:46px"></span>`;
       b += SBX("bbob", SCN.sailboat, "left:58%;bottom:7px;--w:40;animation-duration:5s");
-      for (let i = 0; i < 3; i++) b += fly("gull", SCN.gull, 28 - i * 3);
       b += scnWaves("#2f9fd1", .75, "wvA", 4, 18) + scnWaves("#1a7fb8", .9, "wvB", 3, 28);
       return b;
     },
@@ -495,13 +496,11 @@ const THEME_SCENES = {
       let h = "";
       for (let i = 0; i < 4; i++) h += `<span class="xing" style="top:${(6 + i * 18)}%;animation-duration:${(70 + i * 25)}s;animation-delay:${(-i * 30)}s;--w:${130 + i * 30};opacity:.5"><span class="bob">${SCN.cloud}</span></span>`;
       for (let i = 0; i < 10; i++) h += `<i class="rise" style="--dx:${fxRand(-70, 70).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;font-size:${fxRand(12, 22).toFixed(0)}px;color:#fff;opacity:.6;animation-duration:${fxRand(35, 70).toFixed(0)}s;animation-delay:${(-fxRand(0, 70)).toFixed(0)}s;text-shadow:0 0 6px rgba(120,160,100,.7)">&#10023;</i>`;
-      for (let i = 0; i < 2; i++) h += fly("butterfly", SCN.butterfly(pick(["#ffd23f", "#9ad0ff"], i), "#fff"), 28);
       return h;
     },
     banner() {
       let b = `<svg class="scn" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true">${scnRidge("#a9d68a", 36, 6, 0.3, 1.5)}${scnRidge("#82bb5e", 44, 6, 2.2, 2)}${scnRidge("#5d9a43", 52, 4, 4.1, 2.6)}</svg>`;
       for (let i = 0; i < 3; i++) b += SBX("bcross", SCN.cloud, `left:0;top:${3 + i * 9}px;--w:${58 - i * 8};--still:${(15 + i * 33)}%;animation-duration:${(60 + i * 22)}s;animation-delay:${(-i * 25)}s`);
-      b += fly("kite", SCN.kite, 40);
       b += SBX("", SCN.windmill, "left:22%;bottom:10px;--w:46");
       [[40, 9], [48, 5], [62, 8], [70, 4], [86, 7], [8, 4]].forEach(([l, bt], i) => { b += SBX("bgraze", SCN.sheep, `left:${l}%;bottom:${bt}px;--w:${26 + (i % 2) * 5};animation-delay:${(-i * 1.1).toFixed(1)}s`); });
       return b;
@@ -510,126 +509,103 @@ const THEME_SCENES = {
 };
 
 /* =====================================================================
-   Flyers — butterflies, bees, gulls and the red kite.
-   Instead of sliding in a straight line, each creature follows a path
-   shaped like the real animal's flight:
-     butterfly  erratic, fluttering wander: lurches and drifts, bobs with
-                each wingbeat, flaps in short bursts then glides, turns to
-                face where it is heading, never leaves the screen
-     bee        fast, direct, buzzing wander with hovering loops, facing
-                the way it is going
-     gull       long, lazy soaring arcs, wings held out in glides with
-                occasional bursts of flapping, banking gently in turns
-     kite       slow thermal circling while drifting across the sky
-   Driven by one requestAnimationFrame loop; pauses when the tab is hidden,
-   when animations are switched off, and respects prefers-reduced-motion.
+   National-day themes: St David's Day (Wales), St George's Day (England),
+   St Patrick's Day (Ireland), St Andrew's Day (Scotland). Generic drawn
+   emblems only — daffodils, leeks, a stylised dragon, roses, shamrocks,
+   thistles, simple cross/saltire bunting.
    ===================================================================== */
-const FLY_REDUCED = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const fly = (kind, svg, w) => `<span class="fly" data-fly="${kind}" style="--w:${w}"><span class="fi">${svg}</span></span>`;
-const flyR = (a, b) => a + Math.random() * (b - a);
-const flyClamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const flyWrapAngle = (a) => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
-let _flyRaf = 0, _flyLast = 0;
-
-function flyInit(el) {
-  const p = el.parentElement, W = p.clientWidth || 800, H = p.clientHeight || 60;
-  const kind = el.dataset.fly, w = parseFloat(getComputedStyle(el).getPropertyValue("--w")) || 30;
-  const s = { kind, w, W, H, t: flyR(0, 100), ph: [flyR(0, 6.28), flyR(0, 6.28), flyR(0, 6.28)], rot: 0, face: 1, wing: 1 };
-  s.x = flyR(w, Math.max(w + 1, W - w)); s.y = flyR(H * .15, H * .85);
-  if (kind === "butterfly" || kind === "bee") {
-    s.th = flyR(0, 6.28); s.base = kind === "bee" ? flyR(70, 110) : flyR(34, 58);
-    s.flap = true; s.flapT = flyR(0.6, 1.8);
-  } else if (kind === "gull") {
-    s.dir = Math.random() < .5 ? 1 : -1; s.v = flyR(36, 62); s.y0 = flyR(H * .12, H * .6);
-    s.A1 = Math.max(6, flyR(H * .03, H * .07)); s.A2 = Math.max(2, flyR(H * .01, H * .03)); s.f1 = flyR(.07, .13); s.f2 = flyR(.2, .34);
-    s.flap = false; s.flapT = flyR(1, 3);
-  } else if (kind === "kite") {
-    s.cx = s.x; s.dir = Math.random() < .5 ? 1 : -1; s.rx = flyR(.8, 1.4) * Math.min(120, W * .1);
-    s.ry = Math.max(4, H * flyR(.07, .12)); s.ang = flyR(0, 6.28); s.om = flyR(.28, .42) * s.dir; s.drift = flyR(8, 14) * s.dir;
-    s.y0 = H * .4; s.flap = false; s.flapT = flyR(3, 7);
-  }
-  el.__f = s; return s;
+Object.assign(SCN, {
+  daffodil: `<svg viewBox="0 0 30 46" aria-hidden="true"><path d="M15,45 V20" stroke="#3f9a4d" stroke-width="2.4" fill="none"/><path d="M15,41 Q5,37 4,26 Q13,30 15,39" fill="#4fb860"/><g fill="#ffe46b" stroke="#f2c230" stroke-width=".6">${(() => { let r = ""; for (let i = 0; i < 6; i++) r += `<ellipse cx="15" cy="6.5" rx="4.2" ry="7.5" transform="rotate(${i * 60} 15 14)"/>`; return r; })()}</g><ellipse cx="15" cy="14" rx="5.2" ry="4.6" fill="#ffb300"/><path d="M10.5,12.5 L12,9.5 L13.5,12 L15,9 L16.5,12 L18,9.5 L19.5,12.5Z" fill="#ff9f00"/></svg>`,
+  leek: `<svg viewBox="0 0 18 48" aria-hidden="true"><path d="M7,46 L5.5,24 H12.5 L11,46Z" fill="#f4f7ee" stroke="#cfd8c0" stroke-width=".8"/><path d="M5.5,26 Q-1,12 4,2 Q8,12 9,24Z" fill="#3f9a4d"/><path d="M12.5,26 Q19,12 14,2 Q10,12 9,24Z" fill="#52b265"/><path d="M9,26 Q8,10 9,1 Q10,10 9,26Z" fill="#2f7d3f"/><path d="M6.5,46 q-3,2 -4,1 M11.5,46 q3,2 4,1" stroke="#cfd8c0" stroke-width=".9" fill="none"/></svg>`,
+  dragon: `<svg viewBox="0 0 96 56" aria-hidden="true"><g fill="#d4202c" stroke="#8a1018" stroke-width="1.2" stroke-linejoin="round">
+    <path d="M6,48 Q24,56 36,42 Q46,32 58,36 Q66,38 70,30 Q72,22 68,14 L76,8 L88,10 L92,16 L84,18 Q80,20 82,26 Q82,34 74,42 Q66,52 52,50 Q40,50 32,52 Q18,56 6,48Z"/>
+    <path d="M46,36 Q40,12 60,4 Q54,16 62,24 Q64,14 72,12 Q66,22 68,32Z"/>
+    <path d="M30,50 L26,56 M36,52 L34,56 M54,50 L52,56 M62,48 L62,56" stroke-linecap="round" fill="none"/>
+    <path d="M76,8 L78,2 L82,8 M84,10 L88,5 L88,11" fill="#8a1018"/></g>
+    <circle cx="84" cy="13" r="1.6" fill="#fff"/><path d="M90,15 q4,0 5,-2" stroke="#ffd23f" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>`,
+  rose: `<svg viewBox="0 0 28 38" aria-hidden="true"><path d="M14,37 V20" stroke="#2f7d3f" stroke-width="2.2" fill="none"/><path d="M14,32 Q5,30 4,22 Q12,23 14,30 M14,29 Q23,27 24,19 Q16,20 14,27" fill="#3f9a4d"/><circle cx="14" cy="12" r="10" fill="#c8102e"/><circle cx="14" cy="12" r="7" fill="#e0233f"/><path d="M14,12 m0,0 q4,-5 0,-6 q-5,0 -5,5 q0,5 6,5 q6,-1 5,-7" stroke="#8c0a1f" stroke-width="1.3" fill="none" stroke-linecap="round"/><circle cx="14" cy="12" r="10" fill="none" stroke="#fff" stroke-width=".8" opacity=".5"/></svg>`,
+  shamrock: (c) => `<svg viewBox="-16 -16 32 44" aria-hidden="true"><g fill="${c}" stroke="rgba(0,0,0,.18)" stroke-width=".6">${[0, 120, 240].map(a => `<path transform="rotate(${a})" d="M0,0 C-6,-3 -10,-10 -5,-14 C-2,-16 0,-13 0,-11 C0,-13 2,-16 5,-14 C10,-10 6,-3 0,0Z"/>`).join("")}</g><path d="M0,0 Q2,12 -2,22" stroke="${c}" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>`,
+  coin: `<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#ffd23f" stroke="#c99a10" stroke-width="1.2"/><circle cx="10" cy="10" r="6" fill="none" stroke="#e8b923" stroke-width="1.2"/><path d="M7,6 Q10,4 13,6" stroke="#fff3a8" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>`,
+  potgold: `<svg viewBox="0 0 46 38" aria-hidden="true"><g fill="#ffd23f" stroke="#c99a10" stroke-width=".8"><circle cx="14" cy="10" r="5"/><circle cx="23" cy="7" r="5.5"/><circle cx="32" cy="10" r="5"/><circle cx="19" cy="13" r="4.5"/><circle cx="28" cy="13" r="4.5"/></g><path d="M5,16 Q3,34 12,36 H34 Q43,34 41,16Z" fill="#2c2c34"/><rect x="3" y="14" width="40" height="5" rx="2.5" fill="#42424f"/><path d="M10,22 Q9,30 13,33" stroke="#fff" stroke-width="1.2" fill="none" opacity=".35" stroke-linecap="round"/></svg>`,
+  thistle: `<svg viewBox="0 0 24 46" aria-hidden="true"><path d="M12,45 V24" stroke="#4a7a3a" stroke-width="2.4" fill="none"/><path d="M12,38 Q3,35 2,26 Q10,29 12,36 M12,34 Q21,31 22,22 Q14,25 12,32" fill="#5c9a48"/><path d="M5,22 Q4,28 12,30 Q20,28 19,22Z" fill="#5c9a48"/><path d="M6,22 L8,26 L10,22 L12,26 L14,22 L16,26 L18,22" stroke="#3f7a30" stroke-width="1" fill="none"/><g stroke="#a259c4" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="21" x2="12" y2="6"/><line x1="12" y1="21" x2="7" y2="8"/><line x1="12" y1="21" x2="17" y2="8"/><line x1="12" y1="21" x2="4" y2="12"/><line x1="12" y1="21" x2="20" y2="12"/></g><circle cx="12" cy="17" r="4" fill="#c27ee0"/></svg>`,
+  fuzz: `<svg viewBox="0 0 20 20" aria-hidden="true"><g stroke="#fff" stroke-width="1" stroke-linecap="round"><line x1="10" y1="10" x2="10" y2="1"/><line x1="10" y1="10" x2="3" y2="4"/><line x1="10" y1="10" x2="17" y2="4"/><line x1="10" y1="10" x2="1" y2="10"/><line x1="10" y1="10" x2="19" y2="10"/><line x1="10" y1="10" x2="4" y2="16"/><line x1="10" y1="10" x2="16" y2="16"/></g><circle cx="10" cy="10" r="2" fill="#e8f0ff"/></svg>`,
+  flagCross: `<svg viewBox="0 0 30 20" aria-hidden="true"><rect x=".5" y=".5" width="29" height="19" fill="#fff" stroke="#c9d0d8"/><rect x="12.5" y="0" width="5" height="20" fill="#c8102e"/><rect x="0" y="7.5" width="30" height="5" fill="#c8102e"/></svg>`,
+  flagSaltire: `<svg viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#005EB8"/><path d="M0,0 L30,20 M30,0 L0,20" stroke="#fff" stroke-width="4"/></svg>`,
+  flagWales: `<svg viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="10" fill="#fff"/><rect y="10" width="30" height="10" fill="#00812c"/><path d="M8,14 Q10,6 15,8 Q18,4 22,7 Q20,10 22,13 Q16,17 8,14Z" fill="#d4202c" stroke="#8a1018" stroke-width=".5"/></svg>`,
+  rainbow: `<svg viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true">${["#e53935", "#fb8c00", "#fdd835", "#43a047", "#1e88e5", "#8e24aa"].map((c, i) => `<path d="M${6 + i * 5},60 A${54 - i * 5},${54 - i * 5} 0 0 1 ${114 - i * 5},60" fill="none" stroke="${c}" stroke-width="5" opacity=".85"/>`).join("")}</svg>`,
+});
+function scnBunting(cols) {
+  let t = ""; const n = 30;
+  for (let i = 0; i < n; i++) { const x = i * 40 + 6, y = 4 + 6 * Math.sin(i / n * Math.PI * 4); t += `<polygon points="${x},${y.toFixed(1)} ${x + 28},${(y + 1.5).toFixed(1)} ${x + 14},${(y + 22).toFixed(1)}" fill="${cols[i % cols.length]}" stroke="rgba(0,0,0,.18)" stroke-width=".6"/>`; }
+  return `<svg class="scn" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true"><path d="M0,3 ${Array.from({ length: n + 1 }, (_, i) => `L${i * 40},${(3 + 6 * Math.sin(i / n * Math.PI * 4)).toFixed(1)}`).join(" ")}" fill="none" stroke="rgba(60,60,60,.55)" stroke-width="1"/>${t}</svg>`;
 }
+const scnFall = (cls, svg, w, i, dur, sway) => `<i class="${cls}" style="left:${fxRand(0, 98).toFixed(1)}%;width:${w}px;animation-duration:${fxRand(dur[0], dur[1]).toFixed(1)}s,${fxRand(3, 5).toFixed(1)}s;animation-delay:${(-fxRand(0, dur[1])).toFixed(1)}s,${(-fxRand(0, 5)).toFixed(1)}s;--sway:${fxRand(sway[0], sway[1]).toFixed(0)}px;opacity:.85">${svg}</i>`;
 
-function flyStep(el, dt) {
-  const s = el.__f || flyInit(el), p = el.parentElement;
-  s.W = p.clientWidth || s.W; s.H = p.clientHeight || s.H;
-  const W = s.W, H = s.H, k = s.kind; s.t += dt;
-  let x = s.x, y = s.y, rot = 0, flipX = 1, wing = 1, bob = 0;
-
-  if (k === "butterfly" || k === "bee") {
-    const bee = k === "bee";
-    // wandering heading: smooth turning punctuated by sudden direction changes
-    const turn = (bee ? 2.6 : 3.2) * Math.sin(s.t * 1.3 + s.ph[0]) * Math.sin(s.t * .7 + s.ph[1]) + flyR(-1, 1) * (bee ? 1.2 : 2.2) * dt * 10;
-    s.th += turn * dt;
-    // soft walls: steer back toward the middle when close to an edge
-    const m = Math.min(70, W * .08), mv = Math.min(24, H * .35);
-    let ex = 0, ey = 0;
-    if (x < m) ex = 1; else if (x > W - m) ex = -1;
-    if (y < mv) ey = 1; else if (y > H - mv) ey = -1;
-    if (ex || ey) { const want = Math.atan2(ey || 0, ex || 0); const d = flyWrapAngle(want - s.th); s.th += d * Math.min(1, 3.2 * dt); }
-    // speed: lurching, with brief near-stops for butterflies
-    const lurch = bee ? .75 + .35 * Math.sin(s.t * 2.1 + s.ph[2]) : .35 + .85 * Math.pow(Math.abs(Math.sin(s.t * .8 + s.ph[2])), 1.5);
-    const v = s.base * lurch;
-    x += Math.cos(s.th) * v * dt; y += Math.sin(s.th) * v * dt * (H < 120 ? .45 : 1);
-    x = flyClamp(x, -4, W + 4); y = flyClamp(y, 2, H - 2);
-    // wingbeats
-    if (bee) { wing = .55 + .45 * Math.cos(s.t * 2 * Math.PI * 16); bob = Math.sin(s.t * 9) * 1.2; }
-    else {
-      s.flapT -= dt; if (s.flapT <= 0) { s.flap = !s.flap; s.flapT = s.flap ? flyR(.7, 2.2) : flyR(.15, .6); }
-      wing = s.flap ? .55 + .45 * Math.cos(s.t * 2 * Math.PI * 7.5) : .8 + .06 * Math.sin(s.t * 3);
-      bob = (s.flap ? Math.sin(s.t * 2 * Math.PI * 7.5 + 1.2) * 3.2 : 1.5) * (H < 120 ? .5 : 1);
-    }
-    // facing: butterflies point their head along the heading; bees flip left/right
-    const want = s.th + Math.PI / 2;
-    s.rot = bee ? Math.sin(s.th) * .25 : (s.rot + flyWrapAngle(want - s.rot) * Math.min(1, 5 * dt));
-    rot = s.rot; if (bee) flipX = Math.cos(s.th) < 0 ? -1 : 1;
-  } else if (k === "gull") {
-    x += s.dir * s.v * dt;
-    const yn = s.y0 + s.A1 * Math.sin(s.t * s.f1 * 6.283 + s.ph[0]) + s.A2 * Math.sin(s.t * s.f2 * 6.283 + s.ph[1]);
-    const dy = yn - y; y = yn;
-    // soar with the odd burst of flapping, climbing a little while flapping
-    s.flapT -= dt; if (s.flapT <= 0) { s.flap = !s.flap; s.flapT = s.flap ? flyR(1.2, 2.6) : flyR(2.5, 6); }
-    wing = s.flap ? .55 + .5 * Math.cos(s.t * 2 * Math.PI * 2.2) : .92 + .04 * Math.sin(s.t * 1.1);
-    rot = flyClamp(Math.atan2(dy, Math.max(1, s.v * dt)) * .9, -.35, .35) * s.dir + Math.sin(s.t * .5 + s.ph[2]) * .05;
-    if ((s.dir > 0 && x > W + s.w) || (s.dir < 0 && x < -s.w)) {
-      s.dir *= -1; x = s.dir > 0 ? -s.w : W + s.w; s.v = flyR(36, 62); s.y0 = flyR(H * .12, H * .6);
-    }
-  } else if (k === "kite") {
-    s.ang += s.om * dt; s.cx += s.drift * dt;
-    x = s.cx + Math.cos(s.ang) * s.rx; y = s.y0 + Math.sin(s.ang) * s.ry;
-    if ((s.drift > 0 && s.cx > W + s.rx + s.w) || (s.drift < 0 && s.cx < -s.rx - s.w)) s.cx = s.drift > 0 ? -s.rx - s.w : W + s.rx + s.w;
-    // bank into the turn; mostly gliding with a lazy flap now and then
-    rot = -Math.cos(s.ang) * Math.sign(s.om) * .22;
-    flipX = Math.sin(s.ang) * Math.sign(s.om) > 0 ? 1 : 1;
-    s.flapT -= dt; if (s.flapT <= 0) { s.flap = !s.flap; s.flapT = s.flap ? flyR(1, 2) : flyR(4, 9); }
-    wing = s.flap ? .6 + .45 * Math.cos(s.t * 2 * Math.PI * 1.8) : .95;
-  }
-  s.x = x; s.y = y;
-  el.style.transform = `translate3d(${(x - s.w / 2).toFixed(1)}px,${(y + bob - s.w / 4).toFixed(1)}px,0)`;
-  const fi = el.firstElementChild;
-  fi.style.transform = `rotate(${rot.toFixed(3)}rad) scaleX(${flipX})`;
-  const wg = el.querySelector(".wings");
-  if (wg) wg.style.transform = (k === "butterfly") ? `scaleX(${wing.toFixed(3)})` : `scaleY(${wing.toFixed(3)})`;
-}
-
-function flyFrame(now) {
-  _flyRaf = 0;
-  const els = document.querySelectorAll(".fly");
-  if (!els.length) return;
-  const off = document.documentElement.getAttribute("data-anim") === "off" || FLY_REDUCED() || document.hidden;
-  const dt = Math.min(.05, (now - (_flyLast || now)) / 1000); _flyLast = now;
-  if (off) {
-    // one still pose per creature, then check back occasionally
-    els.forEach((el) => { if (!el.__f) flyStep(el, .016); });
-    setTimeout(flyKick, 800);
-    return;
-  }
-  els.forEach((el) => { flyStep(el, dt); });
-  _flyRaf = requestAnimationFrame(flyFrame);
-}
-function flyKick() { if (!_flyRaf) { _flyLast = 0; _flyRaf = requestAnimationFrame(flyFrame); } }
-document.addEventListener("visibilitychange", () => { if (!document.hidden) flyKick(); });
+Object.assign(THEME_SCENES, {
+  stdavid: {
+    layer() {
+      let h = ""; const c = ["#ffd84d", "#ffe98a", "#fff", "#ffc400"];
+      for (let i = 0; i < 20; i++) h += scnFall("fall", SCN.petal(pick(c, i)), fxRand(10, 18).toFixed(0), i, [12, 22], [20, 60]);
+      for (let i = 0; i < 8; i++) h += `<i class="sp" style="left:${fxRand(1, 98).toFixed(1)}%;top:${fxRand(3, 96).toFixed(1)}%;font-size:${fxRand(9, 16).toFixed(0)}px;color:#ffd84d;animation-duration:${fxRand(2.5, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">&#10022;</i>`;
+      return h;
+    },
+    banner() {
+      let b = `<span class="bgrd" style="background:#2c7a3f;height:7px"></span>` + scnBunting(["#00812c", "#fff", "#d4202c"]);
+      for (let i = 0; i < 11; i++) b += SBX("bsway", SCN.daffodil, `left:${(3 + i * 8.8).toFixed(0)}%;bottom:3px;--w:${(18 + (i % 3) * 3)};animation-delay:${(-i * .55).toFixed(1)}s`);
+      for (let i = 0; i < 3; i++) b += SBX("bsway", SCN.leek, `left:${(30 + i * 24).toFixed(0)}%;bottom:3px;--w:13;animation-delay:${(-i * .8).toFixed(1)}s`);
+      b += SBX("bbob", SCN.dragon, "left:12%;bottom:8px;--w:74;animation-duration:4.5s");
+      b += SBX("bbob", SCN.flagWales, "left:90%;bottom:12px;--w:34;animation-duration:3.2s");
+      for (let i = 0; i < 10; i++) b += SBX("bfall", SCN.petal(pick(["#ffd84d", "#fff", "#ffe98a"], i)), `left:${fxRand(2, 96).toFixed(0)}%;--w:${fxRand(7, 11).toFixed(0)};--dx:${fxRand(-30, 40).toFixed(0)}px;animation-duration:${fxRand(5, 9).toFixed(1)}s;animation-delay:${(-fxRand(0, 9)).toFixed(1)}s`);
+      return b;
+    },
+  },
+  stgeorge: {
+    layer() {
+      let h = ""; const c = ["#c8102e", "#e0394a", "#fff", "#b00d28"];
+      for (let i = 0; i < 20; i++) h += scnFall("fall", SCN.petal(pick(c, i)), fxRand(10, 18).toFixed(0), i, [12, 22], [20, 60]);
+      return h;
+    },
+    banner() {
+      let b = scnBunting(["#c8102e", "#fff"]);
+      for (let i = 0; i < 6; i++) b += SBX("bsway", SCN.flagCross, `left:${(8 + i * 17).toFixed(0)}%;bottom:14px;--w:30;animation-duration:${(2.6 + (i % 3) * .5).toFixed(1)}s;animation-delay:${(-i * .6).toFixed(1)}s`) + `<span class="bgrd" style="left:calc(${(8 + i * 17).toFixed(0)}% - 1px);width:2px;height:30px;right:auto;background:#7a6a55;opacity:.7"></span>`;
+      for (let i = 0; i < 10; i++) b += SBX("bsway", SCN.rose, `left:${(4 + i * 10).toFixed(0)}%;bottom:2px;--w:${(18 + (i % 3) * 3)};animation-delay:${(-i * .5).toFixed(1)}s`);
+      for (let i = 0; i < 9; i++) b += SBX("bfall", SCN.petal(pick(["#c8102e", "#e0394a", "#fff"], i)), `left:${fxRand(2, 96).toFixed(0)}%;--w:${fxRand(7, 11).toFixed(0)};--dx:${fxRand(-30, 40).toFixed(0)}px;animation-duration:${fxRand(5, 9).toFixed(1)}s;animation-delay:${(-fxRand(0, 9)).toFixed(1)}s`);
+      return b;
+    },
+  },
+  stpatrick: {
+    layer() {
+      let h = ""; const c = ["#2e9e4f", "#52c26f", "#1f7a3d", "#7ad68f"];
+      for (let i = 0; i < 18; i++) h += scnFall("fall", SCN.shamrock(pick(c, i)), fxRand(14, 24).toFixed(0), i, [12, 22], [20, 60]);
+      for (let i = 0; i < 10; i++) h += `<i class="sp" style="left:${fxRand(1, 98).toFixed(1)}%;top:${fxRand(3, 96).toFixed(1)}%;font-size:${fxRand(9, 17).toFixed(0)}px;color:#e8b923;animation-duration:${fxRand(2.5, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">&#10022;</i>`;
+      return h;
+    },
+    banner() {
+      let b = `<span class="bgrd" style="background:#17632f;height:7px"></span>`;
+      b += SBX("", SCN.rainbow, "left:34%;bottom:4px;--w:150;opacity:.95");
+      b += SBX("", SCN.potgold, "left:70%;bottom:3px;--w:40");
+      for (let i = 0; i < 7; i++) b += SBX("bsway", SCN.shamrock(pick(["#52c26f", "#7ad68f", "#2e9e4f"], i)), `left:${(3 + i * 5.2).toFixed(0)}%;bottom:2px;--w:${(18 + (i % 3) * 4)};animation-delay:${(-i * .6).toFixed(1)}s`);
+      for (let i = 0; i < 8; i++) b += SBX("bfall", SCN.coin, `left:${fxRand(2, 96).toFixed(0)}%;--w:${fxRand(8, 13).toFixed(0)};--dx:${fxRand(-30, 40).toFixed(0)}px;animation-duration:${fxRand(5, 9).toFixed(1)}s;animation-delay:${(-fxRand(0, 9)).toFixed(1)}s`);
+      for (let i = 0; i < 12; i++) b += `<i class="bsp" style="left:${fxRand(2, 97).toFixed(0)}%;top:${fxRand(4, 60).toFixed(0)}%;font-size:${fxRand(8, 14).toFixed(0)}px;color:#ffe27a;animation-duration:${fxRand(1.8, 4).toFixed(1)}s;animation-delay:${(-fxRand(0, 4)).toFixed(1)}s">&#10022;</i>`;
+      return b;
+    },
+  },
+  standrew: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 14; i++) h += `<i class="rise" style="--dx:${fxRand(-60, 60).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(12, 22).toFixed(0)}px;opacity:.7;animation-duration:${fxRand(30, 60).toFixed(0)}s;animation-delay:${(-fxRand(0, 60)).toFixed(0)}s;filter:drop-shadow(0 0 3px rgba(0,94,184,.6))">${SCN.fuzz}</i>`;
+      for (let i = 0; i < 8; i++) h += `<i class="sp" style="left:${fxRand(1, 98).toFixed(1)}%;top:${fxRand(3, 96).toFixed(1)}%;font-size:${fxRand(9, 16).toFixed(0)}px;color:#5aa3ea;animation-duration:${fxRand(2.5, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">&#10022;</i>`;
+      return h;
+    },
+    banner() {
+      let b = scnBunting(["#fff", "#cfe3fa"]);
+      for (let i = 0; i < 6; i++) b += SBX("bsway", SCN.flagSaltire, `left:${(8 + i * 17).toFixed(0)}%;bottom:14px;--w:30;animation-duration:${(2.6 + (i % 3) * .5).toFixed(1)}s;animation-delay:${(-i * .6).toFixed(1)}s`) + `<span class="bgrd" style="left:calc(${(8 + i * 17).toFixed(0)}% - 1px);width:2px;height:30px;right:auto;background:#cfe3fa;opacity:.8"></span>`;
+      for (let i = 0; i < 10; i++) b += SBX("bsway", SCN.thistle, `left:${(4 + i * 10).toFixed(0)}%;bottom:2px;--w:${(14 + (i % 3) * 3)};animation-delay:${(-i * .5).toFixed(1)}s`);
+      for (let i = 0; i < 12; i++) b += SBX("brise", SCN.fuzz, `left:${fxRand(2, 97).toFixed(0)}%;--w:${fxRand(8, 14).toFixed(0)};animation-duration:${fxRand(4, 8).toFixed(1)}s;animation-delay:${(-fxRand(0, 8)).toFixed(1)}s`);
+      return b;
+    },
+  },
+});
 
 function buildThemeFx() {
   const theme = document.documentElement.getAttribute("data-theme");
@@ -679,7 +655,7 @@ function buildThemeFx() {
           h += `<span class="drift" style="top:${fxRand(15, 75).toFixed(0)}%;animation-duration:${fxRand(26, 44).toFixed(0)}s;animation-delay:${(-fxRand(0, 40)).toFixed(0)}s;transform:scale(${fxRand(.7, 1.15).toFixed(2)})"><span class="bob">${FX_SVG.ghost}</span></span>`;
         }
       }
-      layer.innerHTML = h; flyKick();
+      layer.innerHTML = h;
     }
   }
 
@@ -718,7 +694,6 @@ function buildThemeFx() {
     b += `<span class="bunny-actor" style="display:none"><span class="b-hop"><span class="b-side">${FX_SVG.bunnySide}</span><span class="b-front" style="display:none">${FX_SVG.bunny}</span></span></span>`;
   }
   banner.innerHTML = b;
-  flyKick();
   startBunnyCycle();
 }
 document.addEventListener("DOMContentLoaded", buildThemeFx);
@@ -1219,6 +1194,11 @@ async function requireAuth(allowedRoles) {
     window.location.href = "portal.html";
     return null;
   }
+  // A viewer may only open the Huddle Board and Quick Links (and the portal home).
+  if (isViewerRole(profile) && !VIEWER_PAGES.includes(window.location.pathname.split("/").pop())) {
+    window.location.href = "portal.html";
+    return null;
+  }
   renderTopbar(profile);
   return profile;
 }
@@ -1226,6 +1206,13 @@ async function requireAuth(allowedRoles) {
 function isLeadPlus(profile) { return ["lead_pharmacist", "superuser", "developer"].includes(profile.role); }
 function isSuperuserPlus(profile) { return ["superuser", "developer"].includes(profile.role); }
 function isDeveloper(profile) { return profile.role === "developer"; }
+// Two limited roles. "viewer" sees ONLY the Huddle Board and Quick Links;
+// "huddle_poster" is read-only everywhere except that they can post on the
+// Huddle Board. Neither takes leave or sits in the on-call pool.
+function isViewerRole(profile) { return profile.role === "viewer"; }
+function isReadOnlyRole(profile) { return profile.role === "viewer" || profile.role === "huddle_poster"; }
+function canPostHuddle(profile) { return ["lead_pharmacist", "superuser", "developer", "huddle_poster"].includes(profile.role); }
+const VIEWER_PAGES = ["portal.html", "huddle.html", "links.html", "reset-password.html", "login.html", "index.html", ""];
 // In the on-call pool for at least one site — governs whether "My
 // On-Call Dates" and "Swaps" are shown on oncall.html.
 function isOncallPoolMember(profile) { return !!(profile.oncall_worthing || profile.oncall_st_richards); }
@@ -1269,11 +1256,16 @@ function renderTopbar(profile) {
     ["links.html", "Quick Links", page === "links.html"],
     ["oncall.html", "On-Call Rota", page === "oncall.html"],
   ];
+  if (isViewerRole(profile)) {
+    // Only Home, Huddle Board and Quick Links.
+    for (let i = links.length - 1; i >= 0; i--) if (["calendar.html", "oncall.html"].includes(links[i][0])) links.splice(i, 1);
+  }
   if (isSuperuserPlus(profile)) {
     links.push(["admin.html", "Admin", page === "admin.html"]);
     links.push(["audit.html", "Audit Trail", page === "audit.html"]);
   }
-  const subLinks = [["calendar.html", "Calendar"], ["my-leave.html", "My Leave"]];
+  const subLinks = [["calendar.html", "Calendar"]];
+  if (!isReadOnlyRole(profile)) subLinks.push(["my-leave.html", "My Leave"]);
   if (isLeadPlus(profile)) subLinks.push(["approvals.html", "Approvals"]);
 
   const modeOptions = Object.entries(COLOR_MODES)

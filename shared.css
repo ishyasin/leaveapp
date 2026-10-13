@@ -71,6 +71,11 @@
 :root[data-theme="seaside"]{--navy:#0b5f8a; --navy-light:#1a7fb8; --teal:#16a5a0; --teal-light:#4cd0c9; --honey:#f2d27a; --honey-dark:#d8b658;}
 :root[data-theme="hills"]{--navy:#3d6b2e; --navy-light:#58894a; --teal:#5c8bb0; --teal-light:#8bb4d3; --honey:#e8c94a; --honey-dark:#c7a82c;}
 
+:root[data-theme="stdavid"]{--navy:#1e6b3a; --navy-light:#2f8a4f; --teal:#c8102e; --teal-light:#e0394a; --honey:#ffd23f; --honey-dark:#e0b520;}
+:root[data-theme="stgeorge"]{--navy:#8f0d21; --navy-light:#b3162f; --teal:#c8102e; --teal-light:#e0394a; --honey:#1b3a5c; --honey-dark:#12294a;}
+:root[data-theme="stpatrick"]{--navy:#0e5a2c; --navy-light:#1a7a40; --teal:#2e9e4f; --teal-light:#52c26f; --honey:#f5c451; --honey-dark:#d9a62a;}
+:root[data-theme="standrew"]{--navy:#003f87; --navy-light:#0a5cb8; --teal:#2a7fd4; --teal-light:#5aa3ea; --honey:#cfe3fa; --honey-dark:#9ec3ec;}
+
 /* ---- theme decorations + animations (Halloween / Christmas / Easter).
    A banner strip under the top bar plus a click-through full-page layer;
    the sprites are built in shared.js (buildThemeFx). Motion is disabled
@@ -88,7 +93,11 @@
 :root[data-theme="spring"] .theme-banner,
 :root[data-theme="summer"] .theme-banner,
 :root[data-theme="seaside"] .theme-banner,
-:root[data-theme="hills"] .theme-banner{display:block;}
+:root[data-theme="hills"] .theme-banner,
+:root[data-theme="stdavid"] .theme-banner,
+:root[data-theme="stgeorge"] .theme-banner,
+:root[data-theme="stpatrick"] .theme-banner,
+:root[data-theme="standrew"] .theme-banner{display:block;}
 :root[data-theme="halloween"] .theme-banner{background:linear-gradient(#150f1c,#2a1f33);}
 :root[data-theme="christmas"] .theme-banner{background:linear-gradient(#5a0f19,#7a1621);}
 :root[data-theme="easter"] .theme-banner{background:linear-gradient(#6f5da3,#8d7cc0);}
@@ -176,6 +185,11 @@
 :root[data-theme="summer"] .theme-banner{background:linear-gradient(#35b8ec,#9be0f8);}
 :root[data-theme="seaside"] .theme-banner{background:linear-gradient(#8ad4f2,#d7f1fa 70%,#f6e6b8);}
 :root[data-theme="hills"] .theme-banner{background:linear-gradient(#8cc4ea,#d6eefb);}
+:root[data-theme="stdavid"] .theme-banner{background:linear-gradient(#bfe6c8,#e9f6d9);}
+:root[data-theme="stgeorge"] .theme-banner{background:linear-gradient(#ffffff,#e6ecf4);}
+:root[data-theme="stpatrick"] .theme-banner{background:linear-gradient(#2f9a4d,#7fd08f);}
+:root[data-theme="standrew"] .theme-banner{background:linear-gradient(#0a5cb8,#4a9be0);}
+
 :root[data-theme="fairytale"]:not([data-color-mode="inverted"]){--grey-bg:#0e1233; --surface:#171d4a; --surface-alt:#1f2759; --surface-subtle:#1a2150; --text:#eceeff; --text-muted:#a4aad6; --border:#323c82; --heading-color:#f6d97a;}
 /* ---- scene themes: shared sprite classes ---- */
 .theme-banner .bx{position:absolute;line-height:0;}
@@ -429,11 +443,3 @@ tr.clash-row{background:#fff8e1;}
 .month-theme-row{display:flex;align-items:center;gap:10px;margin:0;font-weight:400;}
 .month-theme-row span{width:84px;font-weight:600;}
 .month-theme-row select{flex:1;margin:0;}
-
-/* ---- flyers (butterflies, bees, gulls, kite): positioned by JS in shared.js ---- */
-.fly{position:absolute;left:0;top:0;line-height:0;will-change:transform;pointer-events:none;}
-.fly .fi{display:block;transform-origin:50% 50%;}
-.fly svg{width:calc(var(--w,30) * 1px);height:auto;display:block;}
-.theme-fx .fly{opacity:.85;}
-.fly .wings{animation:none !important;transform-box:fill-box;transform-origin:50% 50%;}
-.fly[data-fly="gull"] .wings,.fly[data-fly="kite"] .wings,.fly[data-fly="bee"] .wings{transform-origin:50% 90%;}

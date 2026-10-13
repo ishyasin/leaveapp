@@ -64,6 +64,8 @@
   .comment .txt{white-space:pre-wrap;word-wrap:break-word;margin-top:2px;}
   .comment-form{display:flex;gap:8px;margin-top:10px;align-items:flex-start;}
   .comment-form textarea{flex:1;min-height:38px;margin:0;resize:vertical;}
+  body.ro-viewer .react-add, body.ro-viewer .comment-form{display:none !important;}
+  body.ro-viewer .react-btn{pointer-events:none;}
 </style>
 </head>
 <body>
@@ -151,7 +153,8 @@ let NEW_FILES = [];         // File objects chosen but not yet uploaded
 (async () => {
   PROFILE = await requireAuth(null);
   if (!PROFILE) return;
-  if (isLeadPlus(PROFILE)) document.getElementById("newPostBtn").style.display = "";
+  if (canPostHuddle(PROFILE)) document.getElementById("newPostBtn").style.display = "";
+  if (isViewerRole(PROFILE)) document.body.classList.add("ro-viewer");
   VIEW = PROFILE.cross_site ? "both" : (PROFILE.primary_site || "both");
   const { data } = await sb.rpc("get_profile_directory");
   DIR = data || [];
@@ -346,8 +349,8 @@ function fmtSize(n) {
 }
 
 function postHtml(p) {
-  const isAuthor = isLeadPlus(PROFILE) && p.created_by === PROFILE.id;                      // only the author edits
-  const canDelete = isLeadPlus(PROFILE) && (p.created_by === PROFILE.id || isSuperuserPlus(PROFILE));
+  const isAuthor = canPostHuddle(PROFILE) && p.created_by === PROFILE.id;                      // only the author edits
+  const canDelete = canPostHuddle(PROFILE) && (p.created_by === PROFILE.id || isSuperuserPlus(PROFILE));
   const long = (p.body || "").length > 450 || (p.body || "").split("\n").length > 8;
   const sites = (p.sites || []).map(s => `<span class="site-tag ${s}">${escapeHtml(SITE_NAMES[s] || s)}</span>`).join("");
   const files = (p.attachments || []).map(a =>
@@ -364,9 +367,9 @@ function postHtml(p) {
       ${long ? `<button type="button" class="link-btn" data-act="more">Show more</button>` : ""}
       ${files ? `<div class="post-files">${files}</div>` : ""}
       ${socialHtml(p)}
-      ${isLeadPlus(PROFILE) ? `
+      ${canPostHuddle(PROFILE) && (isLeadPlus(PROFILE) || isAuthor || canDelete) ? `
         <div class="post-actions">
-          <button type="button" class="secondary" data-act="pin">${p.pinned ? "Unpin" : "Pin"}</button>
+          ${isLeadPlus(PROFILE) ? `<button type="button" class="secondary" data-act="pin">${p.pinned ? "Unpin" : "Pin"}</button>` : ""}
           ${isAuthor ? `<button type="button" class="secondary" data-act="edit">Edit</button>` : ""}
           ${canDelete ? `<button type="button" class="danger" data-act="delete">Delete</button>` : ""}
         </div>` : ""}

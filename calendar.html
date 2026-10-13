@@ -226,8 +226,9 @@ let MONTH_STATUS = {};        // site -> month_status row
 let BULK_SELECTED = new Set(); // pending leave_request ids, Ctrl+click-selected for bulk approve/reject
 
 (async () => {
-  PROFILE = await requireAuth(["pharmacist","lead_pharmacist","superuser","developer"]);
+  PROFILE = await requireAuth(["pharmacist","lead_pharmacist","superuser","developer","huddle_poster"]);
   if (!PROFILE) return;
+  if (isReadOnlyRole(PROFILE)) { const rb = document.querySelector('button[onclick="openRequestModal()"]'); if (rb) rb.style.display = "none"; }
   await loadProfiles();
   initSiteView();
   buildMonthTabs();
@@ -710,6 +711,7 @@ function renderSiteGrid(site) {
 let SELECTED_DAYS = { site: null, days: new Set() };
 
 function toggleDaySelection(site, d) {
+  if (isReadOnlyRole(PROFILE)) return;   // read-only account: no leave requests
   // Weekends can never be selected for a leave request — silently
   // ignore the click rather than letting it enter the selection just
   // to be rejected later at submit time.
