@@ -68,6 +68,11 @@ const THEMES = {
   stgeorge:  "St George's Day (England)",
   stpatrick: "St Patrick's Day (Ireland)",
   standrew:  "St Andrew's Day (Scotland)",
+  emergency: "Emergency Hospital Care",
+  surgical:  "Surgical Care",
+  intensive: "Intensive Care",
+  elderly:   "Elderly Medicine",
+  paeds:     "Paediatrics",
 };
 const COLOR_MODES = {
   light:    "Light",
@@ -602,6 +607,129 @@ Object.assign(THEME_SCENES, {
       for (let i = 0; i < 6; i++) b += SBX("bsway", SCN.flagSaltire, `left:${(8 + i * 17).toFixed(0)}%;bottom:14px;--w:30;animation-duration:${(2.6 + (i % 3) * .5).toFixed(1)}s;animation-delay:${(-i * .6).toFixed(1)}s`) + `<span class="bgrd" style="left:calc(${(8 + i * 17).toFixed(0)}% - 1px);width:2px;height:30px;right:auto;background:#cfe3fa;opacity:.8"></span>`;
       for (let i = 0; i < 10; i++) b += SBX("bsway", SCN.thistle, `left:${(4 + i * 10).toFixed(0)}%;bottom:2px;--w:${(14 + (i % 3) * 3)};animation-delay:${(-i * .5).toFixed(1)}s`);
       for (let i = 0; i < 12; i++) b += SBX("brise", SCN.fuzz, `left:${fxRand(2, 97).toFixed(0)}%;--w:${fxRand(8, 14).toFixed(0)};animation-duration:${fxRand(4, 8).toFixed(1)}s;animation-delay:${(-fxRand(0, 8)).toFixed(1)}s`);
+      return b;
+    },
+  },
+});
+
+/* =====================================================================
+   Specialty themes: Emergency Hospital Care, Surgical Care, Intensive
+   Care, Elderly Medicine, Paediatrics. Generic drawn artwork only.
+   ===================================================================== */
+Object.assign(SCN, {
+  plus: (c) => `<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7,1H13V7H19V13H13V19H7V13H1V7H7Z" fill="${c}"/></svg>`,
+  ambulance: `<svg viewBox="0 0 100 48" aria-hidden="true"><path d="M3,36 V16 Q3,10 9,10 H60 V36Z" fill="#fff" stroke="#c9d0d8" stroke-width="1.2"/><path d="M60,16 H80 Q88,16 92,26 L97,30 Q99,32 99,36 H60Z" fill="#fff" stroke="#c9d0d8" stroke-width="1.2"/><path d="M66,19 H79 Q84,19 87,26 H66Z" fill="#b9e0ff" stroke="#7aa6c8" stroke-width=".8"/><rect x="3" y="27" width="96" height="5" fill="#d4202c"/><path d="M26,13 V25 M20,19 H32" stroke="#d4202c" stroke-width="4" stroke-linecap="round"/><rect x="34" y="4" width="14" height="6" rx="2" fill="#2a7fd4"/><circle cx="22" cy="38" r="7" fill="#2c2c34"/><circle cx="22" cy="38" r="3" fill="#cfd5dc"/><circle cx="80" cy="38" r="7" fill="#2c2c34"/><circle cx="80" cy="38" r="3" fill="#cfd5dc"/></svg>`,
+  siren: (c) => `<svg viewBox="0 0 18 14" aria-hidden="true"><path d="M2,13 A7,11 0 0 1 16,13Z" fill="${c}"/><rect x="0" y="11" width="18" height="3" rx="1" fill="#444"/></svg>`,
+  lamp: `<svg viewBox="0 0 60 56" aria-hidden="true"><path d="M30,0 V14" stroke="#9fb0bb" stroke-width="3"/><circle cx="30" cy="34" r="21" fill="#eef3f6" stroke="#9fb0bb" stroke-width="1.6"/><circle cx="30" cy="34" r="13" fill="#fff8d6" stroke="#e3d58b"/><g fill="#fff3a8" stroke="#e3d58b" stroke-width=".6">${[0, 60, 120, 180, 240, 300].map(a => `<circle cx="${(30 + 8 * Math.cos(a * Math.PI / 180)).toFixed(1)}" cy="${(34 + 8 * Math.sin(a * Math.PI / 180)).toFixed(1)}" r="2.6"/>`).join("")}<circle cx="30" cy="34" r="3.2"/></g></svg>`,
+  scissors: `<svg viewBox="0 0 30 42" aria-hidden="true"><path d="M11,28 L22,2 M19,28 L8,2" stroke="#d3dce3" stroke-width="3" stroke-linecap="round"/><circle cx="8" cy="34" r="5" fill="none" stroke="#9fb0bb" stroke-width="2.4"/><circle cx="22" cy="34" r="5" fill="none" stroke="#9fb0bb" stroke-width="2.4"/></svg>`,
+  scalpel: `<svg viewBox="0 0 16 46" aria-hidden="true"><path d="M6,44 V18 H10 V44Z" fill="#8fa3b0" stroke="#6f8492" stroke-width=".8"/><path d="M6,18 Q8,10 8,1 Q8,10 10,18Z" fill="#e8eef2" stroke="#9fb0bb" stroke-width=".8"/></svg>`,
+  monitor: `<svg viewBox="0 0 54 44" aria-hidden="true"><rect x="2" y="2" width="50" height="32" rx="3" fill="#0b1a24" stroke="#9fb0bb" stroke-width="2"/><path d="M6,20 H16 L19,12 L23,28 L26,20 H34 L37,15 L40,22 H48" stroke="#39e08d" stroke-width="1.6" fill="none" stroke-linejoin="round"/><text x="8" y="10" font-size="6" fill="#ffd43b" font-family="Arial,sans-serif">72</text><text x="40" y="10" font-size="6" fill="#7fd0ff" font-family="Arial,sans-serif">98%</text><rect x="22" y="34" width="10" height="5" fill="#9fb0bb"/><rect x="14" y="39" width="26" height="3" rx="1.5" fill="#9fb0bb"/></svg>`,
+  dropBag: `<svg viewBox="0 0 26 56" aria-hidden="true"><path d="M13,0 V6" stroke="#9fb0bb" stroke-width="2"/><path d="M4,6 H22 V30 Q13,40 4,30Z" fill="rgba(170,215,255,.45)" stroke="#9bc4e6" stroke-width="1.4"/><path d="M4,22 Q13,26 22,22 V30 Q13,40 4,30Z" fill="rgba(110,180,240,.55)"/><path d="M13,38 V44" stroke="#9bc4e6" stroke-width="1.6"/></svg>`,
+  drop: `<svg viewBox="0 0 10 16" aria-hidden="true"><path d="M5,0 Q10,7 10,10.5 A5,5 0 1 1 0,10.5 Q0,7 5,0Z" fill="#7fd0ff"/></svg>`,
+  teacup: `<svg viewBox="0 0 48 44" aria-hidden="true"><g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".8"><path class="steam" d="M16,14 q-4,-4 0,-8 q4,-4 0,-8"/><path class="steam" style="animation-delay:-1s" d="M24,14 q-4,-4 0,-8 q4,-4 0,-8"/><path class="steam" style="animation-delay:-2s" d="M32,14 q-4,-4 0,-8 q4,-4 0,-8"/></g><path d="M8,18 H40 Q40,36 24,36 Q8,36 8,18Z" fill="#fff" stroke="#d9c8e0" stroke-width="1.4"/><path d="M40,21 Q48,21 46,28 Q44,33 38,32" fill="none" stroke="#d9c8e0" stroke-width="2.4"/><ellipse cx="24" cy="39" rx="19" ry="3.5" fill="#f3e9f6" stroke="#d9c8e0"/><path d="M14,24 q3,-3 6,0 M26,28 q3,-3 6,0" stroke="#e58aab" stroke-width="1.6" fill="none"/></svg>`,
+  clock: `<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#fffaf0" stroke="#8a6d4b" stroke-width="2.4"/>${[0, 90, 180, 270].map(a => `<line x1="20" y1="4.5" x2="20" y2="8" stroke="#8a6d4b" stroke-width="1.6" transform="rotate(${a} 20 20)"/>`).join("")}<line class="hh" x1="20" y1="20" x2="20" y2="11" stroke="#5b4636" stroke-width="2.4" stroke-linecap="round"/><line class="hm" x1="20" y1="20" x2="20" y2="7" stroke="#5b4636" stroke-width="1.6" stroke-linecap="round"/><circle cx="20" cy="20" r="1.8" fill="#5b4636"/></svg>`,
+  glasses: `<svg viewBox="0 0 54 24" aria-hidden="true"><g fill="rgba(200,230,255,.35)" stroke="#6b4f7a" stroke-width="2.2"><circle cx="14" cy="13" r="9.5"/><circle cx="40" cy="13" r="9.5"/></g><path d="M23.5,12 Q27,8 30.5,12" stroke="#6b4f7a" stroke-width="2.2" fill="none"/><path d="M4.5,12 L1,6 M49.5,12 L53,6" stroke="#6b4f7a" stroke-width="2.2" stroke-linecap="round"/></svg>`,
+  wool: (c) => `<svg viewBox="0 0 30 30" aria-hidden="true"><circle cx="14" cy="16" r="12" fill="${c}"/><path d="M5,10 Q14,16 23,8 M3,17 Q14,23 25,15 M6,24 Q15,20 22,24" stroke="rgba(255,255,255,.55)" stroke-width="1.4" fill="none"/><path d="M24,26 Q30,28 29,22" stroke="${c}" stroke-width="2" fill="none"/></svg>`,
+  plant: `<svg viewBox="0 0 30 40" aria-hidden="true"><path d="M15,24 Q4,20 5,8 Q14,10 15,22 M15,24 Q26,20 25,6 Q16,9 15,22 M15,24 V14" fill="#4fb860" stroke="#3f9a4d" stroke-width="1"/><path d="M7,26 H23 L21,38 H9Z" fill="#c9784a" stroke="#a65e36"/></svg>`,
+  teddy: `<svg viewBox="0 0 46 52" aria-hidden="true"><g fill="#c68a52" stroke="#a06a38" stroke-width="1.2"><circle cx="9" cy="8" r="6"/><circle cx="37" cy="8" r="6"/><ellipse cx="23" cy="36" rx="14" ry="13"/><circle cx="23" cy="18" r="13"/><ellipse cx="8" cy="34" rx="5" ry="8" transform="rotate(20 8 34)"/><ellipse cx="38" cy="34" rx="5" ry="8" transform="rotate(-20 38 34)"/><ellipse cx="14" cy="48" rx="6" ry="4"/><ellipse cx="32" cy="48" rx="6" ry="4"/></g><circle cx="9" cy="8" r="3" fill="#e9b98a"/><circle cx="37" cy="8" r="3" fill="#e9b98a"/><ellipse cx="23" cy="36" rx="8" ry="8" fill="#e9b98a"/><ellipse cx="23" cy="22" rx="6" ry="4.5" fill="#e9b98a"/><circle cx="18" cy="15" r="1.8" fill="#3b2a1a"/><circle cx="28" cy="15" r="1.8" fill="#3b2a1a"/><ellipse cx="23" cy="20" rx="2.4" ry="1.7" fill="#3b2a1a"/><path d="M23,22 Q20,25 17.5,23 M23,22 Q26,25 28.5,23" stroke="#3b2a1a" stroke-width="1" fill="none"/><path d="M16,29 L23,32 L30,29 L30,35 L23,32 L16,35Z" fill="#d4202c"/></svg>`,
+  balloon: (c) => `<svg viewBox="0 0 26 50" aria-hidden="true"><ellipse cx="13" cy="15" rx="11" ry="14" fill="${c}"/><ellipse cx="9" cy="9" rx="3" ry="5" fill="#fff" opacity=".4"/><path d="M11,29 L15,29 L13,32Z" fill="${c}"/><path d="M13,32 Q9,38 14,43 Q18,47 12,50" stroke="#8a8a96" stroke-width="1" fill="none"/></svg>`,
+  block: (c, l) => `<svg viewBox="0 0 30 30" aria-hidden="true"><rect x="2" y="2" width="26" height="26" rx="3.5" fill="${c}" stroke="rgba(0,0,0,.2)" stroke-width="1"/><text x="15" y="22.5" text-anchor="middle" font-size="19" font-weight="700" fill="#fff" font-family="Arial,sans-serif">${l}</text></svg>`,
+  star: (c) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,1.5 L15,9 L23,9.6 L17,14.8 L19,22.5 L12,18.3 L5,22.5 L7,14.8 L1,9.6 L9,9Z" fill="${c}" stroke="rgba(0,0,0,.15)" stroke-width=".7" stroke-linejoin="round"/></svg>`,
+});
+function scnEcg(color, op, cls, style, kind) {
+  let d = "M0,20 ";
+  if (kind === "pleth") { for (let x = 0; x <= 2400; x += 8) d += `L${x},${(30 - 22 * Math.pow(Math.max(0, Math.sin(x / 160 * Math.PI)), 3) - 3 * Math.sin(x / 80 * Math.PI)).toFixed(1)} `; }
+  else if (kind === "wave") { for (let x = 0; x <= 2400; x += 8) d += `L${x},${(20 + 11 * Math.sin(x / 90 * Math.PI) * Math.sin(x / 700)).toFixed(1)} `; }
+  else for (let b = 0; b < 12; b++) { const o = b * 200; d += `L${o + 60},20 L${o + 70},16 L${o + 80},20 L${o + 95},20 L${o + 100},26 L${o + 108},2 L${o + 118},37 L${o + 124},20 L${o + 150},20 L${o + 160},13 L${o + 175},20 L${o + 200},20 `; }
+  return `<svg class="scn-wave ${cls}" style="${style || ""}" viewBox="0 0 2400 40" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" fill="none" stroke="${color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity="${op}"/></svg>`;
+}
+const scnNum = (txt, col, left, top, size) => `<span class="bnum" style="left:${left};top:${top}px;color:${col};font-size:${size || 11}px">${txt}</span>`;
+
+Object.assign(THEME_SCENES, {
+  emergency: {
+    layer() {
+      let h = ""; const c = ["#d4202c", "#fff", "#2a7fd4", "#ff6b6b"];
+      for (let i = 0; i < 16; i++) h += `<i class="rise" style="--dx:${fxRand(-50, 50).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(12, 24).toFixed(0)}px;opacity:.3;animation-duration:${fxRand(28, 55).toFixed(0)}s;animation-delay:${(-fxRand(0, 55)).toFixed(0)}s">${SCN.plus(pick(c, i))}</i>`;
+      return h;
+    },
+    banner() {
+      let b = scnEcg("#fff", .9, "wvA", "height:24px;bottom:0;animation-duration:7s");
+      b += SBX("bblink", SCN.siren("#ff3b3b"), "left:3%;top:6px;--w:20") + SBX("bblink b2", SCN.siren("#3b8bff"), "left:6%;top:6px;--w:20");
+      b += SBX("bblink b2", SCN.siren("#ff3b3b"), "right:6%;top:6px;--w:20") + SBX("bblink", SCN.siren("#3b8bff"), "right:3%;top:6px;--w:20");
+      b += SBX("bcross", SCN.ambulance, "left:0;bottom:6px;--w:80;--still:40%;animation-duration:14s");
+      for (let i = 0; i < 9; i++) b += SBX("brise", SCN.plus(pick(["#fff", "#ffd1d1"], i)), `left:${fxRand(8, 92).toFixed(0)}%;--w:${fxRand(8, 14).toFixed(0)};animation-duration:${fxRand(4, 8).toFixed(1)}s;animation-delay:${(-fxRand(0, 8)).toFixed(1)}s`);
+      return b;
+    },
+  },
+  surgical: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 16; i++) h += `<i class="rise" style="--dx:${fxRand(-40, 40).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(8, 20).toFixed(0)}px;opacity:.5;animation-duration:${fxRand(22, 45).toFixed(0)}s;animation-delay:${(-fxRand(0, 45)).toFixed(0)}s"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="rgba(255,255,255,.4)" stroke="#5fd3c6"/><circle cx="4" cy="4" r="1.2" fill="#fff"/></svg></i>`;
+      for (let i = 0; i < 10; i++) h += `<i class="sp" style="left:${fxRand(1, 98).toFixed(1)}%;top:${fxRand(3, 96).toFixed(1)}%;font-size:${fxRand(9, 16).toFixed(0)}px;color:#5fd3c6;animation-duration:${fxRand(2.5, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">&#10022;</i>`;
+      return h;
+    },
+    banner() {
+      let b = scnEcg("#baf5e6", .85, "wvA", "height:20px;bottom:0;animation-duration:8s");
+      b += SBX("bswing", SCN.lamp, "left:14%;top:-4px;--w:54") + SBX("bswing b2", SCN.lamp, "left:74%;top:-4px;--w:54");
+      b += SBX("", SCN.monitor, "left:44%;bottom:6px;--w:50");
+      b += SBX("bsway", SCN.scissors, "left:30%;bottom:6px;--w:20;animation-delay:-1s") + SBX("bsway", SCN.scalpel, "left:34%;bottom:6px;--w:11;animation-delay:-2s");
+      b += SBX("bsway", SCN.scalpel, "left:60%;bottom:6px;--w:11") + SBX("bsway", SCN.scissors, "left:63%;bottom:6px;--w:20;animation-delay:-1.5s");
+      for (let i = 0; i < 9; i++) b += `<i class="bubble" style="left:${fxRand(3, 96).toFixed(0)}%;animation-duration:${fxRand(3, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s;border-color:rgba(255,255,255,.7)"></i>`;
+      return b;
+    },
+  },
+  intensive: {
+    layer() {
+      let h = ""; const t = ["72", "98%", "120/80", "36.8", "16", "SpO2", "HR 68", "BP", "EtCO2 4.8", "MAP 84"], c = ["#39e08d", "#7fd0ff", "#ffd43b", "#ff7b7b"];
+      for (let i = 0; i < 18; i++) h += `<i class="rise" style="--dx:${fxRand(-30, 30).toFixed(0)}px;left:${fxRand(2, 96).toFixed(1)}%;font-size:${fxRand(11, 20).toFixed(0)}px;color:${pick(c, i)};opacity:.28;font-family:ui-monospace,Menlo,monospace;font-weight:600;animation-duration:${fxRand(35, 70).toFixed(0)}s;animation-delay:${(-fxRand(0, 70)).toFixed(0)}s;text-shadow:0 0 8px currentColor">${pick(t, i)}</i>`;
+      return h;
+    },
+    banner() {
+      let b = scnEcg("#39e08d", .95, "wvA", "height:18px;bottom:36px;animation-duration:6s");
+      b += scnEcg("#7fd0ff", .9, "wvB", "height:16px;bottom:19px;animation-duration:9s;animation-direction:normal", "pleth");
+      b += scnEcg("#ffd43b", .85, "wvA", "height:14px;bottom:3px;animation-duration:14s", "wave");
+      b += scnNum("HR 72", "#39e08d", "3%", 4, 12) + scnNum("SpO2 98%", "#7fd0ff", "13%", 4, 11) + scnNum("120/80", "#ffd43b", "26%", 4, 11);
+      b += `<span class="bpulse" style="left:92%;top:8px"></span>`;
+      b += SBX("", SCN.dropBag, "left:84%;top:2px;--w:20");
+      b += `<span class="bdrip" style="left:calc(84% + 9px);top:34px"></span>`;
+      return b;
+    },
+  },
+  elderly: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 12; i++) h += `<i class="rise" style="--dx:${fxRand(-60, 60).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(12, 22).toFixed(0)}px;opacity:.4;animation-duration:${fxRand(40, 75).toFixed(0)}s;animation-delay:${(-fxRand(0, 75)).toFixed(0)}s">${SCN.heart(pick(["#e58aab", "#c9a7dc", "#f2c0d0"], i))}</i>`;
+      for (let i = 0; i < 12; i++) h += scnFall("fall", SCN.petal(pick(["#f2c0d0", "#e8d5f0", "#fff3e0"], i)), fxRand(9, 15).toFixed(0), i, [16, 28], [20, 50]);
+      return h;
+    },
+    banner() {
+      let b = `<span class="bgrd" style="background:#9c7b5c;height:7px"></span>`;
+      b += SBX("", SCN.teacup, "left:6%;bottom:6px;--w:46") + SBX("", SCN.clock, "left:24%;bottom:8px;--w:40");
+      b += SBX("bbob", SCN.glasses, "left:40%;bottom:8px;--w:54;animation-duration:6s");
+      b += SBX("", SCN.wool("#e58aab"), "left:56%;bottom:6px;--w:28") + SBX("", SCN.wool("#9a86c4"), "left:61%;bottom:6px;--w:24");
+      b += SBX("bsway", SCN.plant, "left:72%;bottom:6px;--w:30") + SBX("bsway", SCN.plant, "left:90%;bottom:6px;--w:26;animation-delay:-1.2s");
+      b += SBX("", SCN.teacup, "left:80%;bottom:6px;--w:42");
+      for (let i = 0; i < 8; i++) b += SBX("brise", SCN.heart(pick(["#e58aab", "#c9a7dc", "#f2c0d0"], i)), `left:${fxRand(3, 95).toFixed(0)}%;--w:${fxRand(9, 16).toFixed(0)};animation-duration:${fxRand(5, 9).toFixed(1)}s;animation-delay:${(-fxRand(0, 9)).toFixed(1)}s`);
+      return b;
+    },
+  },
+  paeds: {
+    layer() {
+      let h = ""; const bc = ["#ff5a5f", "#ffd23f", "#3b9de0", "#4cc97a", "#c27ee0", "#ff9a3c"];
+      for (let i = 0; i < 10; i++) h += `<i class="rise" style="--dx:${fxRand(-70, 70).toFixed(0)}px;left:${fxRand(2, 96).toFixed(1)}%;width:${fxRand(20, 34).toFixed(0)}px;opacity:.55;animation-duration:${fxRand(30, 60).toFixed(0)}s;animation-delay:${(-fxRand(0, 60)).toFixed(0)}s">${SCN.balloon(pick(bc, i))}</i>`;
+      for (let i = 0; i < 14; i++) h += scnFall("fall", SCN.star(pick(bc, i)), fxRand(10, 18).toFixed(0), i, [14, 26], [20, 60]);
+      return h;
+    },
+    banner() {
+      const bc = ["#ff5a5f", "#ffd23f", "#3b9de0", "#4cc97a", "#c27ee0", "#ff9a3c"];
+      let b = `<span class="bgrd" style="background:#5fc46f;height:8px"></span>`;
+      b += SBX("", SCN.rainbow, "left:22%;bottom:6px;--w:130;opacity:.95");
+      for (let i = 0; i < 2; i++) b += SBX("bcross", SCN.cloud, `left:0;top:${4 + i * 12}px;--w:${60 - i * 14};--still:${25 + i * 40}%;animation-duration:${(50 + i * 20)}s;animation-delay:${(-i * 20)}s`);
+      b += SBX("", SCN.block("#ff5a5f", "A"), "left:56%;bottom:6px;--w:26") + SBX("", SCN.block("#3b9de0", "B"), "left:59.5%;bottom:6px;--w:26") + SBX("", SCN.block("#ffb400", "C"), "left:57.7%;bottom:30px;--w:26");
+      b += SBX("bbob", SCN.teddy, "left:72%;bottom:6px;--w:38;animation-duration:3.2s");
+      for (let i = 0; i < 7; i++) b += SBX("bbob", SCN.balloon(pick(bc, i)), `left:${(4 + i * 6.5).toFixed(0)}%;top:${(-2 + (i % 3) * 3)}px;--w:18;animation-duration:${(3.5 + (i % 4) * .6).toFixed(1)}s;animation-delay:${(-i * .5).toFixed(1)}s`);
+      for (let i = 0; i < 6; i++) b += SBX("bbob", SCN.balloon(pick(bc, i + 2)), `left:${(84 + i * 2.6).toFixed(0)}%;top:${(-2 + (i % 3) * 3)}px;--w:16;animation-duration:${(3.5 + (i % 4) * .6).toFixed(1)}s;animation-delay:${(-i * .5).toFixed(1)}s`);
+      for (let i = 0; i < 10; i++) b += `<i class="bsp" style="left:${fxRand(2, 97).toFixed(0)}%;top:${fxRand(8, 60).toFixed(0)}%;font-size:${fxRand(8, 14).toFixed(0)}px;color:${pick(["#ffd23f", "#fff", "#ff9a3c"], i)};animation-duration:${fxRand(1.8, 4).toFixed(1)}s;animation-delay:${(-fxRand(0, 4)).toFixed(1)}s">&#10022;</i>`;
       return b;
     },
   },

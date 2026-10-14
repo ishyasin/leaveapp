@@ -76,6 +76,12 @@
 :root[data-theme="stpatrick"]{--navy:#0e5a2c; --navy-light:#1a7a40; --teal:#2e9e4f; --teal-light:#52c26f; --honey:#f5c451; --honey-dark:#d9a62a;}
 :root[data-theme="standrew"]{--navy:#003f87; --navy-light:#0a5cb8; --teal:#2a7fd4; --teal-light:#5aa3ea; --honey:#cfe3fa; --honey-dark:#9ec3ec;}
 
+:root[data-theme="emergency"]{--navy:#a3121f; --navy-light:#c8202e; --teal:#1f66b5; --teal-light:#4a8fd9; --honey:#ffd23f; --honey-dark:#e0b520;}
+:root[data-theme="surgical"]{--navy:#0d6b6a; --navy-light:#1a8f8b; --teal:#2b9fd0; --teal-light:#5bbfe8; --honey:#bdeee4; --honey-dark:#8fd9ca;}
+:root[data-theme="intensive"]{--navy:#0b1f3a; --navy-light:#13315c; --teal:#12b886; --teal-light:#38d9a9; --honey:#ffd43b; --honey-dark:#e0b020;}
+:root[data-theme="elderly"]{--navy:#6b4f7a; --navy-light:#876497; --teal:#c97b84; --teal-light:#dd9aa1; --honey:#e8c872; --honey-dark:#c9a64a;}
+:root[data-theme="paeds"]{--navy:#1769c2; --navy-light:#2a86e0; --teal:#ff7043; --teal-light:#ff9a76; --honey:#ffd23f; --honey-dark:#e0b520;}
+
 /* ---- theme decorations + animations (Halloween / Christmas / Easter).
    A banner strip under the top bar plus a click-through full-page layer;
    the sprites are built in shared.js (buildThemeFx). Motion is disabled
@@ -97,7 +103,12 @@
 :root[data-theme="stdavid"] .theme-banner,
 :root[data-theme="stgeorge"] .theme-banner,
 :root[data-theme="stpatrick"] .theme-banner,
-:root[data-theme="standrew"] .theme-banner{display:block;}
+:root[data-theme="standrew"] .theme-banner,
+:root[data-theme="emergency"] .theme-banner,
+:root[data-theme="surgical"] .theme-banner,
+:root[data-theme="intensive"] .theme-banner,
+:root[data-theme="elderly"] .theme-banner,
+:root[data-theme="paeds"] .theme-banner{display:block;}
 :root[data-theme="halloween"] .theme-banner{background:linear-gradient(#150f1c,#2a1f33);}
 :root[data-theme="christmas"] .theme-banner{background:linear-gradient(#5a0f19,#7a1621);}
 :root[data-theme="easter"] .theme-banner{background:linear-gradient(#6f5da3,#8d7cc0);}
@@ -189,6 +200,29 @@
 :root[data-theme="stgeorge"] .theme-banner{background:linear-gradient(#ffffff,#e6ecf4);}
 :root[data-theme="stpatrick"] .theme-banner{background:linear-gradient(#2f9a4d,#7fd08f);}
 :root[data-theme="standrew"] .theme-banner{background:linear-gradient(#0a5cb8,#4a9be0);}
+:root[data-theme="emergency"] .theme-banner{background:linear-gradient(#7d0e1a,#c8202e 70%,#d83a45);}
+:root[data-theme="surgical"] .theme-banner{background:linear-gradient(#0f7f7d,#35b9ad 80%,#5fd3c6);}
+:root[data-theme="intensive"] .theme-banner{background:linear-gradient(#050d1a,#0c2038);}
+:root[data-theme="elderly"] .theme-banner{background:linear-gradient(#f7ecf3,#e6d8ee);}
+:root[data-theme="paeds"] .theme-banner{background:linear-gradient(#8fd3ff,#d8f1ff);}
+:root[data-theme="intensive"]:not([data-color-mode="inverted"]){--grey-bg:#08111f; --surface:#0f1d33; --surface-alt:#15284a; --surface-subtle:#122240; --text:#e4edf8; --text-muted:#93a8c4; --border:#26416b; --heading-color:#5de8b6;}
+/* ---- specialty-theme sprites ---- */
+.theme-banner .bblink{animation:fxBlinkA .8s steps(2,end) infinite;filter:drop-shadow(0 0 6px currentColor);}
+.theme-banner .bblink.b2{animation-name:fxBlinkB;}
+@keyframes fxBlinkA{0%{opacity:1}50%{opacity:.15}100%{opacity:1}}
+@keyframes fxBlinkB{0%{opacity:.15}50%{opacity:1}100%{opacity:.15}}
+.theme-banner .bswing{transform-origin:50% 0;animation:fxSwing 6s ease-in-out infinite alternate;filter:drop-shadow(0 4px 8px rgba(255,248,200,.7));}
+.theme-banner .bswing.b2{animation-delay:-3s;}
+.theme-banner .bnum{position:absolute;line-height:1;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;text-shadow:0 0 8px currentColor;}
+.theme-banner .bpulse{position:absolute;width:12px;height:12px;border-radius:50%;background:#ff4d4d;box-shadow:0 0 10px #ff4d4d;animation:fxBeat 1s ease-in-out infinite;}
+@keyframes fxBeat{0%,100%{transform:scale(.7);opacity:.5}20%{transform:scale(1.25);opacity:1}40%{transform:scale(.8);opacity:.7}}
+.theme-banner .bdrip{position:absolute;width:7px;height:11px;background:#7fd0ff;border-radius:50% 50% 55% 55%;animation:fxDrip 1.6s ease-in infinite;}
+@keyframes fxDrip{0%{transform:translateY(0) scale(.6);opacity:0}15%{opacity:1;transform:translateY(0) scale(1)}100%{transform:translateY(22px) scale(.9);opacity:0}}
+.theme-banner .steam{animation:fxSteam 3s ease-in-out infinite;}
+@keyframes fxSteam{0%{opacity:0;transform:translateY(4px)}40%{opacity:.9}100%{opacity:0;transform:translateY(-8px)}}
+.theme-banner .hm{transform-origin:20px 20px;animation:fxShine 60s linear infinite;}
+.theme-banner .hh{transform-origin:20px 20px;animation:fxShine 720s linear infinite;}
+
 
 :root[data-theme="fairytale"]:not([data-color-mode="inverted"]){--grey-bg:#0e1233; --surface:#171d4a; --surface-alt:#1f2759; --surface-subtle:#1a2150; --text:#eceeff; --text-muted:#a4aad6; --border:#323c82; --heading-color:#f6d97a;}
 /* ---- scene themes: shared sprite classes ---- */
