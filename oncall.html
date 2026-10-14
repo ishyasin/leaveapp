@@ -920,6 +920,7 @@ function toggleSwapMode() {
   if (!SWAP_MODE) clearSelection();
 }
 function cellClick(e, dateStr, dutyType) {
+  if (isReadOnlyRole(PROFILE)) return;   // Technician roles view only
   if (e.ctrlKey || e.metaKey || SWAP_MODE) {
     e.preventDefault();
     const key = `${dateStr}|${dutyType}`;

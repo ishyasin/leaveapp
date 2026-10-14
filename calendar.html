@@ -226,7 +226,7 @@ let MONTH_STATUS = {};        // site -> month_status row
 let BULK_SELECTED = new Set(); // pending leave_request ids, Ctrl+click-selected for bulk approve/reject
 
 (async () => {
-  PROFILE = await requireAuth(["pharmacist","lead_pharmacist","superuser","developer","huddle_poster"]);
+  PROFILE = await requireAuth(["pharmacist","lead_pharmacist","superuser","developer"]);
   if (!PROFILE) return;
   if (isReadOnlyRole(PROFILE)) { const rb = document.querySelector('button[onclick="openRequestModal()"]'); if (rb) rb.style.display = "none"; }
   await loadProfiles();

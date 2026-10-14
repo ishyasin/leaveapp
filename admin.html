@@ -132,8 +132,8 @@
           <option value="pharmacist">Pharmacist</option>
           <option value="lead_pharmacist">Lead Pharmacist</option>
           <option value="superuser">Team Leader (Clinical Team Lead)</option>
-          <option value="viewer">Read-only (Huddle &amp; Links)</option>
-          <option value="huddle_poster">Read-only + Huddle poster</option>
+          <option value="technician">Technician</option>
+          <option value="senior_technician">Senior Technician</option>
         </select>
         <button type="button" class="secondary" id="usersFilterClear" style="display:none;">Clear filters</button>
       </div>
@@ -670,8 +670,8 @@ document.getElementById("inviteEmails").addEventListener("input", updateInviteCo
 
 function setupInviteRoles() {
   const options = isDeveloper(PROFILE)
-    ? ["pharmacist","lead_pharmacist","superuser","developer","viewer","huddle_poster"]
-    : ["pharmacist","lead_pharmacist","superuser","viewer","huddle_poster"];
+    ? ["pharmacist","lead_pharmacist","superuser","developer","technician","senior_technician"]
+    : ["pharmacist","lead_pharmacist","superuser","technician","senior_technician"];
   document.getElementById("inviteRole").innerHTML = options.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join("");
 }
 
@@ -802,8 +802,8 @@ function toggleCreateForm() {
 function setupRoleOptions() {
   const sel = document.getElementById("newRole");
   const options = isDeveloper(PROFILE)
-    ? ["pharmacist","lead_pharmacist","superuser","developer","viewer","huddle_poster"]
-    : ["pharmacist","lead_pharmacist","superuser","viewer","huddle_poster"];
+    ? ["pharmacist","lead_pharmacist","superuser","developer","technician","senior_technician"]
+    : ["pharmacist","lead_pharmacist","superuser","technician","senior_technician"];
   sel.innerHTML = options.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join("");
   document.getElementById("roleHint").textContent = isDeveloper(PROFILE)
     ? "As Developer you may create any account type."
@@ -1362,8 +1362,8 @@ function openRoleModal(id) {
   // Clinical Team Lead. 'developer' is never offered — that stays the
   // dashboard-only bootstrap path.
   const options = isDeveloper(PROFILE)
-    ? ["pharmacist", "lead_pharmacist", "superuser", "viewer", "huddle_poster"]
-    : ["pharmacist", "lead_pharmacist", "viewer", "huddle_poster"];
+    ? ["pharmacist", "lead_pharmacist", "superuser", "technician", "senior_technician"]
+    : ["pharmacist", "lead_pharmacist", "technician", "senior_technician"];
   const sel = document.getElementById("roleSelect");
   sel.innerHTML = options.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join("");
   sel.value = options.includes(p.role) ? p.role : options[0];

@@ -82,6 +82,10 @@
 :root[data-theme="elderly"]{--navy:#6b4f7a; --navy-light:#876497; --teal:#c97b84; --teal-light:#dd9aa1; --honey:#e8c872; --honey-dark:#c9a64a;}
 :root[data-theme="paeds"]{--navy:#1769c2; --navy-light:#2a86e0; --teal:#ff7043; --teal-light:#ff9a76; --honey:#ffd23f; --honey-dark:#e0b520;}
 
+:root[data-theme="cardiology"]{--navy:#7d0f26; --navy-light:#a31834; --teal:#e0425f; --teal-light:#f0728a; --honey:#ffd1d9; --honey-dark:#f0a3b0;}
+:root[data-theme="endocrine"]{--navy:#4a2a7a; --navy-light:#6a44a0; --teal:#1fa39a; --teal-light:#4cc9c0; --honey:#f5b942; --honey-dark:#d99a1f;}
+:root[data-theme="respiratory"]{--navy:#1b6fa8; --navy-light:#2f8fcf; --teal:#3bb3d6; --teal-light:#74d0e8; --honey:#f2a7b4; --honey-dark:#e07e92;}
+
 /* ---- theme decorations + animations (Halloween / Christmas / Easter).
    A banner strip under the top bar plus a click-through full-page layer;
    the sprites are built in shared.js (buildThemeFx). Motion is disabled
@@ -108,7 +112,10 @@
 :root[data-theme="surgical"] .theme-banner,
 :root[data-theme="intensive"] .theme-banner,
 :root[data-theme="elderly"] .theme-banner,
-:root[data-theme="paeds"] .theme-banner{display:block;}
+:root[data-theme="paeds"] .theme-banner,
+:root[data-theme="cardiology"] .theme-banner,
+:root[data-theme="endocrine"] .theme-banner,
+:root[data-theme="respiratory"] .theme-banner{display:block;}
 :root[data-theme="halloween"] .theme-banner{background:linear-gradient(#150f1c,#2a1f33);}
 :root[data-theme="christmas"] .theme-banner{background:linear-gradient(#5a0f19,#7a1621);}
 :root[data-theme="easter"] .theme-banner{background:linear-gradient(#6f5da3,#8d7cc0);}
@@ -205,18 +212,26 @@
 :root[data-theme="intensive"] .theme-banner{background:linear-gradient(#050d1a,#0c2038);}
 :root[data-theme="elderly"] .theme-banner{background:linear-gradient(#f7ecf3,#e6d8ee);}
 :root[data-theme="paeds"] .theme-banner{background:linear-gradient(#8fd3ff,#d8f1ff);}
+:root[data-theme="cardiology"] .theme-banner{background:linear-gradient(#7d0f26,#c2284a 75%,#d9486a);}
+:root[data-theme="endocrine"] .theme-banner{background:linear-gradient(#e9dcf6,#d2f0ea);}
+:root[data-theme="respiratory"] .theme-banner{background:linear-gradient(#9fd8f2,#e4f6fd);}
+.theme-banner .bheart{transform-origin:50% 50%;animation:fxHeart 1.6s ease-in-out infinite;filter:drop-shadow(0 0 8px rgba(255,255,255,.6));}
+@keyframes fxHeart{0%,100%{transform:scale(1)}14%{transform:scale(1.16)}28%{transform:scale(1)}42%{transform:scale(1.1)}70%{transform:scale(1)}}
+.theme-banner .bbreath{transform-origin:50% 100%;animation:fxBreath 5s ease-in-out infinite;}
+@keyframes fxBreath{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+
 :root[data-theme="intensive"]:not([data-color-mode="inverted"]){--grey-bg:#08111f; --surface:#0f1d33; --surface-alt:#15284a; --surface-subtle:#122240; --text:#e4edf8; --text-muted:#93a8c4; --border:#26416b; --heading-color:#5de8b6;}
 /* ---- specialty-theme sprites ---- */
-.theme-banner .bblink{animation:fxBlinkA .8s steps(2,end) infinite;filter:drop-shadow(0 0 6px currentColor);}
+.theme-banner .bblink{animation:fxBlinkA 1.8s steps(2,end) infinite;filter:drop-shadow(0 0 6px currentColor);}
 .theme-banner .bblink.b2{animation-name:fxBlinkB;}
 @keyframes fxBlinkA{0%{opacity:1}50%{opacity:.15}100%{opacity:1}}
 @keyframes fxBlinkB{0%{opacity:.15}50%{opacity:1}100%{opacity:.15}}
 .theme-banner .bswing{transform-origin:50% 0;animation:fxSwing 6s ease-in-out infinite alternate;filter:drop-shadow(0 4px 8px rgba(255,248,200,.7));}
 .theme-banner .bswing.b2{animation-delay:-3s;}
 .theme-banner .bnum{position:absolute;line-height:1;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;text-shadow:0 0 8px currentColor;}
-.theme-banner .bpulse{position:absolute;width:12px;height:12px;border-radius:50%;background:#ff4d4d;box-shadow:0 0 10px #ff4d4d;animation:fxBeat 1s ease-in-out infinite;}
+.theme-banner .bpulse{position:absolute;width:12px;height:12px;border-radius:50%;background:#ff4d4d;box-shadow:0 0 10px #ff4d4d;animation:fxBeat 2s ease-in-out infinite;}
 @keyframes fxBeat{0%,100%{transform:scale(.7);opacity:.5}20%{transform:scale(1.25);opacity:1}40%{transform:scale(.8);opacity:.7}}
-.theme-banner .bdrip{position:absolute;width:7px;height:11px;background:#7fd0ff;border-radius:50% 50% 55% 55%;animation:fxDrip 1.6s ease-in infinite;}
+.theme-banner .bdrip{position:absolute;width:7px;height:11px;background:#7fd0ff;border-radius:50% 50% 55% 55%;animation:fxDrip 3.4s ease-in infinite;}
 @keyframes fxDrip{0%{transform:translateY(0) scale(.6);opacity:0}15%{opacity:1;transform:translateY(0) scale(1)}100%{transform:translateY(22px) scale(.9);opacity:0}}
 .theme-banner .steam{animation:fxSteam 3s ease-in-out infinite;}
 @keyframes fxSteam{0%{opacity:0;transform:translateY(4px)}40%{opacity:.9}100%{opacity:0;transform:translateY(-8px)}}

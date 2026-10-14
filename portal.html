@@ -184,7 +184,8 @@
   const profile = await requireAuth(null);
   if (!profile) return;
   document.getElementById("welcome").textContent = `Welcome, ${profile.full_name}`;
-  if (isViewerRole(profile)) document.querySelectorAll('.portal-tile[href="calendar.html"], .portal-tile[href="oncall.html"]').forEach(t => t.style.display = "none");
+  if (isTechnicianRole(profile)) document.querySelectorAll('.portal-tile[href="calendar.html"], .portal-tile[href="oncall.html"]').forEach(t => t.style.display = "none");
+  else if (profile.role === "senior_technician") document.querySelector('.portal-tile[href="calendar.html"]').style.display = "none";
   PROFILE_ = profile;
   if (isSuperuserPlus(profile)) {          // Clinical Team Lead / Developer only
     document.getElementById("bannerManage").style.display = "";

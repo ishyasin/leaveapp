@@ -64,8 +64,8 @@
   .comment .txt{white-space:pre-wrap;word-wrap:break-word;margin-top:2px;}
   .comment-form{display:flex;gap:8px;margin-top:10px;align-items:flex-start;}
   .comment-form textarea{flex:1;min-height:38px;margin:0;resize:vertical;}
-  body.ro-viewer .react-add, body.ro-viewer .comment-form{display:none !important;}
-  body.ro-viewer .react-btn{pointer-events:none;}
+  body.ro-technician .react-add, body.ro-technician .comment-form{display:none !important;}
+  body.ro-technician .react-btn{pointer-events:none;}
 </style>
 </head>
 <body>
@@ -154,9 +154,9 @@ let NEW_FILES = [];         // File objects chosen but not yet uploaded
   PROFILE = await requireAuth(null);
   if (!PROFILE) return;
   if (canPostHuddle(PROFILE)) document.getElementById("newPostBtn").style.display = "";
-  if (isViewerRole(PROFILE)) document.body.classList.add("ro-viewer");
+  if (isTechnicianRole(PROFILE)) document.body.classList.add("ro-technician");
   VIEW = PROFILE.cross_site ? "both" : (PROFILE.primary_site || "both");
-  const { data } = await sb.rpc("get_profile_directory");
+  const { data } = await sb.rpc("get_name_directory");
   DIR = data || [];
   renderTabs();
   wireEvents();

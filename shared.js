@@ -26,8 +26,8 @@ const ROLE_LABEL = {
   lead_pharmacist: "Lead Pharmacist",
   superuser: "Clinical Team Lead",
   developer: "Developer",
-  viewer: "Read-only (Huddle & Links)",
-  huddle_poster: "Read-only + Huddle poster",
+  technician: "Technician",
+  senior_technician: "Senior Technician",
 };
 
 const SITE_LABEL = {
@@ -73,6 +73,9 @@ const THEMES = {
   intensive: "Intensive Care",
   elderly:   "Elderly Medicine",
   paeds:     "Paediatrics",
+  cardiology:  "Cardiology",
+  endocrine:   "Endocrine",
+  respiratory: "Respiratory",
 };
 const COLOR_MODES = {
   light:    "Light",
@@ -649,15 +652,15 @@ Object.assign(THEME_SCENES, {
   emergency: {
     layer() {
       let h = ""; const c = ["#d4202c", "#fff", "#2a7fd4", "#ff6b6b"];
-      for (let i = 0; i < 16; i++) h += `<i class="rise" style="--dx:${fxRand(-50, 50).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(12, 24).toFixed(0)}px;opacity:.3;animation-duration:${fxRand(28, 55).toFixed(0)}s;animation-delay:${(-fxRand(0, 55)).toFixed(0)}s">${SCN.plus(pick(c, i))}</i>`;
+      for (let i = 0; i < 16; i++) h += `<i class="rise" style="--dx:${fxRand(-50, 50).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(12, 24).toFixed(0)}px;opacity:.3;animation-duration:${fxRand(55, 100).toFixed(0)}s;animation-delay:${(-fxRand(0, 100)).toFixed(0)}s">${SCN.plus(pick(c, i))}</i>`;
       return h;
     },
     banner() {
-      let b = scnEcg("#fff", .9, "wvA", "height:24px;bottom:0;animation-duration:7s");
+      let b = scnEcg("#fff", .9, "wvA", "height:24px;bottom:0;animation-duration:16s");
       b += SBX("bblink", SCN.siren("#ff3b3b"), "left:3%;top:6px;--w:20") + SBX("bblink b2", SCN.siren("#3b8bff"), "left:6%;top:6px;--w:20");
       b += SBX("bblink b2", SCN.siren("#ff3b3b"), "right:6%;top:6px;--w:20") + SBX("bblink", SCN.siren("#3b8bff"), "right:3%;top:6px;--w:20");
-      b += SBX("bcross", SCN.ambulance, "left:0;bottom:6px;--w:80;--still:40%;animation-duration:14s");
-      for (let i = 0; i < 9; i++) b += SBX("brise", SCN.plus(pick(["#fff", "#ffd1d1"], i)), `left:${fxRand(8, 92).toFixed(0)}%;--w:${fxRand(8, 14).toFixed(0)};animation-duration:${fxRand(4, 8).toFixed(1)}s;animation-delay:${(-fxRand(0, 8)).toFixed(1)}s`);
+      b += SBX("bcross", SCN.ambulance, "left:0;bottom:6px;--w:80;--still:40%;animation-duration:34s");
+      for (let i = 0; i < 9; i++) b += SBX("brise", SCN.plus(pick(["#fff", "#ffd1d1"], i)), `left:${fxRand(8, 92).toFixed(0)}%;--w:${fxRand(8, 14).toFixed(0)};animation-duration:${fxRand(9, 15).toFixed(1)}s;animation-delay:${(-fxRand(0, 15)).toFixed(1)}s`);
       return b;
     },
   },
@@ -681,13 +684,13 @@ Object.assign(THEME_SCENES, {
   intensive: {
     layer() {
       let h = ""; const t = ["72", "98%", "120/80", "36.8", "16", "SpO2", "HR 68", "BP", "EtCO2 4.8", "MAP 84"], c = ["#39e08d", "#7fd0ff", "#ffd43b", "#ff7b7b"];
-      for (let i = 0; i < 18; i++) h += `<i class="rise" style="--dx:${fxRand(-30, 30).toFixed(0)}px;left:${fxRand(2, 96).toFixed(1)}%;font-size:${fxRand(11, 20).toFixed(0)}px;color:${pick(c, i)};opacity:.28;font-family:ui-monospace,Menlo,monospace;font-weight:600;animation-duration:${fxRand(35, 70).toFixed(0)}s;animation-delay:${(-fxRand(0, 70)).toFixed(0)}s;text-shadow:0 0 8px currentColor">${pick(t, i)}</i>`;
+      for (let i = 0; i < 18; i++) h += `<i class="rise" style="--dx:${fxRand(-30, 30).toFixed(0)}px;left:${fxRand(2, 96).toFixed(1)}%;font-size:${fxRand(11, 20).toFixed(0)}px;color:${pick(c, i)};opacity:.28;font-family:ui-monospace,Menlo,monospace;font-weight:600;animation-duration:${fxRand(70, 130).toFixed(0)}s;animation-delay:${(-fxRand(0, 130)).toFixed(0)}s;text-shadow:0 0 8px currentColor">${pick(t, i)}</i>`;
       return h;
     },
     banner() {
-      let b = scnEcg("#39e08d", .95, "wvA", "height:18px;bottom:36px;animation-duration:6s");
-      b += scnEcg("#7fd0ff", .9, "wvB", "height:16px;bottom:19px;animation-duration:9s;animation-direction:normal", "pleth");
-      b += scnEcg("#ffd43b", .85, "wvA", "height:14px;bottom:3px;animation-duration:14s", "wave");
+      let b = scnEcg("#39e08d", .95, "wvA", "height:18px;bottom:36px;animation-duration:15s");
+      b += scnEcg("#7fd0ff", .9, "wvB", "height:16px;bottom:19px;animation-duration:22s;animation-direction:normal", "pleth");
+      b += scnEcg("#ffd43b", .85, "wvA", "height:14px;bottom:3px;animation-duration:32s", "wave");
       b += scnNum("HR 72", "#39e08d", "3%", 4, 12) + scnNum("SpO2 98%", "#7fd0ff", "13%", 4, 11) + scnNum("120/80", "#ffd43b", "26%", 4, 11);
       b += `<span class="bpulse" style="left:92%;top:8px"></span>`;
       b += SBX("", SCN.dropBag, "left:84%;top:2px;--w:20");
@@ -730,6 +733,78 @@ Object.assign(THEME_SCENES, {
       for (let i = 0; i < 7; i++) b += SBX("bbob", SCN.balloon(pick(bc, i)), `left:${(4 + i * 6.5).toFixed(0)}%;top:${(-2 + (i % 3) * 3)}px;--w:18;animation-duration:${(3.5 + (i % 4) * .6).toFixed(1)}s;animation-delay:${(-i * .5).toFixed(1)}s`);
       for (let i = 0; i < 6; i++) b += SBX("bbob", SCN.balloon(pick(bc, i + 2)), `left:${(84 + i * 2.6).toFixed(0)}%;top:${(-2 + (i % 3) * 3)}px;--w:16;animation-duration:${(3.5 + (i % 4) * .6).toFixed(1)}s;animation-delay:${(-i * .5).toFixed(1)}s`);
       for (let i = 0; i < 10; i++) b += `<i class="bsp" style="left:${fxRand(2, 97).toFixed(0)}%;top:${fxRand(8, 60).toFixed(0)}%;font-size:${fxRand(8, 14).toFixed(0)}px;color:${pick(["#ffd23f", "#fff", "#ff9a3c"], i)};animation-duration:${fxRand(1.8, 4).toFixed(1)}s;animation-delay:${(-fxRand(0, 4)).toFixed(1)}s">&#10022;</i>`;
+      return b;
+    },
+  },
+});
+
+/* =====================================================================
+   Specialty themes (2): Cardiology, Endocrine, Respiratory.
+   Generic drawn artwork only.
+   ===================================================================== */
+Object.assign(SCN, {
+  heartAnat: `<svg viewBox="0 0 48 52" aria-hidden="true"><path d="M17,10 Q14,0 22,1 L24,10Z" fill="#3b82c4" stroke="#245a8e" stroke-width="1"/><path d="M26,10 Q26,0 36,2 Q40,4 36,10Z" fill="#d4202c" stroke="#8a1018" stroke-width="1"/><path d="M24,48 C6,36 2,24 6,16 C10,9 20,10 24,18 C28,10 38,9 42,16 C46,24 42,36 24,48Z" fill="#e0344a" stroke="#a01428" stroke-width="1.4"/><path d="M12,18 Q10,26 16,34" stroke="#ff9aa8" stroke-width="2.2" fill="none" stroke-linecap="round" opacity=".7"/><path d="M24,18 Q22,28 28,40" stroke="#a01428" stroke-width="1.6" fill="none" opacity=".6"/></svg>`,
+  bloodcell: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" fill="#d4202c" stroke="#9c1220" stroke-width="1"/><ellipse cx="12" cy="12" rx="5" ry="3.6" fill="#a8101f" opacity=".7"/></svg>`,
+  stetho: `<svg viewBox="0 0 44 56" aria-hidden="true"><path d="M8,2 V14 Q8,26 22,26 Q36,26 36,14 V2" stroke="#5b6b78" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="8" cy="3" r="3" fill="#8fa3b0"/><circle cx="36" cy="3" r="3" fill="#8fa3b0"/><path d="M22,26 V38" stroke="#5b6b78" stroke-width="3"/><circle cx="22" cy="46" r="8" fill="#c9d3da" stroke="#5b6b78" stroke-width="2.4"/><circle cx="22" cy="46" r="4" fill="#8fa3b0"/></svg>`,
+  lungs: `<svg viewBox="0 0 70 60" aria-hidden="true"><path d="M35,4 V26" stroke="#e8a0ac" stroke-width="4" stroke-linecap="round"/><path d="M35,24 Q26,28 20,34 M35,24 Q44,28 50,34" stroke="#e8a0ac" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M30,16 C20,12 10,22 8,38 C6,52 12,58 20,57 C28,56 31,50 31,40Z" fill="#f4a3b4" stroke="#d9778c" stroke-width="1.6"/><path d="M40,16 C50,12 60,22 62,38 C64,52 58,58 50,57 C42,56 39,50 39,40Z" fill="#f4a3b4" stroke="#d9778c" stroke-width="1.6"/><path d="M20,36 Q18,46 22,52 M50,36 Q52,46 48,52" stroke="#fff" stroke-width="2" fill="none" opacity=".45" stroke-linecap="round"/></svg>`,
+  inhaler: `<svg viewBox="0 0 40 46" aria-hidden="true"><rect x="12" y="2" width="14" height="22" rx="3" fill="#8fa3b0" stroke="#5b6b78" stroke-width="1.2"/><path d="M8,22 H30 V34 Q30,42 22,42 H8 Q4,42 4,36 V26 Q4,22 8,22Z" fill="#3b9de0" stroke="#1f6aa8" stroke-width="1.4"/><rect x="4" y="34" width="16" height="9" rx="2" fill="#2c8ad0" stroke="#1f6aa8"/><circle cx="26" cy="30" r="2.4" fill="#fff" opacity=".7"/></svg>`,
+  wind: `<svg viewBox="0 0 80 26" aria-hidden="true"><g fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M2,9 H52 C64,9 66,0 59,0 C55,0 54,5 57,6"/><path d="M10,18 H66 C77,18 79,10 73,10 C69,10 68,14 71,15"/><path d="M4,24 H36"/></g></svg>`,
+  hex: (c) => `<svg viewBox="0 0 30 30" aria-hidden="true"><polygon points="15,2 26,8.5 26,21.5 15,28 4,21.5 4,8.5" fill="none" stroke="${c}" stroke-width="2"/><circle cx="15" cy="2" r="2.4" fill="${c}"/><circle cx="26" cy="21.5" r="2.4" fill="${c}"/><circle cx="4" cy="21.5" r="2.4" fill="${c}"/><path d="M15,15 V9 M15,15 L21,18.5 M15,15 L9,18.5" stroke="${c}" stroke-width="1.4"/></svg>`,
+  molecule: (c) => `<svg viewBox="0 0 34 24" aria-hidden="true"><path d="M5,12 L15,5 L25,12 L15,19Z M25,12 L31,6" stroke="${c}" stroke-width="1.8" fill="none"/><circle cx="5" cy="12" r="3.6" fill="${c}"/><circle cx="15" cy="5" r="3" fill="${c}" opacity=".8"/><circle cx="25" cy="12" r="3.6" fill="${c}"/><circle cx="15" cy="19" r="3" fill="${c}" opacity=".8"/><circle cx="31" cy="6" r="2.6" fill="${c}"/></svg>`,
+  thyroid: `<svg viewBox="0 0 60 44" aria-hidden="true"><path d="M30,0 V44" stroke="#d9c2e8" stroke-width="7" stroke-linecap="round" opacity=".8"/><path d="M27,18 C12,2 2,14 6,30 C9,42 22,40 27,28Z" fill="#b070d0" stroke="#7d3fa6" stroke-width="1.4"/><path d="M33,18 C48,2 58,14 54,30 C51,42 38,40 33,28Z" fill="#b070d0" stroke="#7d3fa6" stroke-width="1.4"/><path d="M26,20 H34 V25 H26Z" fill="#a05cc2"/><path d="M12,16 Q8,24 12,32" stroke="#e8c8f5" stroke-width="2" fill="none" stroke-linecap="round" opacity=".7"/></svg>`,
+  glucometer: `<svg viewBox="0 0 34 54" aria-hidden="true"><rect x="2" y="2" width="30" height="50" rx="7" fill="#2f4f7a" stroke="#1d3558" stroke-width="1.4"/><rect x="6" y="6" width="22" height="16" rx="3" fill="#b8f0d8"/><text x="17" y="19" text-anchor="middle" font-size="11" font-weight="700" fill="#14573a" font-family="Arial,sans-serif">5.6</text><circle cx="17" cy="34" r="6" fill="#5aa0e0" stroke="#1d3558"/><rect x="12" y="44" width="10" height="3" rx="1.5" fill="#8fb0d6"/></svg>`,
+  pen: `<svg viewBox="0 0 70 18" aria-hidden="true"><rect x="2" y="3" width="50" height="12" rx="3" fill="#e8eef5" stroke="#9fb0bb" stroke-width="1.2"/><rect x="2" y="3" width="18" height="12" rx="3" fill="#3b9de0"/><rect x="24" y="6" width="14" height="6" rx="1" fill="#fff" stroke="#9fb0bb" stroke-width=".8"/><text x="31" y="11" text-anchor="middle" font-size="5.5" font-weight="700" fill="#2b4a6b" font-family="Arial,sans-serif">10</text><path d="M52,8 H66" stroke="#8fa3b0" stroke-width="1.6"/><path d="M66,8 H69" stroke="#5b6b78" stroke-width="1"/><rect x="50" y="5" width="4" height="8" fill="#9fb0bb"/></svg>`,
+});
+
+Object.assign(THEME_SCENES, {
+  cardiology: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 12; i++) h += `<i class="rise" style="--dx:${fxRand(-50, 50).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(14, 24).toFixed(0)}px;opacity:.32;animation-duration:${fxRand(40, 75).toFixed(0)}s;animation-delay:${(-fxRand(0, 75)).toFixed(0)}s">${SCN.bloodcell}</i>`;
+      for (let i = 0; i < 10; i++) h += `<i class="rise" style="--dx:${fxRand(-70, 70).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(14, 26).toFixed(0)}px;opacity:.4;animation-duration:${fxRand(40, 80).toFixed(0)}s;animation-delay:${(-fxRand(0, 80)).toFixed(0)}s">${SCN.heart(pick(["#e0425f", "#f0728a", "#c2185b"], i))}</i>`;
+      return h;
+    },
+    banner() {
+      let b = scnEcg("#fff", .9, "wvA", "height:22px;bottom:0;animation-duration:12s");
+      b += SBX("bheart", SCN.heartAnat, "left:10%;top:4px;--w:44") + SBX("bheart", SCN.heartAnat, "left:86%;top:4px;--w:44;animation-delay:-.4s");
+      b += SBX("bsway", SCN.stetho, "left:30%;top:2px;--w:34") + SBX("bsway", SCN.stetho, "left:66%;top:2px;--w:34;animation-delay:-1.5s");
+      b += scnNum("72 bpm", "#fff", "46%", 8, 14);
+      for (let i = 0; i < 9; i++) b += SBX("brise", SCN.heart(pick(["#fff", "#ffd1d9", "#ffb3c1"], i)), `left:${fxRand(8, 92).toFixed(0)}%;--w:${fxRand(9, 15).toFixed(0)};animation-duration:${fxRand(6, 11).toFixed(1)}s;animation-delay:${(-fxRand(0, 11)).toFixed(1)}s`);
+      return b;
+    },
+  },
+  endocrine: {
+    layer() {
+      let h = ""; const c = ["#7d3fa6", "#1fa39a", "#d99a1f", "#e0709a"];
+      for (let i = 0; i < 12; i++) h += `<i class="rise" style="--dx:${fxRand(-50, 50).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(16, 30).toFixed(0)}px;opacity:.35;animation-duration:${fxRand(40, 80).toFixed(0)}s;animation-delay:${(-fxRand(0, 80)).toFixed(0)}s">${i % 2 ? SCN.hex(pick(c, i)) : SCN.molecule(pick(c, i))}</i>`;
+      for (let i = 0; i < 10; i++) h += scnFall("fall", SCN.drop, fxRand(7, 11).toFixed(0), i, [14, 26], [10, 30]);
+      return h;
+    },
+    banner() {
+      let b = `<span class="bgrd" style="background:#7d3fa6;height:6px"></span>`;
+      b += SBX("bbreath", SCN.thyroid, "left:8%;bottom:8px;--w:56");
+      b += SBX("", SCN.glucometer, "left:28%;bottom:6px;--w:26") + SBX("bbob", SCN.pen, "left:38%;bottom:12px;--w:66;animation-duration:5s");
+      b += SBX("bbob", SCN.hex("#7d3fa6"), "left:60%;top:6px;--w:32;animation-duration:5.5s") + SBX("bbob", SCN.molecule("#1fa39a"), "left:70%;top:20px;--w:38;animation-duration:6.5s") + SBX("bbob", SCN.hex("#d99a1f"), "left:82%;top:8px;--w:28;animation-duration:4.8s");
+      b += scnNum("5.6 mmol/L", "#14573a", "52%", 38, 11);
+      for (let i = 0; i < 9; i++) b += SBX("bfall", SCN.drop, `left:${fxRand(2, 96).toFixed(0)}%;--w:${fxRand(5, 8).toFixed(0)};--dx:${fxRand(-10, 10).toFixed(0)}px;animation-duration:${fxRand(5, 9).toFixed(1)}s;animation-delay:${(-fxRand(0, 9)).toFixed(1)}s`);
+      return b;
+    },
+  },
+  respiratory: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 16; i++) h += `<i class="rise" style="--dx:${fxRand(-40, 40).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(8, 22).toFixed(0)}px;opacity:.5;animation-duration:${fxRand(24, 50).toFixed(0)}s;animation-delay:${(-fxRand(0, 50)).toFixed(0)}s"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="rgba(255,255,255,.4)" stroke="#6bc3e6"/><circle cx="4" cy="4" r="1.2" fill="#fff"/></svg></i>`;
+      for (let i = 0; i < 4; i++) h += `<span class="xing" style="top:${(12 + i * 20)}%;animation-duration:${(46 + i * 14)}s;animation-delay:${(-i * 17)}s;--w:${70 + i * 12};opacity:.45">${SCN.wind.replace('stroke="#fff"', 'stroke="#7fb8dc"')}</span>`;
+      return h;
+    },
+    banner() {
+      let b = "";
+      for (let i = 0; i < 3; i++) b += SBX("bcross", SCN.wind, `left:0;top:${6 + i * 14}px;--w:${60 - i * 8};--still:${20 + i * 30}%;opacity:.9;animation-duration:${(26 + i * 9)}s;animation-delay:${(-i * 9)}s`);
+      b += SBX("bbreath", SCN.lungs, "left:44%;bottom:2px;--w:62");
+      b += SBX("bbreath", SCN.lungs, "left:8%;bottom:4px;--w:44;animation-delay:-1.6s") + SBX("bbreath", SCN.lungs, "left:86%;bottom:4px;--w:44;animation-delay:-.8s");
+      b += SBX("bbob", SCN.inhaler, "left:28%;bottom:6px;--w:34;animation-duration:5s") + SBX("bbob", SCN.inhaler, "left:68%;bottom:6px;--w:34;animation-duration:6s");
+      b += scnNum("SpO2 98%", "#1b6fa8", "56%", 8, 11);
+      for (let i = 0; i < 12; i++) b += `<i class="bubble" style="left:${fxRand(3, 96).toFixed(0)}%;animation-duration:${fxRand(3, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s;border-color:rgba(255,255,255,.8)"></i>`;
       return b;
     },
   },
@@ -1323,7 +1398,7 @@ async function requireAuth(allowedRoles) {
     return null;
   }
   // A viewer may only open the Huddle Board and Quick Links (and the portal home).
-  if (isViewerRole(profile) && !VIEWER_PAGES.includes(window.location.pathname.split("/").pop())) {
+  if (isTechnicianRole(profile) && !VIEWER_PAGES.includes(window.location.pathname.split("/").pop())) {
     window.location.href = "portal.html";
     return null;
   }
@@ -1334,12 +1409,12 @@ async function requireAuth(allowedRoles) {
 function isLeadPlus(profile) { return ["lead_pharmacist", "superuser", "developer"].includes(profile.role); }
 function isSuperuserPlus(profile) { return ["superuser", "developer"].includes(profile.role); }
 function isDeveloper(profile) { return profile.role === "developer"; }
-// Two limited roles. "viewer" sees ONLY the Huddle Board and Quick Links;
-// "huddle_poster" is read-only everywhere except that they can post on the
-// Huddle Board. Neither takes leave or sits in the on-call pool.
-function isViewerRole(profile) { return profile.role === "viewer"; }
-function isReadOnlyRole(profile) { return profile.role === "viewer" || profile.role === "huddle_poster"; }
-function canPostHuddle(profile) { return ["lead_pharmacist", "superuser", "developer", "huddle_poster"].includes(profile.role); }
+// Two limited roles. "technician" sees ONLY the Huddle Board and Quick Links;
+// "senior_technician" can also post on the Huddle Board and view the on-call
+// rota (read-only). Neither sees the leave calendar. Neither takes leave or sits in the on-call pool.
+function isTechnicianRole(profile) { return profile.role === "technician"; }
+function isReadOnlyRole(profile) { return profile.role === "technician" || profile.role === "senior_technician"; }
+function canPostHuddle(profile) { return ["lead_pharmacist", "superuser", "developer", "senior_technician"].includes(profile.role); }
 const VIEWER_PAGES = ["portal.html", "huddle.html", "links.html", "reset-password.html", "login.html", "index.html", ""];
 // In the on-call pool for at least one site — governs whether "My
 // On-Call Dates" and "Swaps" are shown on oncall.html.
@@ -1384,9 +1459,12 @@ function renderTopbar(profile) {
     ["links.html", "Quick Links", page === "links.html"],
     ["oncall.html", "On-Call Rota", page === "oncall.html"],
   ];
-  if (isViewerRole(profile)) {
-    // Only Home, Huddle Board and Quick Links.
+  if (isTechnicianRole(profile)) {
+    // Technician: only Home, Huddle Board and Quick Links.
     for (let i = links.length - 1; i >= 0; i--) if (["calendar.html", "oncall.html"].includes(links[i][0])) links.splice(i, 1);
+  } else if (profile.role === "senior_technician") {
+    // Huddle Board, Quick Links and the on-call rota — no leave calendar.
+    for (let i = links.length - 1; i >= 0; i--) if (links[i][0] === "calendar.html") links.splice(i, 1);
   }
   if (isSuperuserPlus(profile)) {
     links.push(["admin.html", "Admin", page === "admin.html"]);
