@@ -777,7 +777,6 @@ Object.assign(THEME_SCENES, {
     layer() {
       let h = ""; const c = ["#7d3fa6", "#1fa39a", "#d99a1f", "#e0709a"];
       for (let i = 0; i < 12; i++) h += `<i class="rise" style="--dx:${fxRand(-50, 50).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(16, 30).toFixed(0)}px;opacity:.35;animation-duration:${fxRand(40, 80).toFixed(0)}s;animation-delay:${(-fxRand(0, 80)).toFixed(0)}s">${i % 2 ? SCN.hex(pick(c, i)) : SCN.molecule(pick(c, i))}</i>`;
-      for (let i = 0; i < 10; i++) h += scnFall("fall", SCN.drop, fxRand(7, 11).toFixed(0), i, [14, 26], [10, 30]);
       return h;
     },
     banner() {
@@ -786,7 +785,6 @@ Object.assign(THEME_SCENES, {
       b += SBX("", SCN.glucometer, "left:28%;bottom:6px;--w:26") + SBX("bbob", SCN.pen, "left:38%;bottom:12px;--w:66;animation-duration:5s");
       b += SBX("bbob", SCN.hex("#7d3fa6"), "left:60%;top:6px;--w:32;animation-duration:5.5s") + SBX("bbob", SCN.molecule("#1fa39a"), "left:70%;top:20px;--w:38;animation-duration:6.5s") + SBX("bbob", SCN.hex("#d99a1f"), "left:82%;top:8px;--w:28;animation-duration:4.8s");
       b += scnNum("5.6 mmol/L", "#14573a", "52%", 38, 11);
-      for (let i = 0; i < 9; i++) b += SBX("bfall", SCN.drop, `left:${fxRand(2, 96).toFixed(0)}%;--w:${fxRand(5, 8).toFixed(0)};--dx:${fxRand(-10, 10).toFixed(0)}px;animation-duration:${fxRand(5, 9).toFixed(1)}s;animation-delay:${(-fxRand(0, 9)).toFixed(1)}s`);
       return b;
     },
   },
