@@ -125,25 +125,15 @@ function setEditing(on) {
   render();
 }
 
-// Permanent tile: always first, built into the page (not stored in the
-// database), so it can't be edited, moved or deleted by anyone.
-const PERMANENT_TILE = `
-    <div class="ql-tile-wrap">
-      <a class="ql-tile" href="https://home.edandg.com/" target="_blank" rel="noopener noreferrer">
-        <div class="ql-logo"><div class="ph" aria-hidden="true">E</div></div>
-        <div class="ql-title">ED&amp;G Home</div>
-      </a>
-    </div>`;
-
 function render() {
   const dev = EDITING;
   document.getElementById("grid").classList.toggle("editing", EDITING);
   const grid = document.getElementById("grid");
   if (!LINKS.length) {
-    grid.innerHTML = PERMANENT_TILE + `<div class="card" style="grid-column:1/-1;"><p class="small" style="margin:0;">${isLeadPlus(PROFILE) ? (EDITING ? "No links yet — use “Add link” to create the first tile." : "No links yet — press “Edit links”, then “Add link”.") : "No quick links have been added yet."}</p></div>`;
+    grid.innerHTML = `<div class="card" style="grid-column:1/-1;"><p class="small" style="margin:0;">${isLeadPlus(PROFILE) ? (EDITING ? "No links yet — use “Add link” to create the first tile." : "No links yet — press “Edit links”, then “Add link”.") : "No quick links have been added yet."}</p></div>`;
     return;
   }
-  grid.innerHTML = PERMANENT_TILE + LINKS.map((l, i) => `
+  grid.innerHTML = LINKS.map((l, i) => `
     <div class="ql-tile-wrap">
       <a class="ql-tile${l.note ? " has-note" : ""}" href="${escapeHtml(safeUrl(l.url))}" target="_blank" rel="noopener noreferrer"${l.note ? ` data-note="1" aria-expanded="false" aria-controls="qn-${l.id}"` : ""}>
         ${l.note ? `<span class="ql-chev" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>` : ""}

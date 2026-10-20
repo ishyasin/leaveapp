@@ -24,7 +24,7 @@
 
   /* ---- ED&G lockup (bottom-right) — fixed brand identity, stays the
      same regardless of which accent theme is active. ---- */
-  .edg-brand{position:fixed;right:40px;bottom:28px;z-index:6;text-align:right;pointer-events:none;animation:edgFadeUp .6s .5s ease both;}
+  .edg-brand{display:block;position:fixed;right:40px;bottom:28px;z-index:6;text-align:right;text-decoration:none;cursor:pointer;animation:edgFadeUp .6s .5s ease both;}
   .edg-brand .mark{font-size:30px;font-weight:800;color:#1a2744;line-height:1;}
   .edg-brand .mark .amp{color:#12a0ad;}
   .edg-brand .mark .tm{font-size:12px;font-weight:700;vertical-align:super;margin-left:1px;}
@@ -130,11 +130,11 @@
 </head>
 <body>
 
-<div class="edg-brand" aria-hidden="true">
+<a class="edg-brand" href="https://home.edandg.com/" target="_blank" rel="noopener noreferrer" aria-label="ED&amp;G — visit home.edandg.com">
   <div class="mark">ED<span class="amp">&amp;</span>G<span class="tm">&trade;</span></div>
   <div class="name">Evolve Digital &amp; Governance</div>
   <div class="rule"><span></span><span></span><span></span></div>
-</div>
+</a>
 
 <div class="hero-band">
   <div class="tri tri-a"></div>
@@ -186,7 +186,7 @@
         Forgotten your password? Ask a Clinical Team Lead or Developer to reset it from Admin &rarr; Users.
       </p>
       <p class="small center" style="margin-top:10px;">
-        <a href="https://home.edandg.com/" target="_blank" rel="noopener noreferrer">ED&amp;G Home &rarr; home.edandg.com</a>
+        <a href="https://home.edandg.com/" target="_blank" rel="noopener noreferrer">Learn more</a>
       </p>
     </div>
   </div>

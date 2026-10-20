@@ -1524,7 +1524,7 @@ function renderTopbar(profile) {
 
   el.innerHTML = `
     <div class="brand">
-      <div>Pharmacy Portal<small>by ED&amp;G&trade;</small></div>
+      <div>Pharmacy Portal<small><a href="https://home.edandg.com/" target="_blank" rel="noopener noreferrer" class="brand-edg" title="ED&amp;G — home.edandg.com">by ED&amp;G&trade;</a></small></div>
     </div>
     <div class="nav">${links.map(([href,label,active]) =>
       `<a href="${href}" class="${active?'active':''}">${label}</a>`).join("")}</div>
