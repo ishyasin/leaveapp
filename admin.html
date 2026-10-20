@@ -428,6 +428,14 @@
           <option value="all">All users</option>
           <option value="selected">Selected users only</option>
         </select>
+        <div id="bulkThemeLockWrap" style="display:none;">
+          <label>Lock</label>
+          <select id="bulkThemeLock">
+            <option value="keep">Leave each person's lock as it is</option>
+            <option value="lock">Lock them into this theme (they can't change it)</option>
+            <option value="unlock">Unlock them (they can pick their own again)</option>
+          </select>
+        </div>
         <div id="bulkThemeUserListWrap" style="display:none;margin-top:10px;max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px;">
           <div id="bulkThemeUserList"></div>
         </div>
@@ -437,9 +445,21 @@
       </form>
     </div>
 
+    <div class="card" id="themeAvailCard" style="display:none;">
+      <h2>Themes people can choose</h2>
+      <p class="small">Developer only. <strong>Ticked</strong> themes appear in everyone's own theme picker (top bar). <strong>Unticked</strong> themes are Developer-controlled: only you can assign them, from Users &rarr; Edit theme or &ldquo;Apply a theme&rdquo; above. The Default theme is always available. People keep whatever theme they already have even if you untick it later.</p>
+      <div id="themeAvailMsg"></div>
+      <div id="themeAvailList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:4px 16px;"></div>
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="secondary" onclick="themeAvailAll(true)">Tick all</button>
+        <button type="button" class="secondary" onclick="themeAvailAll(false)">Untick all</button>
+        <button type="button" class="primary" id="themeAvailSaveBtn" onclick="saveThemeAvail()">Save</button>
+      </div>
+    </div>
+
     <div class="card">
       <h2>Theme by month</h2>
-      <p class="small">Give a calendar month its own theme. During that month <strong>everyone</strong> sees it automatically, taking priority over their personal theme; in months left on “No theme” each person's own theme applies as normal. It repeats every year — e.g. October &rarr; Halloween, December &rarr; Christmas, April &rarr; Easter. The seasonal themes include animations (Halloween: glowing carved pumpkins and ghosts; Christmas: falling snow and reindeer; Easter: bunnies and chicks), which are switched off for anyone whose device is set to reduce motion.</p>
+      <p class="small">Give a calendar month its own theme. During that month <strong>everyone</strong> sees it automatically, taking priority over their personal theme (but not over anyone you have <strong>locked</strong> into a theme); in months left on “No theme” each person's own theme applies as normal. It repeats every year — e.g. October &rarr; Halloween, December &rarr; Christmas, April &rarr; Easter. The seasonal themes include animations (Halloween: glowing carved pumpkins and ghosts; Christmas: falling snow and reindeer; Easter: bunnies and chicks), which are switched off for anyone whose device is set to reduce motion.</p>
       <div id="monthThemeMsg"></div>
       <div id="monthThemeRows" class="month-theme-grid"></div>
       <p class="small" id="monthThemeNow" style="margin-top:10px;"></p>
@@ -556,6 +576,9 @@
     <form id="themeForm">
       <label>Theme</label>
       <select id="themeSelect"></select>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:12px;">
+        <input type="checkbox" id="themeLockChk" style="width:auto;"> Lock — they can't change their own theme
+      </label>
       <div class="modal-actions">
         <button type="button" class="secondary" onclick="closeThemeModal()">Cancel</button>
         <button type="submit" class="primary" id="themeSaveBtn">Save</button>
@@ -1405,6 +1428,7 @@ function openThemeModal(id) {
   const sel = document.getElementById("themeSelect");
   sel.innerHTML = Object.entries(THEMES).map(([val, label]) => `<option value="${val}">${label}</option>`).join("");
   sel.value = THEMES[p.theme] ? p.theme : "default";
+  document.getElementById("themeLockChk").checked = !!p.theme_locked;
   document.getElementById("themeOverlay").style.display = "flex";
 }
 function closeThemeModal() { document.getElementById("themeOverlay").style.display = "none"; }
@@ -1418,12 +1442,13 @@ document.getElementById("themeForm").addEventListener("submit", async (e) => {
   try {
     const { error } = await sb.rpc("set_user_theme", {
       p_user_id: THEME_MODAL_USER_ID, p_theme: newTheme,
+      p_lock: document.getElementById("themeLockChk").checked,
     });
     if (error) throw error;
     closeThemeModal();
     // If a Developer just re-themes their OWN account, reflect it
     // immediately rather than waiting for the next page load.
-    if (THEME_MODAL_USER_ID === PROFILE.id) applyTheme(scheduledTheme() || newTheme);
+    if (THEME_MODAL_USER_ID === PROFILE.id) applyTheme(scheduledTheme() || newTheme);   // a Developer is never locked out of their own picker
     await loadUsers();
   } catch (err) {
     showMsg(msg, err.message, "error");
@@ -1467,8 +1492,34 @@ async function onMonthThemeChange(e) {
   } finally { e.target.disabled = false; }
 }
 
+function renderThemeAvail() {
+  const wrap = document.getElementById("themeAvailList");
+  wrap.innerHTML = Object.entries(THEMES).filter(([k]) => k !== "default").map(([k, label]) => `
+    <label style="display:flex;align-items:center;gap:8px;font-weight:400;margin:2px 0;">
+      <input type="checkbox" class="theme-avail" value="${k}" style="width:auto;"${THEME_RESTRICTED.has(k) ? "" : " checked"}> ${escapeHtml(label)}
+    </label>`).join("");
+}
+function themeAvailAll(on) { document.querySelectorAll(".theme-avail").forEach(c => c.checked = on); }
+async function saveThemeAvail() {
+  const msg = document.getElementById("themeAvailMsg"), btn = document.getElementById("themeAvailSaveBtn");
+  const blocked = [...document.querySelectorAll(".theme-avail")].filter(c => !c.checked).map(c => c.value);
+  btn.disabled = true;
+  try {
+    const { error } = await sb.rpc("set_theme_restrictions", { p_restricted: blocked });
+    if (error) throw error;
+    THEME_RESTRICTED = new Set(blocked);
+    showMsg(msg, blocked.length ? `Saved. ${blocked.length} theme${blocked.length === 1 ? " is" : "s are"} now Developer-controlled.` : "Saved. Every theme is open to everyone.", "ok");
+  } catch (err) { showMsg(msg, err.message, "error"); }
+  finally { btn.disabled = false; }
+}
+
 function setupBulkThemeTab() {
   renderMonthThemes();
+  if (isDeveloper(PROFILE)) {
+    document.getElementById("themeAvailCard").style.display = "";
+    document.getElementById("bulkThemeLockWrap").style.display = "";
+    renderThemeAvail();
+  }
   document.getElementById("bulkThemeSelect").innerHTML =
     Object.entries(THEMES).map(([val, label]) => `<option value="${val}">${label}</option>`).join("");
   document.getElementById("bulkThemeTarget").addEventListener("change", (e) => {
@@ -1510,9 +1561,13 @@ document.getElementById("bulkThemeForm").addEventListener("submit", async (e) =>
 
   btn.disabled = true; btn.textContent = "Applying…";
   try {
-    const { error } = await sb.rpc("set_user_theme_bulk", { p_user_ids: ids, p_theme: theme });
+    const lockSel = document.getElementById("bulkThemeLock").value;
+    const { error } = await sb.rpc("set_user_theme_bulk", {
+      p_user_ids: ids, p_theme: theme,
+      p_lock: lockSel === "lock" ? true : lockSel === "unlock" ? false : null,
+    });
     if (error) throw error;
-    showMsg(msg, "Theme applied.", "ok");
+    showMsg(msg, lockSel === "lock" ? "Theme applied and locked." : lockSel === "unlock" ? "Theme applied; accounts unlocked." : "Theme applied.", "ok");
     // If this changes the Developer's OWN account (directly selected,
     // or swept up in "All users"), reflect it immediately rather than
     // waiting for the next page load.

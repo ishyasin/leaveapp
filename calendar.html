@@ -126,7 +126,6 @@
         <div id="toilPartWrap" style="display:none;">
           <label>Time(s)</label>
           <p class="small" style="margin:2px 0 6px;">Click a start point on the dial, then click again for the end — repeat for as many separate time ranges as needed (e.g. 08:00–10:00 and 16:00–18:00 in the same request). Edit or remove any range in the list below.</p>
-          <p class="small" style="margin:2px 0 6px;">This can be submitted even on a day you already have full-day leave (of any kind) approved — useful for putting in writing that you'd like part of it converted to TOIL. It won't change the existing day on its own; an approver still needs to sort that out with you directly.</p>
           <div id="toilRangePicker"></div>
         </div>
       </div>
@@ -220,6 +219,7 @@ let VIEW_MONTH = new Date().getMonth(); // 0-indexed
 let HOLIDAYS = {};            // 'YYYY-MM-DD' -> name
 let RESTRICTED = {};          // site -> { 'YYYY-MM-DD' -> {label, color} }
 let REQUESTS = [];            // this month's leave_requests
+let NOTED_IDS = new Set();    // leave ids with an approver note (approvers only — RLS returns nothing to anyone else)
 let SITE_THRESHOLD = {};      // site -> capacity threshold
 let CAPACITY_OVERRIDES = {};  // site -> Set of 'YYYY-MM-DD' forced red
 let MONTH_STATUS = {};        // site -> month_status row
@@ -428,6 +428,17 @@ async function refreshCalendar() {
   ]);
 
   REQUESTS = (reqs || []).sort((a, b) => new Date(a.requested_at) - new Date(b.requested_at));
+  // Approvers only: which approved leave has a note, to mark its tile with *.
+  NOTED_IDS = new Set();
+  if (isLeadPlus(PROFILE)) {
+    try {
+      const ids = REQUESTS.filter(r => r.status === "approved").map(r => r.id);
+      for (let i = 0; i < ids.length; i += 100) {
+        const { data: noted } = await sb.from("leave_approver_notes").select("leave_id").in("leave_id", ids.slice(i, i + 100));
+        (noted || []).forEach(n => NOTED_IDS.add(n.leave_id));
+      }
+    } catch (e) { /* table not created yet: no markers */ }
+  }
   HOLIDAYS = {};
   (hols || []).forEach(h => HOLIDAYS[h.holiday_date] = h.name);
   RESTRICTED = {};
@@ -680,12 +691,13 @@ function renderSiteGrid(site) {
           // distinctly for the approver rather than letting it blend in.
           const stacked = REQUESTS.some(x =>
             x.id !== r.id && x.user_id === r.user_id && x.leave_date === r.leave_date && x.status !== "rejected");
-          const tooltip = tileTooltip(r, p, stacked);
+          const hasNote = NOTED_IDS.has(r.id);
+          const tooltip = tileTooltip(r, p, stacked) + (hasNote ? "\n* Approver note added (click to read)" : "");
           // Colour goes on the cell itself (not a nested span) so the
           // fill is guaranteed by the table cell's own background rather
           // than a percentage-height flex child, which some browsers
           // fail to size correctly inside a table row.
-          rows += `<td class="${cls} tile ${statusClass}${pendingModifier}${BULK_SELECTED.has(r.id) ? " bulk-selected" : ""}${stacked ? " stacked-request" : ""}" style="${bg.style}" title="${escapeHtml(tooltip)}" onclick="handleTileClick(event, '${r.id}')">${escapeHtml(initials)}${suffix}</td>`;
+          rows += `<td class="${cls} tile ${statusClass}${pendingModifier}${BULK_SELECTED.has(r.id) ? " bulk-selected" : ""}${stacked ? " stacked-request" : ""}" style="${bg.style}" title="${escapeHtml(tooltip)}" onclick="handleTileClick(event, '${r.id}')">${escapeHtml(initials)}${hasNote ? "*" : ""}${suffix}</td>`;
         } else {
           rows += `<td class="${cls}" style="${bg.style}"></td>`;
         }
@@ -1148,8 +1160,25 @@ async function openDetail(id) {
     ${showRequestAudit ? `<p class="small">${isAllocated ? "Allocated" : "Requested"} by ${escapeHtml(requester?.full_name || "?")} on ${fmtDateTime(r.requested_at)}</p>` : ""}
     ${approver && r.status !== "pending" ? `<p class="small">${r.status === 'rejected' ? 'Rejected' : 'Approved'} by ${escapeHtml(approver.full_name)} on ${fmtDateTime(r.approved_at)}</p>` : ""}
     ${r.status === "rejected" && r.rejected_reason ? `<p class="small">Reason: ${escapeHtml(r.rejected_reason)}</p>` : ""}
+    <div id="detApproverNote"></div>
     <div id="detActions" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;"></div>
   `;
+
+  // Approver-only note added when this leave was approved (RLS means
+  // anyone below Lead Pharmacist simply gets nothing back).
+  if (isLeadPlus(PROFILE) && r.status === "approved") {
+    try {
+      const { data: noteRow } = await sb.from("leave_approver_notes").select("note, created_by, created_at").eq("leave_id", id).maybeSingle();
+      const box = document.getElementById("detApproverNote");
+      if (noteRow && box) {
+        const by = profileById(noteRow.created_by);
+        box.innerHTML = `<div style="margin-top:10px;padding:8px 10px;border-left:3px solid var(--honey,#e6a900);background:rgba(230,169,0,.10);border-radius:4px;">
+          <div class="small" style="font-weight:700;">Approver note <span style="font-weight:400;">(only approvers can see this)</span></div>
+          <div style="white-space:pre-wrap;">${escapeHtml(noteRow.note)}</div>
+          <div class="small">${escapeHtml(by?.full_name || "")} &middot; ${fmtDateTime(noteRow.created_at)}</div></div>`;
+      }
+    } catch (e) { /* table not created yet: no note shown */ }
+  }
 
   const actions = document.getElementById("detActions");
   // Role-hierarchy-aware — see canProcessLeaveForRole() in shared.js /
@@ -1277,7 +1306,12 @@ async function bulkCancelOwn() {
 async function bulkApprove() {
   const ids = [...BULK_SELECTED];
   if (!ids.length) return;
-  if (!await uiConfirm(`Approve ${ids.length} selected leave request${ids.length === 1 ? "" : "s"}?`)) return;
+  const approverNote = await uiPrompt(
+    `Approve ${ids.length} selected leave request${ids.length === 1 ? "" : "s"}?\n\nOptional note, added to all of them — only other approvers can see it:`,
+    "", { type: "textarea", title: "Approve selected", okLabel: "Approve" }
+  );
+  if (approverNote === null) return;
+  const batchNote = approverNote.trim() || null;
 
   let okCount = 0;
   const failures = [];
@@ -1294,7 +1328,7 @@ async function bulkApprove() {
       );
       if (note === null) { failures.push(`${fmtDate(r.leave_date)}: skipped (cancelled)`); continue; }
     }
-    const { error } = await sb.rpc("approve_leave", { p_leave_id: id, p_note: note });
+    const { error } = await sb.rpc("approve_leave", { p_leave_id: id, p_note: note, p_approver_note: batchNote });
     if (error) failures.push(`${fmtDate(r.leave_date)}: ${error.message}`);
     else okCount++;
   }
@@ -1342,8 +1376,13 @@ async function doApprove(id) {
     );
     if (note === null) return; // cancelled
   }
+  const approverNote = await uiPrompt(
+    "Optional note — only other approvers can see it:",
+    "", { type: "textarea", title: "Approve leave", okLabel: "Approve" }
+  );
+  if (approverNote === null) return; // cancelled
   try {
-    const { error } = await sb.rpc("approve_leave", { p_leave_id: id, p_note: note });
+    const { error } = await sb.rpc("approve_leave", { p_leave_id: id, p_note: note, p_approver_note: approverNote.trim() || null });
     if (error) throw error;
     closeDetailModal(); await refreshCalendar();
   } catch (err) { showMsg(msg, err.message, "error"); }

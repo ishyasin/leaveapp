@@ -247,9 +247,12 @@ async function approve(id) {
       ? `This day is flagged: ${restrictionLabel(r._restrictionFlag)}. `
       : "";
 
-    if (!await uiConfirm(`${restrictionNote}There are ${offCount} pharmacists off on this day, please check rota capacity before approving leave.`)) {
-      return;
-    }
+    // One dialog: the capacity check plus an optional note for other approvers.
+    const approverNote = await uiPrompt(
+      `${restrictionNote}There are ${offCount} pharmacists off on this day, please check rota capacity before approving leave.\n\nOptional note — only other approvers can see it:`,
+      "", { type: "textarea", title: "Approve leave", okLabel: "Approve" }
+    );
+    if (approverNote === null) return; // cancelled
 
     let toilNote = null;
     if (r.leave_type === "toil_part_day") {
@@ -261,7 +264,7 @@ async function approve(id) {
       if (toilNote === null) return; // cancelled
     }
 
-    const { error } = await sb.rpc("approve_leave", { p_leave_id: id, p_note: toilNote });
+    const { error } = await sb.rpc("approve_leave", { p_leave_id: id, p_note: toilNote, p_approver_note: approverNote.trim() || null });
     if (error) throw error;
     await load();
   } catch (err) { showMsg(msg, err.message, "error"); }

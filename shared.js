@@ -116,6 +116,39 @@ async function loadThemeSchedule() {
   } catch (e) { /* table not created yet, or offline: just use personal themes */ }
   return THEME_SCHEDULE;
 }
+/* ---- Which themes people may pick for themselves (Developer sets it in
+   Admin -> Appearance). THEME_RESTRICTED = themes only a Developer can
+   assign; everything else is open to everyone. A person whose theme a
+   Developer has LOCKED (profiles.theme_locked) can't change it, and a
+   locked theme also beats the monthly schedule. */
+let THEME_RESTRICTED = new Set();
+async function loadThemeRestrictions() {
+  try {
+    const { data, error } = await sb.from("theme_restrictions").select("theme");
+    if (error) throw error;
+    THEME_RESTRICTED = new Set((data || []).map(r => r.theme));
+  } catch (e) { /* table not created yet: every theme stays open */ }
+  return THEME_RESTRICTED;
+}
+// The theme this person should actually see right now.
+function effectiveTheme(profile) {
+  if (profile.theme_locked) return profile.theme;
+  return scheduledTheme() || profile.theme;
+}
+// Called from the topbar's own theme picker.
+async function setOwnTheme(theme) {
+  const sel = document.getElementById("themeSelectOwn");
+  const prev = sel ? sel.dataset.current : null;
+  try {
+    const { error } = await sb.rpc("set_own_theme", { p_theme: theme });
+    if (error) throw error;
+    if (sel) sel.dataset.current = theme;
+    applyTheme(scheduledTheme() || theme);   // a monthly theme (if any) still shows
+  } catch (e) {
+    if (typeof uiAlert === "function") uiAlert(e.message || "Could not change theme.");
+    if (sel && prev) sel.value = prev;
+  }
+}
 function applyColorMode(mode) {
   if (!COLOR_MODES[mode]) mode = "light";
   document.documentElement.setAttribute("data-color-mode", mode);
@@ -1367,6 +1400,18 @@ async function signOut() {
   window.location.replace("login.html");
 }
 
+// Topbar theme picker. Locked people see it greyed out with the reason;
+// otherwise it lists every theme open to everyone, plus their current
+// theme (so it always displays correctly), or everything for a Developer.
+function themePickerHtml(profile) {
+  const dev = profile.role === "developer";
+  const locked = !!profile.theme_locked && !dev;
+  const keys = Object.keys(THEMES).filter(k => dev || k === profile.theme || !THEME_RESTRICTED.has(k));
+  if (!locked && keys.length <= 1) return "";
+  const opts = keys.map(k => `<option value="${k}"${profile.theme === k ? " selected" : ""}>${THEMES[k]}</option>`).join("");
+  return `<select id="themeSelectOwn" class="mode-select" data-current="${profile.theme}" aria-label="Theme"${locked ? ' disabled title="Your theme has been locked by an administrator"' : ' title="Choose your theme"'}>${opts}</select>`;
+}
+
 /** Call at the top of every protected page. Redirects if not logged in,
  *  not active, needs a password reset, or lacks an allowed role. */
 async function requireAuth(allowedRoles) {
@@ -1385,7 +1430,8 @@ async function requireAuth(allowedRoles) {
     return null;
   }
   await loadThemeSchedule();
-  applyTheme(scheduledTheme() || profile.theme);
+  await loadThemeRestrictions();
+  applyTheme(effectiveTheme(profile));
   applyColorMode(profile.color_mode);
   if (profile.must_reset_password && !window.location.pathname.endsWith("reset-password.html")) {
     window.location.href = "reset-password.html";
@@ -1484,11 +1530,14 @@ function renderTopbar(profile) {
       `<a href="${href}" class="${active?'active':''}">${label}</a>`).join("")}</div>
     <div class="userbox">
       <button type="button" id="animToggle" class="anim-toggle" title="Stop or start the seasonal animations"></button>
+      ${themePickerHtml(profile)}
       <select id="colorModeSelect" class="mode-select" aria-label="Display mode">${modeOptions}</select>
       <span>${escapeHtml(profile.full_name)} (${escapeHtml(profile.initials)}) &middot; ${ROLE_LABEL[profile.role]}</span>
       <button onclick="signOut()">Sign out</button>
     </div>`;
   document.getElementById("colorModeSelect").addEventListener("change", (e) => setOwnColorMode(e.target.value));
+  const ownThemeSel = document.getElementById("themeSelectOwn");
+  if (ownThemeSel) ownThemeSel.addEventListener("change", (e) => setOwnTheme(e.target.value));
   document.getElementById("animToggle").addEventListener("click", toggleAnimations);
   applyAnimPref();
 
