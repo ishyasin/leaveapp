@@ -55,7 +55,7 @@ const THEMES = {
   christmas: "Christmas",
   easter:    "Easter",
   antimicrobial: "Antimicrobial",
-  swiftie:   "Swiftie (sparkles & bracelets)",
+  swiftie:   "Taylor Quick",
   barbie:    "Barbie-style (pink)",
   fairytale: "Fairytale (Disney-style)",
   autumn:    "Autumn",
@@ -76,6 +76,18 @@ const THEMES = {
   cardiology:  "Cardiology",
   endocrine:   "Endocrine",
   respiratory: "Respiratory",
+  nightsky:  "Night Sky / Space",
+  deepocean: "Deep Ocean",
+  botanical: "Botanical Garden",
+  retro80s:  "Retro 80s",
+  library:   "Library / Study",
+  win98:     "Windows 98",
+  arcade:    "Arcade",
+  rainforest:"Rainforest",
+  tropical:  "Tropical Island",
+  skyline:   "City Skyline at Dusk",
+  desert:    "Desert Sunset",
+  spaceconflict: "Space Conflict",
 };
 const COLOR_MODES = {
   light:    "Light",
@@ -654,7 +666,7 @@ Object.assign(THEME_SCENES, {
    ===================================================================== */
 Object.assign(SCN, {
   plus: (c) => `<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7,1H13V7H19V13H13V19H7V13H1V7H7Z" fill="${c}"/></svg>`,
-  ambulance: `<svg viewBox="0 0 100 48" aria-hidden="true"><path d="M3,36 V16 Q3,10 9,10 H60 V36Z" fill="#fff" stroke="#c9d0d8" stroke-width="1.2"/><path d="M60,16 H80 Q88,16 92,26 L97,30 Q99,32 99,36 H60Z" fill="#fff" stroke="#c9d0d8" stroke-width="1.2"/><path d="M66,19 H79 Q84,19 87,26 H66Z" fill="#b9e0ff" stroke="#7aa6c8" stroke-width=".8"/><rect x="3" y="27" width="96" height="5" fill="#d4202c"/><path d="M26,13 V25 M20,19 H32" stroke="#d4202c" stroke-width="4" stroke-linecap="round"/><rect x="34" y="4" width="14" height="6" rx="2" fill="#2a7fd4"/><circle cx="22" cy="38" r="7" fill="#2c2c34"/><circle cx="22" cy="38" r="3" fill="#cfd5dc"/><circle cx="80" cy="38" r="7" fill="#2c2c34"/><circle cx="80" cy="38" r="3" fill="#cfd5dc"/></svg>`,
+  ambulance: `<svg viewBox="0 0 100 48" aria-hidden="true"><path d="M3,36 V16 Q3,10 9,10 H60 V36Z" fill="#ffd100" stroke="#c9a400" stroke-width="1.2"/><path d="M60,16 H80 Q88,16 92,26 L97,30 Q99,32 99,36 H60Z" fill="#ffd100" stroke="#c9a400" stroke-width="1.2"/><path d="M66,19 H79 Q84,19 87,26 H66Z" fill="#cfe6f5" stroke="#7aa6c8" stroke-width=".8"/><rect x="3" y="24" width="6" height="4" fill="#1b8a3c"/><rect x="3" y="28" width="6" height="4" fill="#ffd100"/><rect x="9" y="28" width="6" height="4" fill="#1b8a3c"/><rect x="9" y="24" width="6" height="4" fill="#ffd100"/><rect x="15" y="24" width="6" height="4" fill="#1b8a3c"/><rect x="15" y="28" width="6" height="4" fill="#ffd100"/><rect x="21" y="28" width="6" height="4" fill="#1b8a3c"/><rect x="21" y="24" width="6" height="4" fill="#ffd100"/><rect x="27" y="24" width="6" height="4" fill="#1b8a3c"/><rect x="27" y="28" width="6" height="4" fill="#ffd100"/><rect x="33" y="28" width="6" height="4" fill="#1b8a3c"/><rect x="33" y="24" width="6" height="4" fill="#ffd100"/><rect x="39" y="24" width="6" height="4" fill="#1b8a3c"/><rect x="39" y="28" width="6" height="4" fill="#ffd100"/><rect x="45" y="28" width="6" height="4" fill="#1b8a3c"/><rect x="45" y="24" width="6" height="4" fill="#ffd100"/><rect x="51" y="24" width="6" height="4" fill="#1b8a3c"/><rect x="51" y="28" width="6" height="4" fill="#ffd100"/><rect x="3" y="32" width="96" height="3" fill="#1b8a3c"/><circle cx="31" cy="17" r="6.5" fill="#fff"/><path d="M31,12 V22 M26,17 H36" stroke="#1f5fa8" stroke-width="3" stroke-linecap="round"/><rect x="34" y="5" width="14" height="5" rx="2" fill="#2a6fb8"/><circle cx="22" cy="38" r="7" fill="#2c2c34"/><circle cx="22" cy="38" r="3" fill="#cfd5dc"/><circle cx="80" cy="38" r="7" fill="#2c2c34"/><circle cx="80" cy="38" r="3" fill="#cfd5dc"/></svg>`,
   siren: (c) => `<svg viewBox="0 0 18 14" aria-hidden="true"><path d="M2,13 A7,11 0 0 1 16,13Z" fill="${c}"/><rect x="0" y="11" width="18" height="3" rx="1" fill="#444"/></svg>`,
   lamp: `<svg viewBox="0 0 60 56" aria-hidden="true"><path d="M30,0 V14" stroke="#9fb0bb" stroke-width="3"/><circle cx="30" cy="34" r="21" fill="#eef3f6" stroke="#9fb0bb" stroke-width="1.6"/><circle cx="30" cy="34" r="13" fill="#fff8d6" stroke="#e3d58b"/><g fill="#fff3a8" stroke="#e3d58b" stroke-width=".6">${[0, 60, 120, 180, 240, 300].map(a => `<circle cx="${(30 + 8 * Math.cos(a * Math.PI / 180)).toFixed(1)}" cy="${(34 + 8 * Math.sin(a * Math.PI / 180)).toFixed(1)}" r="2.6"/>`).join("")}<circle cx="30" cy="34" r="3.2"/></g></svg>`,
   scissors: `<svg viewBox="0 0 30 42" aria-hidden="true"><path d="M11,28 L22,2 M19,28 L8,2" stroke="#d3dce3" stroke-width="3" stroke-linecap="round"/><circle cx="8" cy="34" r="5" fill="none" stroke="#9fb0bb" stroke-width="2.4"/><circle cx="22" cy="34" r="5" fill="none" stroke="#9fb0bb" stroke-width="2.4"/></svg>`,
@@ -683,17 +695,16 @@ const scnNum = (txt, col, left, top, size) => `<span class="bnum" style="left:${
 
 Object.assign(THEME_SCENES, {
   emergency: {
+    // Calm and uncluttered: a few faint crosses, a quiet heartbeat line and a
+    // slow UK-style (yellow, green Battenburg) ambulance. No flashing lights.
     layer() {
-      let h = ""; const c = ["#d4202c", "#fff", "#2a7fd4", "#ff6b6b"];
-      for (let i = 0; i < 16; i++) h += `<i class="rise" style="--dx:${fxRand(-50, 50).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(12, 24).toFixed(0)}px;opacity:.3;animation-duration:${fxRand(55, 100).toFixed(0)}s;animation-delay:${(-fxRand(0, 100)).toFixed(0)}s">${SCN.plus(pick(c, i))}</i>`;
+      let h = ""; const c = ["#c9d3dd", "#ffe27a", "#a9d8bd"];
+      for (let i = 0; i < 6; i++) h += `<i class="rise" style="--dx:${fxRand(-30, 30).toFixed(0)}px;left:${fxRand(4, 95).toFixed(1)}%;width:${fxRand(12, 20).toFixed(0)}px;opacity:.16;animation-duration:${fxRand(90, 140).toFixed(0)}s;animation-delay:${(-fxRand(0, 140)).toFixed(0)}s">${SCN.plus(pick(c, i))}</i>`;
       return h;
     },
     banner() {
-      let b = scnEcg("#fff", .9, "wvA", "height:24px;bottom:0;animation-duration:16s");
-      b += SBX("bblink", SCN.siren("#ff3b3b"), "left:3%;top:6px;--w:20") + SBX("bblink b2", SCN.siren("#3b8bff"), "left:6%;top:6px;--w:20");
-      b += SBX("bblink b2", SCN.siren("#ff3b3b"), "right:6%;top:6px;--w:20") + SBX("bblink", SCN.siren("#3b8bff"), "right:3%;top:6px;--w:20");
-      b += SBX("bcross", SCN.ambulance, "left:0;bottom:6px;--w:80;--still:40%;animation-duration:34s");
-      for (let i = 0; i < 9; i++) b += SBX("brise", SCN.plus(pick(["#fff", "#ffd1d1"], i)), `left:${fxRand(8, 92).toFixed(0)}%;--w:${fxRand(8, 14).toFixed(0)};animation-duration:${fxRand(9, 15).toFixed(1)}s;animation-delay:${(-fxRand(0, 15)).toFixed(1)}s`);
+      let b = scnEcg("#cfe3f2", .3, "wvA", "height:22px;bottom:0;animation-duration:30s");
+      b += SBX("bcross", SCN.ambulance, "left:0;bottom:6px;--w:80;--still:40%;animation-duration:75s");
       return b;
     },
   },
@@ -836,6 +847,309 @@ Object.assign(THEME_SCENES, {
       b += SBX("bbob", SCN.inhaler, "left:28%;bottom:6px;--w:34;animation-duration:5s") + SBX("bbob", SCN.inhaler, "left:68%;bottom:6px;--w:34;animation-duration:6s");
       b += scnNum("SpO2 98%", "#1b6fa8", "56%", 8, 11);
       for (let i = 0; i < 12; i++) b += `<i class="bubble" style="left:${fxRand(3, 96).toFixed(0)}%;animation-duration:${fxRand(3, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s;border-color:rgba(255,255,255,.8)"></i>`;
+      return b;
+    },
+  },
+});
+
+/* =====================================================================
+   General themes: Night Sky / Space, Deep Ocean, Botanical Garden,
+   Retro 80s, Library / Study, Windows 98. Generic drawn artwork only.
+   ===================================================================== */
+const scnShelf = (h) => {
+  const cols = ["#8b2e2e", "#2f5d8a", "#3f7a52", "#c9a54a", "#5c3a6e", "#a65e36", "#2d4a4f", "#b8453a", "#4a6fa5", "#6b7f3a"];
+  let x = 0, out = "", i = 0;
+  while (x < 1600) {
+    const w = 9 + (i * 7 % 9), ht = 24 + (i * 13 % 17), c = cols[(i * 5 + (i >> 2)) % cols.length];
+    out += `<rect x="${x}" y="${44 - 4 - ht}" width="${w}" height="${ht}" fill="${c}" stroke="rgba(0,0,0,.35)" stroke-width=".8"/><rect x="${x + 2}" y="${44 - 4 - ht + 4}" width="${Math.max(2, w - 4)}" height="2" fill="rgba(255,255,255,.35)"/>`;
+    x += w + 1; i++;
+  }
+  return `<svg class="scn" viewBox="0 0 1600 44" preserveAspectRatio="xMidYMax slice" aria-hidden="true" style="height:${h}px">${out}<rect x="0" y="40" width="1600" height="4" fill="#2a170c"/></svg>`;
+};
+Object.assign(SCN, {
+  moon: `<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M26,3 A18,18 0 1 0 37,28 A14.5,14.5 0 1 1 26,3Z" fill="#fff3c4"/><circle cx="14" cy="20" r="2.4" fill="#e8dba5"/><circle cx="21" cy="29" r="1.8" fill="#e8dba5"/></svg>`,
+  saturn: `<svg viewBox="0 0 76 44" aria-hidden="true"><g transform="rotate(-16 38 22)"><ellipse cx="38" cy="22" rx="34" ry="7" fill="none" stroke="#c9a46a" stroke-width="3" opacity=".7"/><circle cx="38" cy="22" r="14" fill="#d9a05b"/><path d="M26,18 Q38,13 50,19 M25,26 Q38,22 51,28" stroke="#b97d3a" stroke-width="1.6" fill="none"/><path d="M4,22 A34,7 0 0 0 72,22" fill="none" stroke="#e8c98a" stroke-width="3"/></g></svg>`,
+  rocket: `<svg viewBox="-14 0 84 30" aria-hidden="true"><path d="M3,10 L-12,15 L3,20Z" fill="#ffb347"/><path d="M12,8 H44 Q62,8 67,15 Q62,22 44,22 H12Z" fill="#f2f4ff" stroke="#b9c0e8"/><path d="M12,8 L2,1 L8,15 L2,29 L12,22Z" fill="#e0425f"/><circle cx="38" cy="15" r="4.2" fill="#5fb2ff" stroke="#3b7fc0"/><path d="M52,9 Q60,15 52,21" stroke="#e0425f" stroke-width="2.4" fill="none"/></svg>`,
+  satellite: `<svg viewBox="0 0 50 26" aria-hidden="true"><rect x="19" y="7" width="12" height="12" rx="2" fill="#cfd6ff" stroke="#8ea2ff"/><rect x="2" y="9" width="14" height="8" fill="#4f6bd8" stroke="#8ea2ff"/><rect x="34" y="9" width="14" height="8" fill="#4f6bd8" stroke="#8ea2ff"/><path d="M25,7 V2" stroke="#cfd6ff" stroke-width="1.4"/><circle cx="25" cy="2" r="1.6" fill="#ff8b8b"/></svg>`,
+  fish: (c) => `<svg viewBox="0 0 40 22" aria-hidden="true"><g transform="matrix(-1 0 0 1 40 0)"><path d="M2,11 C10,0 26,0 32,11 C26,22 10,22 2,11Z" fill="${c}"/><path d="M30,11 L40,3 V19Z" fill="${c}"/><circle cx="9" cy="9" r="1.9" fill="#fff"/><circle cx="9" cy="9" r=".8" fill="#123"/></g></svg>`,
+  jelly: (c) => `<svg viewBox="0 0 30 44" aria-hidden="true"><path d="M3,18 A12,14 0 0 1 27,18Z" fill="${c}" opacity=".85"/><path d="M7,18 Q6,28 9,38 M12,18 Q13,30 11,42 M18,18 Q17,30 19,42 M23,18 Q24,28 21,38" stroke="${c}" stroke-width="1.8" fill="none" opacity=".7"/></svg>`,
+  whale: `<svg viewBox="0 0 124 52" aria-hidden="true"><g transform="matrix(-1 0 0 1 124 0)"><path d="M4,26 Q10,6 50,6 Q100,6 112,24 Q116,30 122,20 Q121,40 108,37 Q100,34 96,37 Q60,50 20,41 Q6,37 4,26Z" fill="#3f6f9e"/><path d="M14,34 Q50,46 94,36 Q60,40 14,34Z" fill="#a9c9e4"/><circle cx="16" cy="24" r="2" fill="#0b1f33"/></g></svg>`,
+  weed: (c) => `<svg viewBox="0 0 20 50" aria-hidden="true"><path d="M10,50 C2,40 18,32 10,22 C2,12 16,6 10,0" stroke="${c}" stroke-width="5" fill="none" stroke-linecap="round"/></svg>`,
+  flower: (p, c) => `<svg viewBox="0 0 30 42" aria-hidden="true"><path d="M15,42 V18" stroke="#3f8a55" stroke-width="2.5"/><path d="M15,34 Q6,32 5,25 Q12,25 15,32" fill="#4fae68"/>${[0, 72, 144, 216, 288].map(a => `<ellipse cx="15" cy="9" rx="4.6" ry="7" fill="${p}" transform="rotate(${a} 15 15)"/>`).join("")}<circle cx="15" cy="15" r="3.8" fill="${c}"/></svg>`,
+  tulip: (c) => `<svg viewBox="0 0 24 44" aria-hidden="true"><path d="M12,44 V20" stroke="#3f8a55" stroke-width="2.6"/><path d="M12,36 Q4,34 3,26 Q10,27 12,34" fill="#4fae68"/><path d="M4,5 Q3,19 12,22 Q21,19 20,5 L15,11 L12,3 L9,11Z" fill="${c}"/></svg>`,
+  monstera: `<svg viewBox="0 0 50 50" aria-hidden="true"><path d="M25,48 V30" stroke="#2f6f40" stroke-width="3"/><path d="M25,30 C4,34 0,12 12,4 C18,10 22,6 25,2 C28,6 32,10 38,4 C50,12 46,34 25,30Z" fill="#3f9a58"/><path d="M25,30 V6 M25,24 L12,14 M25,24 L38,14 M25,18 L16,10 M25,18 L34,10" stroke="#2a7a45" stroke-width="1.2" fill="none"/></svg>`,
+  fern: `<svg viewBox="0 0 34 52" aria-hidden="true"><path d="M17,52 Q15,26 20,2" stroke="#2f7a45" stroke-width="2" fill="none"/>${Array.from({ length: 9 }, (_, i) => { const y = 8 + i * 4.6, w = 13 - i * 0.9; return `<path d="M${(17 + i * 0.4).toFixed(1)},${y.toFixed(1)} Q${(17 - w).toFixed(1)},${(y - 4).toFixed(1)} ${(17 - w - 2).toFixed(1)},${(y - 1).toFixed(1)} M${(17 + i * 0.4).toFixed(1)},${y.toFixed(1)} Q${(17 + w).toFixed(1)},${(y - 4).toFixed(1)} ${(17 + w + 2).toFixed(1)},${(y - 1).toFixed(1)}" stroke="#3f9a58" stroke-width="2.4" fill="none" stroke-linecap="round"/>`; }).join("")}</svg>`,
+  can: `<svg viewBox="0 0 56 40" aria-hidden="true"><path d="M10,12 H34 L36,34 H8Z" fill="#6fb2d8" stroke="#4a8fb8"/><path d="M34,18 L50,6 L53,10 L36,25Z" fill="#6fb2d8" stroke="#4a8fb8"/><path d="M10,17 Q0,15 2,27 Q4,31 9,29" fill="none" stroke="#4a8fb8" stroke-width="3"/><path d="M14,12 Q22,1 30,12" fill="none" stroke="#4a8fb8" stroke-width="3"/></svg>`,
+  palm: `<svg viewBox="0 0 56 72" aria-hidden="true"><path d="M28,72 Q31,42 26,20" stroke="#12052a" stroke-width="3.6" fill="none"/><g fill="#12052a"><path d="M26,20 Q8,8 1,22 Q14,14 26,22Z"/><path d="M26,20 Q12,0 4,6 Q16,6 26,19Z"/><path d="M26,20 Q44,6 54,20 Q42,13 26,22Z"/><path d="M26,20 Q40,0 50,6 Q38,6 26,19Z"/><path d="M26,20 Q26,2 30,0 Q30,10 27,20Z"/></g></svg>`,
+  sun80: `<svg viewBox="0 0 100 52" aria-hidden="true"><defs><linearGradient id="g80" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe14a"/><stop offset="1" stop-color="#ff2d95"/></linearGradient><mask id="m80"><rect width="100" height="52" fill="#fff"/><rect y="30" width="100" height="2" fill="#000"/><rect y="36" width="100" height="3" fill="#000"/><rect y="42" width="100" height="4" fill="#000"/><rect y="48" width="100" height="4" fill="#000"/></mask></defs><path d="M0,52 A50,50 0 0 1 100,52Z" fill="url(#g80)" mask="url(#m80)"/></svg>`,
+  cassette: `<svg viewBox="0 0 50 32" aria-hidden="true"><rect x="1" y="1" width="48" height="30" rx="3" fill="#2a2a3a" stroke="#6be9ff" stroke-width="1.2"/><rect x="6" y="5" width="38" height="12" rx="2" fill="#ff6fd0"/><circle cx="16" cy="11" r="3.6" fill="#2a2a3a"/><circle cx="34" cy="11" r="3.6" fill="#2a2a3a"/><rect x="12" y="21" width="26" height="7" rx="1.5" fill="#12052a"/></svg>`,
+  neonTri: (c) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,3 L22,21 H2Z" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round"/></svg>`,
+  neonDia: (c) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,2 L22,12 L12,22 L2,12Z" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round"/></svg>`,
+  neonCircle: (c) => `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="${c}" stroke-width="2"/></svg>`,
+  banker: `<svg viewBox="0 0 40 46" aria-hidden="true"><path d="M8,6 H32 Q36,6 34,16 H6 Q4,6 8,6Z" fill="#2f7a52" stroke="#1d5238"/><rect x="18" y="16" width="4" height="22" fill="#b4832a"/><ellipse cx="20" cy="40" rx="11" ry="4" fill="#b4832a"/></svg>`,
+  globe: `<svg viewBox="0 0 40 50" aria-hidden="true"><circle cx="20" cy="20" r="15" fill="#4a86b8" stroke="#2d5f8a"/><path d="M10,14 Q16,10 20,16 Q18,22 12,22Z M24,22 Q30,20 32,26 Q28,32 24,28Z" fill="#7bbf6f"/><path d="M6,8 Q-2,22 8,34" stroke="#b4832a" stroke-width="2" fill="none"/><path d="M20,35 V42 M12,47 H28" stroke="#b4832a" stroke-width="3"/></svg>`,
+  owl: `<svg viewBox="0 0 30 36" aria-hidden="true"><ellipse cx="15" cy="22" rx="10" ry="13" fill="#8a5a33"/><circle cx="10" cy="15" r="5.5" fill="#f3e3c3"/><circle cx="20" cy="15" r="5.5" fill="#f3e3c3"/><circle cx="10" cy="15" r="2.4" fill="#222"/><circle cx="20" cy="15" r="2.4" fill="#222"/><path d="M13,18 L15,22 L17,18Z" fill="#e0a030"/><path d="M6,6 L9,11 M24,6 L21,11" stroke="#8a5a33" stroke-width="3"/></svg>`,
+  stackBooks: `<svg viewBox="0 0 40 30" aria-hidden="true"><rect x="2" y="20" width="34" height="8" rx="1.5" fill="#8b2e2e" stroke="rgba(0,0,0,.3)"/><rect x="5" y="12" width="30" height="8" rx="1.5" fill="#2f5d8a" stroke="rgba(0,0,0,.3)"/><rect x="3" y="4" width="32" height="8" rx="1.5" fill="#c9a54a" stroke="rgba(0,0,0,.3)"/></svg>`,
+  w98computer: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="13" fill="#c0c0c0" stroke="#000"/><rect x="5" y="5" width="14" height="9" fill="#008080" stroke="#000" stroke-width=".6"/><rect x="8" y="17" width="8" height="2" fill="#c0c0c0" stroke="#000" stroke-width=".6"/><rect x="5" y="19" width="14" height="3" fill="#c0c0c0" stroke="#000" stroke-width=".6"/></svg>`,
+  w98bin: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6,7 H18 L17,22 H7Z" fill="#dfdfdf" stroke="#000"/><path d="M4,7 H20" stroke="#000" stroke-width="2"/><path d="M9,3 H15 V7 H9Z" fill="#c0c0c0" stroke="#000"/><path d="M10,10 V19 M14,10 V19" stroke="#808080"/></svg>`,
+  w98folder: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2,6 H10 L12,8 H22 V20 H2Z" fill="#ffe27a" stroke="#000"/></svg>`,
+});
+
+Object.assign(THEME_SCENES, {
+  nightsky: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 34; i++) h += `<i class="twk" style="left:${fxRand(1, 98).toFixed(1)}%;top:${fxRand(2, 96).toFixed(1)}%;font-size:${fxRand(6, 15).toFixed(0)}px;color:${pick(["#ffffff", "#ffe9a8", "#bfd0ff"], i)};animation-duration:${fxRand(3, 7).toFixed(1)}s;animation-delay:${(-fxRand(0, 7)).toFixed(1)}s">${i % 5 === 4 ? "&#10022;" : "&#8226;"}</i>`;
+      h += `<i class="shoot" style="top:8%;left:12%;animation-delay:-2s"></i><i class="shoot" style="top:30%;left:48%;animation-delay:-8s;animation-duration:17s"></i>`;
+      return h;
+    },
+    banner() {
+      let b = "";
+      for (let i = 0; i < 16; i++) b += `<i class="twk" style="position:absolute;left:${fxRand(1, 98).toFixed(0)}%;top:${fxRand(3, 52).toFixed(0)}px;font-size:${fxRand(6, 11).toFixed(0)}px;color:#fff;animation-duration:${fxRand(3, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">&#8226;</i>`;
+      b += SBX("btw", SCN.moon, "left:6%;top:6px;--w:38");
+      b += SBX("bbob", SCN.saturn, "left:80%;top:8px;--w:58;animation-duration:7s");
+      b += SBX("bbob", SCN.satellite, "left:30%;top:10px;--w:36;animation-duration:6s");
+      b += SBX("bcross", SCN.rocket, "left:0;top:22px;--w:62;--still:55%;animation-duration:70s");
+      return b;
+    },
+  },
+  deepocean: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 18; i++) h += `<i class="rise" style="--dx:${fxRand(-30, 30).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(6, 18).toFixed(0)}px;opacity:.4;animation-duration:${fxRand(30, 60).toFixed(0)}s;animation-delay:${(-fxRand(0, 60)).toFixed(0)}s"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="rgba(160,230,255,.12)" stroke="rgba(160,230,255,.7)" stroke-width="1"/></svg></i>`;
+      for (let i = 0; i < 3; i++) h += `<span class="xing" style="top:${(14 + i * 28)}%;animation-duration:${(80 + i * 25)}s;animation-delay:${(-i * 30)}s;--w:${50 + i * 14};opacity:.22">${SCN.fish(pick(["#7fd6e8", "#9fe3c4", "#a8c8f0"], i))}</span>`;
+      return h;
+    },
+    banner() {
+      let b = `<span class="bgrd" style="background:#c9b27a;height:6px"></span>`;
+      for (let i = 0; i < 9; i++) b += SBX("bsway", SCN.weed(pick(["#2f9a6a", "#3fb27a", "#238a5c"], i)), `left:${(2 + i * 11.5).toFixed(0)}%;bottom:4px;--w:${(12 + (i % 3) * 4)};animation-delay:${(-i * .8).toFixed(1)}s`);
+      b += SBX("bcross", SCN.whale, "left:0;top:6px;--w:100;--still:30%;opacity:.55;animation-duration:110s");
+      for (let i = 0; i < 6; i++) b += SBX("bcross", SCN.fish(pick(["#ffb347", "#ff8a65", "#ffd166", "#7fd6e8"], i)), `left:0;top:${12 + (i % 3) * 13}px;--w:${(18 + (i % 3) * 4)};--still:${(12 + i * 15)}%;animation-duration:${(34 + i * 7)}s;animation-delay:${(-i * 9)}s`);
+      b += SBX("bbob", SCN.jelly("#ff9ad5"), "left:20%;top:6px;--w:22;animation-duration:7s") + SBX("bbob", SCN.jelly("#b69cff"), "left:72%;top:10px;--w:26;animation-duration:8.5s");
+      for (let i = 0; i < 10; i++) b += `<i class="bubble" style="left:${fxRand(3, 96).toFixed(0)}%;animation-duration:${fxRand(4, 8).toFixed(1)}s;animation-delay:${(-fxRand(0, 8)).toFixed(1)}s"></i>`;
+      return b;
+    },
+  },
+  botanical: {
+    layer() {
+      const cols = ["#f7b6d2", "#ffe7a3", "#c9eccf", "#f2c1e0", "#ffd2a8"]; let h = "";
+      for (let i = 0; i < 14; i++) h += `<i class="fall" style="left:${fxRand(0, 98).toFixed(1)}%;width:${fxRand(9, 16).toFixed(0)}px;animation-duration:${fxRand(16, 28).toFixed(1)}s,${fxRand(4, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 28)).toFixed(1)}s,${(-fxRand(0, 6)).toFixed(1)}s;--sway:${fxRand(20, 60).toFixed(0)}px;opacity:.65">${SCN.leaf(pick(cols, i))}</i>`;
+      return h;
+    },
+    banner() {
+      let b = `<span class="bgrd" style="background:#2d6a3e;height:7px"></span>`;
+      b += SBX("bsway", SCN.monstera, "left:2%;bottom:5px;--w:50") + SBX("bsway", SCN.monstera, "left:92%;bottom:5px;--w:46;animation-delay:-1.4s");
+      b += SBX("bsway", SCN.fern, "left:12%;bottom:5px;--w:34;animation-delay:-.6s") + SBX("bsway", SCN.fern, "left:82%;bottom:5px;--w:34;animation-delay:-2s");
+      const pet = [["#e75c9a", "#ffd23f"], ["#fff", "#f2c94c"], ["#ff9a5c", "#fff1a8"], ["#b389e8", "#ffd23f"], ["#ff6b81", "#ffe08a"]];
+      for (let i = 0; i < 8; i++) { const p = pet[i % pet.length]; b += i % 3 === 2 ? SBX("bsway", SCN.tulip(p[0]), `left:${(22 + i * 7.3).toFixed(0)}%;bottom:5px;--w:15;animation-delay:${(-i * .5).toFixed(1)}s`) : SBX("bsway", SCN.flower(p[0], p[1]), `left:${(22 + i * 7.3).toFixed(0)}%;bottom:5px;--w:${(24 + (i % 2) * 6)};animation-delay:${(-i * .5).toFixed(1)}s`); }
+      b += SBX("", SCN.can, "left:60%;bottom:20px;--w:40") + `<i class="bdrip" style="left:calc(60% + 36px);bottom:12px"></i><i class="bdrip" style="left:calc(60% + 41px);bottom:12px;animation-delay:-1.2s"></i>`;
+      return b;
+    },
+  },
+  retro80s: {
+    layer() {
+      let h = ""; const c = ["#ff6fd0", "#6be9ff", "#ffe14a", "#b58bff"];
+      for (let i = 0; i < 14; i++) { const f = [SCN.neonTri, SCN.neonDia, SCN.neonCircle][i % 3]; h += `<i class="rise" style="--dx:${fxRand(-60, 60).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(14, 28).toFixed(0)}px;opacity:.38;animation-duration:${fxRand(45, 90).toFixed(0)}s;animation-delay:${(-fxRand(0, 90)).toFixed(0)}s">${f(pick(c, i))}</i>`; }
+      return h;
+    },
+    banner() {
+      let b = SBX("", SCN.sun80, "left:calc(50% - 60px);bottom:14px;--w:120");
+      b += `<span class="bgrid"></span>`;
+      b += SBX("bsway", SCN.palm, "left:6%;bottom:8px;--w:44") + SBX("bsway", SCN.palm, "left:13%;bottom:6px;--w:32;animation-delay:-1.2s") + SBX("bsway", SCN.palm, "left:88%;bottom:8px;--w:44;animation-delay:-.7s");
+      b += SBX("bbob", SCN.cassette, "left:26%;top:8px;--w:40;animation-duration:6s");
+      b += scnNum("1985", "#6be9ff", "68%", 10, 16);
+      return b;
+    },
+  },
+  library: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 14; i++) h += `<i class="rise" style="--dx:${fxRand(-20, 20).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(3, 7).toFixed(0)}px;opacity:.3;animation-duration:${fxRand(50, 100).toFixed(0)}s;animation-delay:${(-fxRand(0, 100)).toFixed(0)}s"><svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="#d9a441"/></svg></i>`;
+      return h;
+    },
+    banner() {
+      let b = scnShelf(26);
+      b += `<span class="bglow" style="left:calc(18% - 14px);bottom:10px;width:76px;height:50px"></span>`;
+      b += SBX("", SCN.banker, "left:18%;bottom:22px;--w:30");
+      b += SBX("", SCN.globe, "left:34%;bottom:22px;--w:26") + SBX("", SCN.stackBooks, "left:46%;bottom:22px;--w:32");
+      b += SBX("", SCN.teacup, "left:58%;bottom:22px;--w:28") + SBX("", SCN.owl, "left:72%;bottom:22px;--w:22") + SBX("", SCN.glasses, "left:84%;bottom:22px;--w:30");
+      return b;
+    },
+  },
+  win98: {
+    layer() { return ""; },
+    banner() {
+      const d = new Date(), t = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+      const icon = (svg, label, left) => `<span class="w98-icon" style="left:${left}px">${svg}<em>${label}</em></span>`;
+      return icon(SCN.w98computer, "My Computer", 14) + icon(SCN.w98bin, "Recycle Bin", 100) + icon(SCN.w98folder, "Documents", 186)
+        + `<span class="w98-task"><span class="w98-start"><b>&#9632;</b> Start</span><span class="w98-win">Pharmacy Portal</span><span class="w98-tray">${t}</span></span>`;
+    },
+  },
+});
+
+/* =====================================================================
+   More general themes: Arcade, Rainforest, Tropical Island, City Skyline
+   at Dusk, Desert Sunset. Generic drawn artwork only (original pixel
+   creatures; no game characters).
+   ===================================================================== */
+const scnPix = (rows, fill) => {
+  let r = "";
+  rows.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (ch === ".") return;
+    const c = typeof fill === "string" ? fill : (fill[ch] || fill.X);
+    r += `<rect x="${x}" y="${y}" width="1.04" height="1.04" fill="${c}"/>`;
+  }));
+  return `<svg viewBox="0 0 ${rows[0].length} ${rows.length}" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
+};
+const scnCity = (fill, hMax, win, off) => {
+  let x = 0, i = 0, out = "";
+  while (x < 1600) {
+    const w = 28 + ((i * 37 + off) % 46), h = 16 + ((i * 53 + off) % hMax);
+    out += `<rect x="${x}" y="${60 - h}" width="${w}" height="${h}" fill="${fill}"/>`;
+    if (i % 5 === 2) out += `<rect x="${x + w / 2 - 1}" y="${60 - h - 9}" width="2" height="9" fill="${fill}"/>`;
+    if (win) for (let wy = 60 - h + 4; wy < 54; wy += 7) for (let wx = x + 4; wx < x + w - 4; wx += 7) {
+      const k = (wx * 7 + wy * 13 + i) % 7;
+      if (k < 2) out += `<rect x="${wx}" y="${wy}" width="2.6" height="3.4" fill="#ffd98a" opacity=".85"${k === 0 && (wx + wy) % 3 === 0 ? ` class="btw" style="animation-duration:${(5 + (wx % 6)).toFixed(0)}s;animation-delay:-${(wy % 7)}s"` : ""}/>`;
+    }
+    x += w + (i % 3); i++;
+  }
+  return `<svg class="scn" viewBox="0 0 1600 60" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${out}</svg>`;
+};
+Object.assign(SCN, {
+  slime: (c) => scnPix(["X........X", "XX......XX", ".XXXXXXXX.", "XXXXXXXXXX", "XXXWWWWXXX", "XXXWKKWXXX", "XXXWWWWXXX", "XXXXXXXXXX", ".XX.XX.XX.", "XX......XX"], { X: c, W: "#ffffff", K: "#12052a" }),
+  pship: (c) => scnPix(["....X....", "...XXX...", "..XXXXX..", ".XXXXXXX.", "XXXXXXXXX", "XX.XXX.XX"], c),
+  pheart: (c) => scnPix([".XX.XX.", "XXXXXXX", "XXXXXXX", ".XXXXX.", "..XXX..", "...X..."], c),
+  pcoin: scnPix([".XXXX.", "XXXXXX", "XXYXXX", "XXYXXX", "XXXXXX", ".XXXX."], { X: "#ffd400", Y: "#fff3a0" }),
+  vine: `<svg viewBox="0 0 16 64" aria-hidden="true"><path d="M8,0 C2,12 14,22 8,34 C2,46 12,54 8,64" stroke="#2f7a45" stroke-width="2.4" fill="none"/><ellipse cx="4.5" cy="15" rx="5" ry="2.6" fill="#3fae62" transform="rotate(-30 4.5 15)"/><ellipse cx="11.5" cy="31" rx="5" ry="2.6" fill="#4fc472" transform="rotate(30 11.5 31)"/><ellipse cx="5" cy="47" rx="5" ry="2.6" fill="#3fae62" transform="rotate(-25 5 47)"/></svg>`,
+  frog: `<svg viewBox="0 0 36 28" aria-hidden="true"><ellipse cx="18" cy="18" rx="13" ry="8.5" fill="#5fc24a" stroke="#3f9a34"/><ellipse cx="18" cy="21" rx="8" ry="4.5" fill="#d4f5a8"/><circle cx="10" cy="9" r="4.6" fill="#5fc24a" stroke="#3f9a34"/><circle cx="26" cy="9" r="4.6" fill="#5fc24a" stroke="#3f9a34"/><circle cx="10" cy="9" r="3" fill="#e8403a"/><circle cx="26" cy="9" r="3" fill="#e8403a"/><rect x="9.2" y="7" width="1.6" height="4" rx=".8" fill="#12210d"/><rect x="25.2" y="7" width="1.6" height="4" rx=".8" fill="#12210d"/><path d="M4,25 q2,3 5,1 M32,25 q-2,3 -5,1" stroke="#ff9a3c" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>`,
+  sloth: `<svg viewBox="0 0 44 46" aria-hidden="true"><path d="M0,6 H44" stroke="#6b4a2a" stroke-width="4" stroke-linecap="round"/><path d="M13,6 Q10,16 17,20 M31,6 Q34,16 27,20" stroke="#8a6a4a" stroke-width="4.5" fill="none" stroke-linecap="round"/><ellipse cx="22" cy="31" rx="11" ry="12" fill="#9c8468"/><ellipse cx="22" cy="21" rx="8.5" ry="7.5" fill="#d9c9a8"/><ellipse cx="17.8" cy="20" rx="2.6" ry="3.4" fill="#5a4630"/><ellipse cx="26.2" cy="20" rx="2.6" ry="3.4" fill="#5a4630"/><circle cx="17.8" cy="20.4" r="1" fill="#fff"/><circle cx="26.2" cy="20.4" r="1" fill="#fff"/><path d="M19.5,25.2 Q22,27.4 24.5,25.2" stroke="#5a4630" stroke-width="1.4" fill="none" stroke-linecap="round"/><ellipse cx="22" cy="23.4" rx="1.4" ry=".9" fill="#3a2c1c"/></svg>`,
+  heli: `<svg viewBox="0 0 30 46" aria-hidden="true"><path d="M15,46 V14" stroke="#2f7a45" stroke-width="2.4"/><path d="M15,34 L4,28 L15,30Z M15,22 L26,16 L15,18Z M15,14 L6,6 L15,10Z" fill="#e8402a" stroke="#ffc107" stroke-width="1.2" stroke-linejoin="round"/></svg>`,
+  palmC: `<svg viewBox="0 0 64 80" aria-hidden="true"><path d="M30,80 Q36,50 28,24" stroke="#8a5a33" stroke-width="5" fill="none" stroke-linecap="round"/><g stroke="#2f7a45" stroke-width=".8"><path d="M28,24 Q8,10 0,26 Q16,18 28,26Z" fill="#3fae62"/><path d="M28,24 Q12,2 4,6 Q18,6 28,23Z" fill="#4fc472"/><path d="M28,24 Q48,8 62,24 Q46,16 28,26Z" fill="#3fae62"/><path d="M28,24 Q44,0 56,6 Q40,6 28,23Z" fill="#4fc472"/><path d="M28,24 Q28,4 34,0 Q34,12 29,24Z" fill="#2f9a52"/></g><circle cx="26" cy="27" r="2.6" fill="#7a4a22"/><circle cx="31" cy="28" r="2.6" fill="#7a4a22"/></svg>`,
+  crab: `<svg viewBox="0 0 34 22" aria-hidden="true"><path d="M5,12 Q0,6 4,3 Q8,4 8,9 M29,12 Q34,6 30,3 Q26,4 26,9" fill="#e5533d" stroke="#b03a28"/><ellipse cx="17" cy="14" rx="11" ry="7" fill="#e5533d" stroke="#b03a28"/><path d="M8,18 l-4,3 M12,20 l-2,2 M22,20 l2,2 M26,18 l4,3" stroke="#b03a28" stroke-width="1.6" stroke-linecap="round"/><path d="M13,8 v-4 M21,8 v-4" stroke="#b03a28" stroke-width="1.4"/><circle cx="13" cy="3.5" r="2" fill="#fff"/><circle cx="21" cy="3.5" r="2" fill="#fff"/><circle cx="13" cy="3.7" r=".9" fill="#222"/><circle cx="21" cy="3.7" r=".9" fill="#222"/></svg>`,
+  umbrella: `<svg viewBox="0 0 44 46" aria-hidden="true"><path d="M22,12 V44" stroke="#8a5a33" stroke-width="2.4"/><path d="M2,22 Q22,-6 42,22 Q36,18 32,22 Q27,17 22,22 Q17,17 12,22 Q8,18 2,22Z" fill="#ff6f4d"/><path d="M22,6 Q18,14 12,22 Q17,17 22,22Z M22,6 Q26,14 32,22 Q27,17 22,22Z" fill="#fff"/></svg>`,
+  sandmound: `<svg viewBox="0 0 150 20" aria-hidden="true"><path d="M0,20 Q22,3 62,5 Q112,3 150,20Z" fill="#f2d9a0"/><path d="M20,17 Q60,8 110,16" stroke="#e0c07a" stroke-width="1.4" fill="none"/></svg>`,
+  cactus: `<svg viewBox="0 0 30 52" aria-hidden="true"><path d="M12,52 V10 Q12,2 15,2 Q18,2 18,10 V52Z" fill="#2e6a45"/><path d="M12,32 H7 Q4,32 4,28 V18 Q4,15 7,15 Q10,15 10,18 V27 H12Z" fill="#2e6a45"/><path d="M18,24 H23 Q26,24 26,20 V12 Q26,9 23,9 Q20,9 20,12 V19 H18Z" fill="#2e6a45"/></svg>`,
+  tumble: `<svg viewBox="0 0 26 26" aria-hidden="true"><g class="sails" style="transform-box:fill-box;transform-origin:50% 50%"><g fill="none" stroke="#a67c4e" stroke-width="1.5" stroke-linecap="round"><circle cx="13" cy="13" r="10.5"/><path d="M3,10 Q13,16 23,9 M4,18 Q13,8 22,17 M9,3 Q16,13 9,23 M17,3 Q10,13 17,23"/></g></g></svg>`,
+  plane: `<svg viewBox="0 0 34 12" aria-hidden="true"><path d="M2,7 H28 Q33,7 33,6 Q33,5 28,5 H16 L11,1 H9 L12,5 H5 L2,3 V7Z" fill="#cfd6ee"/><circle cx="3" cy="5" r="1.4" fill="#ff5a5a" class="btw" style="animation-duration:3s"/></svg>`,
+  dunesun: `<svg viewBox="0 0 80 40" aria-hidden="true"><path d="M0,40 A40,40 0 0 1 80,40Z" fill="#ffd27a"/><path d="M12,40 A28,28 0 0 1 68,40Z" fill="#ffe7a8"/></svg>`,
+  joy: `<svg viewBox="0 0 28 34" aria-hidden="true"><rect x="2" y="24" width="24" height="8" rx="2" fill="#35307a" stroke="#6a62d6"/><path d="M14,24 V12" stroke="#c9c9e8" stroke-width="3"/><circle cx="14" cy="9" r="6" fill="#ff4d6d" stroke="#b8304a"/></svg>`,
+});
+
+Object.assign(THEME_SCENES, {
+  arcade: {
+    layer() {
+      let h = ""; const c = ["#ff4d9a", "#00e0ff", "#ffd400", "#7dff7a"];
+      for (let i = 0; i < 16; i++) h += `<i class="rise" style="--dx:${fxRand(-30, 30).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(8, 16).toFixed(0)}px;opacity:.32;animation-duration:${fxRand(45, 95).toFixed(0)}s;animation-delay:${(-fxRand(0, 95)).toFixed(0)}s"><svg viewBox="0 0 10 10" shape-rendering="crispEdges"><rect width="10" height="10" fill="${pick(c, i)}"/></svg></i>`;
+      return h;
+    },
+    banner() {
+      let b = scnNum("1UP", "#ff4d6d", "3%", 5, 11) + scnNum("000260", "#fff", "3%", 19, 11);
+      b += scnNum("HI-SCORE", "#ffd400", "40%", 5, 11) + scnNum("042690", "#fff", "41%", 19, 11);
+      b += `<span class="bnum btw" style="left:80%;top:12px;color:#5cffc8;font-size:12px;animation-duration:2.6s">INSERT COIN</span>`;
+      for (let i = 0; i < 5; i++) b += SBX("bbob", SCN.slime(pick(["#ff4d9a", "#00e0ff", "#7dff7a", "#b58bff", "#ffd400"], i)), `left:${(14 + i * 12)}%;bottom:8px;--w:22;animation-duration:${(3 + i * .4).toFixed(1)}s;animation-delay:${(-i * .6).toFixed(1)}s`);
+      b += SBX("bcross", SCN.pship("#5cffc8"), "left:0;bottom:8px;--w:20;--still:76%;animation-duration:60s");
+      for (let i = 0; i < 3; i++) b += SBX("", SCN.pheart("#ff4d6d"), `left:${(88 + i * 3.6)}%;bottom:8px;--w:10`);
+      b += SBX("bbob", SCN.pcoin, "left:30%;top:6px;--w:12;animation-duration:2.4s");
+      return b;
+    },
+  },
+  rainforest: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 20; i++) h += `<i class="fall" style="left:${fxRand(0, 99).toFixed(1)}%;width:4px;animation-duration:${fxRand(1.8, 3.2).toFixed(1)}s,${fxRand(3, 5).toFixed(1)}s;animation-delay:${(-fxRand(0, 3)).toFixed(1)}s,${(-fxRand(0, 5)).toFixed(1)}s;--sway:6px;opacity:.3">${SCN.drop}</i>`;
+      return h;
+    },
+    banner() {
+      let b = `<span class="bgrd" style="background:#0b3d24;height:6px"></span>`;
+      b += SBX("bsway", SCN.monstera, "left:1%;bottom:4px;--w:46") + SBX("bsway", SCN.fern, "left:9%;bottom:4px;--w:30;animation-delay:-.8s") + SBX("bsway", SCN.monstera, "left:93%;bottom:4px;--w:44;animation-delay:-1.6s");
+      b += SBX("bsway", SCN.heli, "left:17%;bottom:4px;--w:20;animation-delay:-.4s") + SBX("bsway", SCN.flower("#e07bd8", "#ffe08a"), "left:78%;bottom:4px;--w:22") + SBX("bsway", SCN.heli, "left:85%;bottom:4px;--w:18;animation-delay:-1.2s");
+      for (let i = 0; i < 7; i++) b += SBX("bhang", SCN.vine, `left:${(6 + i * 14.5).toFixed(0)}%;top:0;--w:${(14 + (i % 3) * 3)};animation-delay:${(-i * .9).toFixed(1)}s`);
+      b += SBX("bhang", SCN.sloth, "left:56%;top:0;--w:40;animation-duration:7s");
+      b += SBX("bbob", SCN.frog, "left:32%;bottom:6px;--w:30;animation-duration:6s");
+      return b;
+    },
+  },
+  tropical: {
+    layer() {
+      const cols = ["#ff8fab", "#ffb3c7", "#ffd54a", "#ff9a76"]; let h = "";
+      for (let i = 0; i < 12; i++) h += `<i class="fall" style="left:${fxRand(0, 98).toFixed(1)}%;width:${fxRand(9, 15).toFixed(0)}px;animation-duration:${fxRand(16, 28).toFixed(1)}s,${fxRand(4, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 28)).toFixed(1)}s,${(-fxRand(0, 6)).toFixed(1)}s;--sway:${fxRand(20, 60).toFixed(0)}px;opacity:.65">${SCN.leaf(pick(cols, i))}</i>`;
+      return h;
+    },
+    banner() {
+      let b = SBX("bsun", SCN.sun, "left:84%;top:2px;--w:34");
+      for (let i = 0; i < 2; i++) b += SBX("bcross", SCN.cloud, `left:0;top:${4 + i * 10}px;--w:${46 - i * 10};--still:${22 + i * 40}%;opacity:.9;animation-duration:${(58 + i * 22)}s;animation-delay:${(-i * 26)}s`);
+      b += scnWaves("#2fc4d8", .85, "wvA", 3, 20) + scnWaves("#12a0b3", .95, "wvB", 3, 28);
+      b += SBX("", SCN.sandmound, "left:2%;bottom:4px;--w:150") + SBX("", SCN.sandmound, "left:78%;bottom:3px;--w:96");
+      b += SBX("bsway", SCN.palmC, "left:6%;bottom:12px;--w:44") + SBX("bsway", SCN.palmC, "left:15%;bottom:11px;--w:32;animation-delay:-1.1s") + SBX("bsway", SCN.palmC, "left:86%;bottom:10px;--w:36;animation-delay:-.6s");
+      b += SBX("", SCN.umbrella, "left:25%;bottom:10px;--w:26") + SBX("bbob", SCN.crab, "left:90%;bottom:5px;--w:20;animation-duration:3s");
+      b += SBX("bbob", SCN.sailboat, "left:55%;bottom:14px;--w:34;animation-duration:5s");
+      return b;
+    },
+  },
+  skyline: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 14; i++) h += `<i class="twk" style="left:${fxRand(1, 98).toFixed(1)}%;top:${fxRand(2, 90).toFixed(1)}%;font-size:${fxRand(5, 10).toFixed(0)}px;color:${pick(["#ffffff", "#ffe2c2"], i)};animation-duration:${fxRand(4, 8).toFixed(1)}s;animation-delay:${(-fxRand(0, 8)).toFixed(1)}s">&#8226;</i>`;
+      return h;
+    },
+    banner() {
+      let b = "";
+      for (let i = 0; i < 8; i++) b += `<i class="twk" style="position:absolute;left:${fxRand(2, 96).toFixed(0)}%;top:${fxRand(3, 20).toFixed(0)}px;font-size:7px;color:#fff;animation-duration:${fxRand(3, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">&#8226;</i>`;
+      b += SBX("btw", SCN.moon, "left:8%;top:4px;--w:22");
+      b += SBX("bcross", SCN.plane, "left:0;top:9px;--w:34;--still:62%;opacity:.9;animation-duration:95s");
+      b += scnCity("#3a2a78", 26, false, 11) + scnCity("#120a2a", 30, true, 0);
+      for (let i = 0; i < 4; i++) b += SBX("bcross", `<svg viewBox="0 0 14 4" aria-hidden="true"><circle cx="2" cy="2" r="1.6" fill="#fff6c0"/><circle cx="12" cy="2" r="1.6" fill="#ff5a5a"/></svg>`, `left:0;bottom:1px;--w:12;--still:${(10 + i * 24)}%;animation-duration:${(32 + i * 11)}s;animation-delay:${(-i * 13)}s`);
+      return b;
+    },
+  },
+  desert: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 12; i++) h += `<i class="rise" style="--dx:${fxRand(-60, 60).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${fxRand(3, 6).toFixed(0)}px;opacity:.35;animation-duration:${fxRand(40, 85).toFixed(0)}s;animation-delay:${(-fxRand(0, 85)).toFixed(0)}s"><svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="4.5" fill="#d9a05b"/></svg></i>`;
+      return h;
+    },
+    banner() {
+      let b = SBX("", SCN.dunesun, "left:62%;bottom:16px;--w:80");
+      b += `<svg class="scn" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true"><path d="M0,60 V34 L60,32 L74,20 L150,20 L164,32 L260,34 V60Z M520,60 V30 L560,28 L572,14 L640,14 L652,28 L720,30 V60Z M900,60 V36 L950,34 L962,24 L1030,24 L1044,34 L1100,36 V60Z" fill="#8a3f4f" opacity=".7"/>${scnRidge("#d98a4a", 42, 5, 0.4, 1.4)}${scnRidge("#b96a35", 48, 5, 2.4, 1.9)}${scnRidge("#8f4d26", 54, 4, 4.3, 2.5)}</svg>`;
+      b += SBX("", SCN.cactus, "left:8%;bottom:6px;--w:20") + SBX("", SCN.cactus, "left:14%;bottom:5px;--w:14") + SBX("", SCN.cactus, "left:84%;bottom:6px;--w:22") + SBX("", SCN.cactus, "left:49%;bottom:5px;--w:12");
+      b += SBX("bcross", SCN.tumble, "left:0;bottom:4px;--w:16;--still:30%;animation-duration:42s");
+      return b;
+    },
+  },
+});
+
+/* =====================================================================
+   Space Conflict: an original space-opera look (two fleets trading slow
+   laser fire in front of a gas giant). All ships/planets are original.
+   ===================================================================== */
+Object.assign(SCN, {
+  dart: (c1, c2, flip) => `<svg viewBox="0 0 38 20" aria-hidden="true"><g${flip ? ' transform="matrix(-1 0 0 1 38 0)"' : ""}><path d="M36,10 L9,1 L15,10 L9,19Z" fill="${c1}" stroke="rgba(255,255,255,.35)" stroke-width=".8" stroke-linejoin="round"/><path d="M36,10 L19,6.5 L22,10 L19,13.5Z" fill="rgba(255,255,255,.28)"/><circle cx="24" cy="10" r="1.7" fill="#bfe6ff"/><circle cx="5" cy="10" r="3.2" fill="${c2}" opacity=".9"/></g></svg>`,
+  frigate: (c1, c2, flip) => `<svg viewBox="0 0 76 26" aria-hidden="true"><g${flip ? ' transform="matrix(-1 0 0 1 76 0)"' : ""}><path d="M4,7 H52 L74,13 L52,19 H4Z" fill="${c1}" stroke="rgba(255,255,255,.3)" stroke-width=".8" stroke-linejoin="round"/><rect x="16" y="2" width="18" height="6" rx="1.5" fill="${c1}" stroke="rgba(255,255,255,.3)" stroke-width=".8"/><rect x="21" y="3.4" width="8" height="2" fill="#bfe6ff"/><path d="M10,10 H46 M10,14 H46" stroke="rgba(255,255,255,.22)" stroke-width="1"/><rect x="0" y="8" width="5" height="3.4" fill="${c2}"/><rect x="0" y="14.4" width="5" height="3.4" fill="${c2}"/></g></svg>`,
+  freighter: `<svg viewBox="0 0 70 18" aria-hidden="true"><path d="M2,5 H52 V13 H2Z" fill="#7d8aa6" stroke="rgba(255,255,255,.3)" stroke-width=".8"/><path d="M52,7 L68,9 L52,11Z" fill="#9fb0cc"/><rect x="10" y="2" width="9" height="3" fill="#6a7690"/><rect x="26" y="13" width="14" height="3" fill="#6a7690"/><rect x="0" y="6.4" width="3" height="5" fill="#ffb020"/></svg>`,
+  bolt: (c) => `<svg viewBox="0 0 16 4" aria-hidden="true"><rect y=".8" width="16" height="2.4" rx="1.2" fill="${c}"/></svg>`,
+  giant: `<svg viewBox="0 0 80 52" aria-hidden="true"><defs><clipPath id="gcl"><circle cx="40" cy="26" r="20"/></clipPath></defs><g transform="rotate(-14 40 26)"><ellipse cx="40" cy="26" rx="38" ry="6.5" fill="none" stroke="#8fb4e8" stroke-width="2.4" opacity=".55"/></g><circle cx="40" cy="26" r="20" fill="#5b6fd6"/><g clip-path="url(#gcl)"><rect x="18" y="12" width="44" height="5" fill="#7d90f0" opacity=".7"/><rect x="18" y="22" width="44" height="6" fill="#3f4fb0" opacity=".7"/><rect x="18" y="33" width="44" height="5" fill="#8fa2f5" opacity=".6"/><circle cx="52" cy="30" r="5" fill="#ffb020" opacity=".55"/></g><g transform="rotate(-14 40 26)"><path d="M2,26 A38,6.5 0 0 0 78,26" fill="none" stroke="#bcd3f5" stroke-width="2.6" opacity=".8"/></g></svg>`,
+  cmoon: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#9aa3b5"/><circle cx="8" cy="9" r="2.6" fill="#7d8698"/><circle cx="16" cy="15" r="3" fill="#7d8698"/><circle cx="14" cy="6.5" r="1.6" fill="#7d8698"/></svg>`,
+});
+Object.assign(THEME_SCENES, {
+  spaceconflict: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 36; i++) h += `<i class="twk" style="left:${fxRand(1, 98).toFixed(1)}%;top:${fxRand(2, 96).toFixed(1)}%;font-size:${fxRand(5, 13).toFixed(0)}px;color:${pick(["#ffffff", "#bfe6ff", "#ffd9a0"], i)};animation-duration:${fxRand(3, 7).toFixed(1)}s;animation-delay:${(-fxRand(0, 7)).toFixed(1)}s">${i % 6 === 5 ? "&#10022;" : "&#8226;"}</i>`;
+      h += `<i class="shoot" style="top:12%;left:20%;animation-delay:-4s"></i>`;
+      h += `<span class="xing" style="top:24%;animation-duration:110s;animation-delay:-40s;--w:70;opacity:.28">${SCN.freighter}</span>`;
+      return h;
+    },
+    banner() {
+      const blue = "#4aa8ff", amber = "#ffb020";
+      let b = `<span class="bglow" style="left:36%;top:2px;width:30%;height:56px;background:radial-gradient(ellipse,rgba(120,90,220,.45),transparent 70%)"></span>`;
+      for (let i = 0; i < 14; i++) b += `<i class="twk" style="position:absolute;left:${fxRand(1, 98).toFixed(0)}%;top:${fxRand(3, 54).toFixed(0)}px;font-size:7px;color:#fff;animation-duration:${fxRand(3, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">&#8226;</i>`;
+      b += SBX("bbob", SCN.giant, "left:46%;top:4px;--w:78;animation-duration:9s") + SBX("btw", SCN.cmoon, "left:62%;top:30px;--w:12");
+      b += SBX("bbob", SCN.frigate("#35588c", blue, false), "left:3%;top:20px;--w:70;animation-duration:7s");
+      b += SBX("bbob", SCN.dart("#3f6fb8", blue, false), "left:20%;top:8px;--w:34;animation-duration:5s") + SBX("bbob", SCN.dart("#3f6fb8", blue, false), "left:22%;top:34px;--w:30;animation-duration:6s;animation-delay:-2s");
+      b += SBX("bbob", SCN.frigate("#8c5a2a", amber, true), "left:84%;top:22px;--w:66;animation-duration:8s;animation-delay:-3s");
+      b += SBX("bbob", SCN.dart("#b8762f", amber, true), "left:74%;top:10px;--w:32;animation-duration:5.5s;animation-delay:-1s") + SBX("bbob", SCN.dart("#b8762f", amber, true), "left:72%;top:36px;--w:28;animation-duration:6.5s");
+      for (let i = 0; i < 3; i++) b += SBX("bcross", SCN.bolt(blue), `left:0;top:${(18 + i * 13)}px;--w:14;--still:${(34 + i * 6)}%;filter:drop-shadow(0 0 3px ${blue});animation-duration:${(9 + i * 2)}s;animation-delay:${(-i * 3.4)}s`);
+      for (let i = 0; i < 3; i++) b += SBX("bcross rev", SCN.bolt(amber), `left:0;top:${(24 + i * 11)}px;--w:14;--still:${(52 + i * 5)}%;filter:drop-shadow(0 0 3px ${amber});animation-duration:${(10 + i * 2)}s;animation-delay:${(-i * 3.9)}s`);
       return b;
     },
   },

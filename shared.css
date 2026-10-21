@@ -62,6 +62,20 @@
   --navy:#0c3b44; --navy-light:#12505b; --teal:#14a58f; --teal-light:#3fd0b8; --honey:#a3e635; --honey-dark:#7fb81f;
 }
 
+:root[data-theme="nightsky"]{--navy:#171a4a; --navy-light:#262c7a; --teal:#6c7bff; --teal-light:#98a4ff; --honey:#ffd96a; --honey-dark:#e0b93a;}
+:root[data-theme="deepocean"]{--navy:#06324f; --navy-light:#0b4a73; --teal:#16a5b8; --teal-light:#4fd0e0; --honey:#9ff0e0; --honey-dark:#5fd0bd;}
+:root[data-theme="botanical"]{--navy:#2d6a3e; --navy-light:#3f8a55; --teal:#c2528a; --teal-light:#dd7fae; --honey:#f2c94c; --honey-dark:#d4a72a;}
+:root[data-theme="retro80s"]{--navy:#2a0f5c; --navy-light:#43198a; --teal:#00b8d9; --teal-light:#6be9ff; --honey:#ff3cac; --honey-dark:#d12a8c;}
+:root[data-theme="library"]{--navy:#4b2e1a; --navy-light:#6a4328; --teal:#2f6f58; --teal-light:#4c9a7c; --honey:#d9a441; --honey-dark:#b4832a;}
+:root[data-theme="arcade"]{--navy:#14122b; --navy-light:#241f55; --teal:#00c97f; --teal-light:#5cffc8; --honey:#ffd400; --honey-dark:#d9b000;}
+:root[data-theme="rainforest"]{--navy:#0f4d2e; --navy-light:#17703f; --teal:#1f9d6a; --teal-light:#4fd18f; --honey:#ffa000; --honey-dark:#d68000;}
+:root[data-theme="tropical"]{--navy:#0a7c8c; --navy-light:#12a0b3; --teal:#ff6f4d; --teal-light:#ff9a76; --honey:#ffd54a; --honey-dark:#e0b320;}
+:root[data-theme="skyline"]{--navy:#241a4d; --navy-light:#3a2a78; --teal:#ff7a59; --teal-light:#ffa07a; --honey:#ffb86b; --honey-dark:#e09440;}
+:root[data-theme="desert"]{--navy:#6b2a14; --navy-light:#8e3a1c; --teal:#c8561c; --teal-light:#ee8a4a; --honey:#f4b942; --honey-dark:#d19a22;}
+
+:root[data-theme="spaceconflict"]{--navy:#0a1224; --navy-light:#142447; --teal:#2fb8ff; --teal-light:#8fdcff; --honey:#ffb020; --honey-dark:#d98f10;}
+:root[data-theme="win98"]{--navy:#000080; --navy-light:#1084d0; --teal:#008080; --teal-light:#1084d0; --honey:#ffffe1; --honey-dark:#808080;}
+
 :root[data-theme="barbie"]{--navy:#c2185b; --navy-light:#e0306f; --teal:#ff4fa3; --teal-light:#ff86c1; --honey:#ffd1ea; --honey-dark:#ff9ac9;}
 :root[data-theme="fairytale"]{--navy:#1c2570; --navy-light:#2d3a9a; --teal:#7a5af5; --teal-light:#a48bff; --honey:#f6c945; --honey-dark:#d8a920;}
 :root[data-theme="autumn"]{--navy:#6b3a17; --navy-light:#8a4e22; --teal:#c8561c; --teal-light:#e8812f; --honey:#e8b923; --honey-dark:#c4981a;}
@@ -76,7 +90,7 @@
 :root[data-theme="stpatrick"]{--navy:#0e5a2c; --navy-light:#1a7a40; --teal:#2e9e4f; --teal-light:#52c26f; --honey:#f5c451; --honey-dark:#d9a62a;}
 :root[data-theme="standrew"]{--navy:#003f87; --navy-light:#0a5cb8; --teal:#2a7fd4; --teal-light:#5aa3ea; --honey:#cfe3fa; --honey-dark:#9ec3ec;}
 
-:root[data-theme="emergency"]{--navy:#a3121f; --navy-light:#c8202e; --teal:#1f66b5; --teal-light:#4a8fd9; --honey:#ffd23f; --honey-dark:#e0b520;}
+:root[data-theme="emergency"]{--navy:#24405e; --navy-light:#34587f; --teal:#2e8a5a; --teal-light:#5fb386; --honey:#ffd100; --honey-dark:#d9b000;}
 :root[data-theme="surgical"]{--navy:#0d6b6a; --navy-light:#1a8f8b; --teal:#2b9fd0; --teal-light:#5bbfe8; --honey:#bdeee4; --honey-dark:#8fd9ca;}
 :root[data-theme="intensive"]{--navy:#0b1f3a; --navy-light:#13315c; --teal:#12b886; --teal-light:#38d9a9; --honey:#ffd43b; --honey-dark:#e0b020;}
 :root[data-theme="elderly"]{--navy:#6b4f7a; --navy-light:#876497; --teal:#c97b84; --teal-light:#dd9aa1; --honey:#e8c872; --honey-dark:#c9a64a;}
@@ -115,6 +129,18 @@
 :root[data-theme="paeds"] .theme-banner,
 :root[data-theme="cardiology"] .theme-banner,
 :root[data-theme="endocrine"] .theme-banner,
+:root[data-theme="nightsky"] .theme-banner,
+:root[data-theme="deepocean"] .theme-banner,
+:root[data-theme="botanical"] .theme-banner,
+:root[data-theme="retro80s"] .theme-banner,
+:root[data-theme="library"] .theme-banner,
+:root[data-theme="win98"] .theme-banner,
+:root[data-theme="arcade"] .theme-banner,
+:root[data-theme="rainforest"] .theme-banner,
+:root[data-theme="tropical"] .theme-banner,
+:root[data-theme="skyline"] .theme-banner,
+:root[data-theme="desert"] .theme-banner,
+:root[data-theme="spaceconflict"] .theme-banner,
 :root[data-theme="respiratory"] .theme-banner{display:block;}
 :root[data-theme="halloween"] .theme-banner{background:linear-gradient(#150f1c,#2a1f33);}
 :root[data-theme="christmas"] .theme-banner{background:linear-gradient(#5a0f19,#7a1621);}
@@ -207,7 +233,7 @@
 :root[data-theme="stgeorge"] .theme-banner{background:linear-gradient(#ffffff,#e6ecf4);}
 :root[data-theme="stpatrick"] .theme-banner{background:linear-gradient(#2f9a4d,#7fd08f);}
 :root[data-theme="standrew"] .theme-banner{background:linear-gradient(#0a5cb8,#4a9be0);}
-:root[data-theme="emergency"] .theme-banner{background:linear-gradient(#7d0e1a,#c8202e 70%,#d83a45);}
+:root[data-theme="emergency"] .theme-banner{background:linear-gradient(#22394f,#34516e);}
 :root[data-theme="surgical"] .theme-banner{background:linear-gradient(#0f7f7d,#35b9ad 80%,#5fd3c6);}
 :root[data-theme="intensive"] .theme-banner{background:linear-gradient(#050d1a,#0c2038);}
 :root[data-theme="elderly"] .theme-banner{background:linear-gradient(#f7ecf3,#e6d8ee);}
@@ -494,3 +520,73 @@ tr.clash-row{background:#fff8e1;}
 .month-theme-row{display:flex;align-items:center;gap:10px;margin:0;font-weight:400;}
 .month-theme-row span{width:84px;font-weight:600;}
 .month-theme-row select{flex:1;margin:0;}
+
+/* ---- general themes (Night Sky, Deep Ocean, Botanical, Retro 80s, Library, Windows 98) ---- */
+:root[data-theme="nightsky"] .theme-banner{background:linear-gradient(#050818,#161c52 70%,#2a2f7a);}
+:root[data-theme="deepocean"] .theme-banner{background:linear-gradient(#0a5a85,#06324f 55%,#021a2c);}
+:root[data-theme="botanical"] .theme-banner{background:linear-gradient(#cdeccf,#8fd0a0);}
+:root[data-theme="retro80s"] .theme-banner{background:linear-gradient(#1a0840,#5a1590 45%,#d8268f 80%,#ff8a3c);}
+:root[data-theme="library"] .theme-banner{background:linear-gradient(#5a371f,#3b2314);}
+:root[data-theme="win98"] .theme-banner{background:#008080;border-bottom:2px solid #808080;}
+:root[data-theme="nightsky"]:not([data-color-mode="inverted"]){--grey-bg:#080b1e; --surface:#11163a; --surface-alt:#171d4b; --surface-subtle:#141a42; --text:#e8ebff; --text-muted:#9ea7d6; --border:#2b3478; --heading-color:#ffd96a;}
+:root[data-theme="deepocean"]:not([data-color-mode="inverted"]){--grey-bg:#04121e; --surface:#0a2236; --surface-alt:#0f2d47; --surface-subtle:#0c273d; --text:#e0f2f8; --text-muted:#8fb5c8; --border:#1b4a6b; --heading-color:#7fe6e6;}
+:root[data-theme="retro80s"]:not([data-color-mode="inverted"]){--grey-bg:#120726; --surface:#1d0e3d; --surface-alt:#27144f; --surface-subtle:#221145; --text:#f3e9ff; --text-muted:#b79bd9; --border:#46247f; --heading-color:#ff6fd0;}
+:root[data-theme="library"]:not([data-color-mode="dark"]):not([data-color-mode="inverted"]){--grey-bg:#f5efe3; --surface:#fffaf0; --surface-alt:#f8f0df; --surface-subtle:#faf3e4; --border:#dccfb4; --text:#2b2118; --text-muted:#7a6a55;}
+.theme-banner .btw{animation:fxTw 4s ease-in-out infinite alternate;}
+@keyframes fxTw{from{opacity:.35}to{opacity:1}}
+.theme-fx .twk,.theme-banner .twk{position:absolute;font-style:normal;line-height:1;animation:fxTw 4s ease-in-out infinite alternate;text-shadow:0 0 5px rgba(255,255,255,.7);}
+.theme-banner .bglow{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(255,214,120,.6),transparent 68%);animation:fxTw 5s ease-in-out infinite alternate;}
+.theme-banner .bgrid{position:absolute;left:-60%;right:-60%;bottom:0;height:34px;background-image:linear-gradient(rgba(0,229,255,.75) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.75) 1px,transparent 1px);background-size:100% 8px,28px 100%;background-color:rgba(26,8,64,.55);transform:perspective(70px) rotateX(58deg);transform-origin:50% 100%;animation:fxGrid 4s linear infinite;}
+@keyframes fxGrid{from{background-position:0 0,0 0}to{background-position:0 8px,0 0}}
+/* Windows 98: desktop icons + taskbar in the banner */
+.theme-banner .w98-icon{position:absolute;top:2px;width:78px;text-align:center;color:#fff;font:10px Tahoma,Verdana,sans-serif;line-height:1;}
+.theme-banner .w98-icon svg{display:block;width:20px;height:20px;margin:0 auto 1px;}
+.theme-banner .w98-icon em{font-style:normal;text-shadow:1px 1px 0 #000;}
+.theme-banner .w98-task{position:absolute;left:0;right:0;bottom:0;height:20px;background:#c0c0c0;border-top:2px solid #fff;display:flex;align-items:center;gap:4px;padding:0 3px;font:bold 11px Tahoma,Verdana,sans-serif;color:#000;}
+.theme-banner .w98-start,.theme-banner .w98-win,.theme-banner .w98-tray{height:16px;display:inline-flex;align-items:center;padding:0 6px;border:1px solid;border-color:#fff #404040 #404040 #fff;box-shadow:inset -1px -1px #808080;}
+.theme-banner .w98-start b{color:#008000;margin-right:4px;font-size:9px;}
+.theme-banner .w98-win{border-color:#404040 #fff #fff #404040;box-shadow:inset 1px 1px #808080;background:repeating-conic-gradient(#fff 0 25%,#c0c0c0 0 50%) 0 0/2px 2px;font-weight:bold;min-width:130px;}
+.theme-banner .w98-tray{margin-left:auto;border-color:#808080 #fff #fff #808080;box-shadow:none;font-weight:normal;}
+
+/* ---- Windows 98 chrome: grey bevelled windows on a teal desktop (forced, whatever the colour mode) ---- */
+:root[data-theme="win98"]{--grey-bg:#008080; --surface:#c0c0c0; --surface-alt:#d4d0c8; --surface-subtle:#c8c8c8; --text:#000; --text-muted:#404040; --border:#808080; --heading-color:#000080;}
+:root[data-theme="win98"] body{font-family:Tahoma,"MS Sans Serif",Verdana,Geneva,sans-serif;font-size:13px;}
+:root[data-theme="win98"] *{border-radius:0 !important;}
+:root[data-theme="win98"] .topbar{background:linear-gradient(90deg,#000080,#1084d0);border-bottom:2px solid #c0c0c0;}
+:root[data-theme="win98"] .nav a{border:2px solid transparent;}
+:root[data-theme="win98"] .nav a:hover{background:rgba(255,255,255,.18);}
+:root[data-theme="win98"] .nav a.active{background:#c0c0c0;color:#000;border-color:#404040 #fff #fff #404040;}
+:root[data-theme="win98"] .wrap{background:#c0c0c0;border:2px solid;border-color:#fff #404040 #404040 #fff;box-shadow:1px 1px 0 #000;margin:14px;width:auto;}
+:root[data-theme="win98"] .card{background:#c0c0c0;border:2px solid;border-color:#fff #808080 #808080 #fff;box-shadow:1px 1px 0 #000;}
+:root[data-theme="win98"] button,:root[data-theme="win98"] .userbox button,:root[data-theme="win98"] .anim-toggle{background:#c0c0c0;color:#000;border:2px solid;border-color:#fff #404040 #404040 #fff;box-shadow:inset -1px -1px #808080,inset 1px 1px #dfdfdf;font-family:inherit;font-weight:normal;}
+:root[data-theme="win98"] button.primary{font-weight:bold;outline:1px solid #000;}
+:root[data-theme="win98"] button.danger{color:#a00000;}
+:root[data-theme="win98"] button:active{border-color:#404040 #fff #fff #404040;box-shadow:inset 1px 1px #808080;}
+:root[data-theme="win98"] button:hover,:root[data-theme="win98"] button.primary:hover,:root[data-theme="win98"] button.secondary:hover{background:#c0c0c0;border-color:#fff #404040 #404040 #fff;}
+:root[data-theme="win98"] button:disabled{color:#808080;text-shadow:1px 1px 0 #fff;opacity:1;}
+:root[data-theme="win98"] input[type=text],:root[data-theme="win98"] input[type=password],:root[data-theme="win98"] input[type=date],:root[data-theme="win98"] input[type=email],:root[data-theme="win98"] select,:root[data-theme="win98"] textarea{background:#fff;color:#000;border:2px solid;border-color:#808080 #fff #fff #808080;box-shadow:inset 1px 1px #000;}
+:root[data-theme="win98"] .mode-select{background:#c0c0c0;color:#000;border:2px solid;border-color:#fff #404040 #404040 #fff;box-shadow:inset -1px -1px #808080;}
+:root[data-theme="win98"] th{background:#c0c0c0;border:1px solid;border-color:#fff #808080 #808080 #fff;color:#000;}
+:root[data-theme="win98"] .modal{background:#c0c0c0;border:2px solid;border-color:#fff #404040 #404040 #fff;box-shadow:2px 2px 0 #000;}
+:root[data-theme="win98"] .modal h3{background:linear-gradient(90deg,#000080,#1084d0);color:#fff;margin:-20px -20px 14px;padding:4px 8px;font-size:13px;}
+:root[data-theme="win98"] a{color:#0000ee;}
+:root[data-theme="win98"] .nav a,:root[data-theme="win98"] .brand a{color:#fff;}
+:root[data-theme="win98"] .nav a.active{color:#000;}
+:root[data-theme="win98"] .bg-anim{display:none;}
+:root[data-theme="win98"] .portal-tile svg{color:#000080;}
+
+
+/* ---- Arcade, Rainforest, Tropical Island, City Skyline, Desert Sunset ---- */
+:root[data-theme="arcade"] .theme-banner{background:repeating-linear-gradient(rgba(0,0,0,.22) 0 1px,transparent 1px 3px),linear-gradient(#0b0a1c,#1b1740);}
+:root[data-theme="rainforest"] .theme-banner{background:linear-gradient(#0b3d24,#1f7a45);}
+:root[data-theme="tropical"] .theme-banner{background:linear-gradient(#6fd3ee,#d7f6ff);}
+:root[data-theme="skyline"] .theme-banner{background:linear-gradient(#2b1b5e,#a83c78 60%,#ff9a5c);}
+:root[data-theme="desert"] .theme-banner{background:linear-gradient(#3b2a6b,#c8465a 55%,#f9a24a);}
+:root[data-theme="arcade"]:not([data-color-mode="inverted"]){--grey-bg:#0b0a1c; --surface:#15132e; --surface-alt:#1d1a3f; --surface-subtle:#191638; --text:#eaf0ff; --text-muted:#9aa3cf; --border:#35307a; --heading-color:#ffd400;}
+:root[data-theme="skyline"]:not([data-color-mode="inverted"]){--grey-bg:#120c26; --surface:#1d1440; --surface-alt:#261b52; --surface-subtle:#21184a; --text:#f4ecff; --text-muted:#b3a6dc; --border:#3b2d7c; --heading-color:#ffb86b;}
+:root[data-theme="desert"]:not([data-color-mode="dark"]):not([data-color-mode="inverted"]){--grey-bg:#faf1e4; --surface:#fffaf2; --surface-alt:#f8ebd8; --surface-subtle:#faf0e0; --border:#e6d2b0; --text:#2d1f14; --text-muted:#7a634b;}
+.theme-banner .bhang{transform-origin:50% 0;animation:fxBSway 5s ease-in-out infinite alternate;}
+.theme-banner .bnum.btw{text-shadow:0 0 6px currentColor;}
+:root[data-theme="spaceconflict"] .theme-banner{background:linear-gradient(#02040a,#0b1630);}
+:root[data-theme="spaceconflict"]:not([data-color-mode="inverted"]){--grey-bg:#05080f; --surface:#0c1424; --surface-alt:#121d35; --surface-subtle:#0f192e; --text:#e6f1ff; --text-muted:#8ba3c7; --border:#1f3a66; --heading-color:#ffb020;}
+.theme-banner .bcross.rev{animation-direction:reverse;}
