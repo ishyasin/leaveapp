@@ -89,6 +89,7 @@ const THEMES = {
   desert:    "Desert Sunset",
   spaceconflict: "Space Conflict",
   edgadp: "ED&G ADP",
+  fishzoo: "Fish Zoo",
 };
 const COLOR_MODES = {
   light:    "Light",
@@ -1161,7 +1162,7 @@ Object.assign(THEME_SCENES, {
 Object.assign(SCN, {
   folder: `<svg viewBox="0 0 52 38" aria-hidden="true"><path d="M2,6 a3,3 0 0 1 3,-3 H18 l4,4 H47 a3,3 0 0 1 3,3 V34 a3,3 0 0 1 -3,3 H5 a3,3 0 0 1 -3,-3Z" fill="#c9a96a" stroke="#8a6d32" stroke-width="1.2"/><rect x="2" y="12" width="48" height="25" rx="3" fill="#dcc08a" stroke="#8a6d32" stroke-width="1.2"/><rect x="8" y="18" width="20" height="3" fill="#7a5c25"/><rect x="8" y="24" width="30" height="2" fill="#7a5c25" opacity=".6"/><text x="40" y="33" text-anchor="middle" font-family="Courier New,monospace" font-weight="700" font-size="7" fill="#b3261e">TS</text></svg>`,
   doc: `<svg viewBox="0 0 34 44" aria-hidden="true"><path d="M2,2 H24 L32,10 V42 H2Z" fill="#efe6cf" stroke="#8a6d32" stroke-width="1.2"/><path d="M24,2 V10 H32" fill="#d9ccaa" stroke="#8a6d32" stroke-width="1"/><rect x="6" y="14" width="22" height="4" fill="#111"/><rect x="6" y="21" width="15" height="4" fill="#111"/><rect x="6" y="28" width="22" height="4" fill="#111"/><rect x="6" y="35" width="10" height="3" fill="#111"/></svg>`,
-  stamp: (t, c) => `<svg viewBox="0 0 130 30" aria-hidden="true"><rect x="2" y="2" width="126" height="26" rx="2" fill="none" stroke="${c}" stroke-width="2.6"/><text x="65" y="21" text-anchor="middle" font-family="Courier New,monospace" font-weight="700" font-size="14" letter-spacing="1.5" fill="${c}">${t}</text></svg>`,
+  stamp: (t, c, w = 130) => `<svg viewBox="0 0 ${w} 30" aria-hidden="true"><rect x="2" y="2" width="${w - 4}" height="26" rx="2" fill="none" stroke="${c}" stroke-width="2.6"/><text x="${w / 2}" y="21" text-anchor="middle" font-family="Courier New,monospace" font-weight="700" font-size="12" letter-spacing="1" fill="${c}">${t}</text></svg>`,
   redact: (w) => `<svg viewBox="0 0 ${w} 8" aria-hidden="true"><rect width="${w}" height="8" fill="#000"/></svg>`,
   worldmap: () => {
     const rows = ["....oooo...ooooo.......", "..ooooooo.ooooooooo....", ".oooooo...ooooooooooo..", "..oooo.....oooooooo....", "...ooo......ooooo......", "....oo.......oo........"];
@@ -1186,11 +1187,44 @@ Object.assign(THEME_SCENES, {
       b += SBX("bbob", SCN.folder, "left:3%;top:10px;--w:46;animation-duration:8s") + SBX("bbob", SCN.doc, "left:10%;top:6px;--w:30;animation-duration:7s;animation-delay:-2s");
       b += SBX("btw", SCN.stamp("TOP SECRET", "#e23b34"), "left:19%;top:14px;--w:128;transform:rotate(-5deg)");
       b += SBX("", SCN.worldmap(), "left:38%;top:12px;--w:130");
-      b += SBX("bbob", SCN.satellite, "left:58%;top:6px;--w:40;animation-duration:6s");
-      b += SBX("bbob", SCN.lens, "left:66%;top:12px;--w:34;animation-duration:5s");
-      b += SBX("bsway", SCN.cam, "left:74%;top:6px;--w:42");
-      b += SBX("", SCN.redact(86), "left:80%;top:12px;--w:80") + SBX("", SCN.redact(50), "left:80%;top:24px;--w:46") + SBX("", SCN.redact(100), "left:80%;top:36px;--w:92");
-      b += SBX("btw", SCN.stamp("EYES ONLY", "#c9a96a"), "left:88%;top:36px;--w:100;transform:rotate(4deg)");
+      b += SBX("bbob", SCN.lens, "left:56%;top:12px;--w:34;animation-duration:5s");
+      b += SBX("bsway", SCN.cam, "left:64%;top:6px;--w:42");
+      b += SBX("", SCN.redact(86), "left:74%;top:8px;--w:80") + SBX("", SCN.redact(50), "left:74%;top:20px;--w:46") + SBX("", SCN.redact(70), "left:86%;top:14px;--w:64");
+      b += SBX("btw", SCN.stamp("RESTRICTED ACCESS", "#c9a96a", 190), "left:78%;top:26px;--w:150;transform:rotate(-3deg)");
+      return b;
+    },
+  },
+});
+
+/* Fish Zoo: a bright aquarium (original drawn fish, coral, castle and treasure chest). */
+Object.assign(SCN, {
+  clown: `<svg viewBox="0 0 40 24" aria-hidden="true"><g transform="matrix(-1 0 0 1 40 0)"><path d="M2,12 C9,1 25,1 31,12 C25,23 9,23 2,12Z" fill="#ff7a1a" stroke="#fff" stroke-width=".6"/><path d="M30,12 L40,4 V20Z" fill="#ff7a1a"/><path d="M12,3 Q9,12 12,21 M22,3.5 Q19,12 22,20.5" stroke="#fff" stroke-width="3" fill="none"/><path d="M13,2 Q18,-1 24,2.5" stroke="#ff7a1a" stroke-width="2" fill="none"/><circle cx="7" cy="10" r="1.9" fill="#fff"/><circle cx="7" cy="10" r=".8" fill="#123"/></g></svg>`,
+  angel: (c) => `<svg viewBox="0 0 34 40" aria-hidden="true"><g transform="matrix(-1 0 0 1 34 0)"><path d="M3,20 C8,8 20,8 26,20 C20,32 8,32 3,20Z" fill="${c}"/><path d="M16,10 L22,0 L24,12Z M16,30 L22,40 L24,28Z" fill="${c}" opacity=".85"/><path d="M26,20 L34,12 V28Z" fill="${c}"/><path d="M13,11 V29 M18,10 V30" stroke="rgba(0,40,70,.35)" stroke-width="2"/><circle cx="8" cy="18" r="1.7" fill="#fff"/><circle cx="8" cy="18" r=".7" fill="#123"/></g></svg>`,
+  puffer: `<svg viewBox="0 0 34 28" aria-hidden="true"><g transform="matrix(-1 0 0 1 34 0)"><circle cx="16" cy="14" r="11" fill="#f2d06b"/><path d="M8,20 Q16,28 24,20 Q16,24 8,20Z" fill="#fff6d0"/><path d="M26,14 L33,8 V20Z" fill="#e2b948"/><path d="M12,5 l-1,-4 M17,3 l0,-3 M22,5 l1,-4 M8,9 l-3,-2 M25,10 l3,-2" stroke="#e2b948" stroke-width="1.4"/><circle cx="9" cy="11" r="2.4" fill="#fff"/><circle cx="8.6" cy="11" r="1.1" fill="#123"/><path d="M5,17 q2,2 4,0" stroke="#c0902a" stroke-width="1.2" fill="none"/></g></svg>`,
+  star5: (c) => `<svg viewBox="0 0 30 30" aria-hidden="true"><path d="M15,2 L18.6,11 L28,11.6 L20.8,17.8 L23,27.4 L15,22.2 L7,27.4 L9.2,17.8 L2,11.6 L11.4,11Z" fill="${c}" stroke="rgba(0,0,0,.15)" stroke-width="1" stroke-linejoin="round"/><circle cx="15" cy="14" r="1.2" fill="rgba(255,255,255,.6)"/><circle cx="10" cy="12" r=".8" fill="rgba(255,255,255,.5)"/><circle cx="20" cy="12" r=".8" fill="rgba(255,255,255,.5)"/></svg>`,
+  coral: (c) => `<svg viewBox="0 0 40 46" aria-hidden="true"><path d="M20,46 V26 M20,34 L8,22 V10 M20,28 L32,18 V6 M8,22 L4,16 M32,18 L37,12" stroke="${c}" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="9" r="3.4" fill="${c}"/><circle cx="32" cy="5" r="3.4" fill="${c}"/><circle cx="4" cy="15" r="2.4" fill="${c}"/><circle cx="37" cy="11" r="2.4" fill="${c}"/></svg>`,
+  tankcastle: `<svg viewBox="0 0 70 56" aria-hidden="true"><path d="M4,54 V22 H12 V16 H18 V22 H24 V54Z M46,54 V22 H52 V16 H58 V22 H66 V54Z M24,54 V30 H46 V54Z" fill="#b69cdd" stroke="#6f55a8" stroke-width="1.4"/><path d="M4,22 L8,8 L12,22 M46,22 L52,6 L58,22" fill="#7d62bf" stroke="#6f55a8" stroke-width="1.2"/><path d="M24,54 V42 a11,11 0 0 1 22,0 V54Z" fill="#2a1f4d"/><rect x="28" y="22" width="14" height="8" fill="#b69cdd" stroke="#6f55a8" stroke-width="1.2"/><path d="M32,22 V16 M38,22 V14 L44,17 L38,19" stroke="#6f55a8" fill="#ff5c7a" stroke-width="1.2"/></svg>`,
+  chest: `<svg viewBox="0 0 44 34" aria-hidden="true"><path d="M3,14 a19,12 0 0 1 38,0Z" fill="#a8672a" stroke="#5e3612" stroke-width="1.4"/><rect x="3" y="14" width="38" height="18" rx="2" fill="#8a5220" stroke="#5e3612" stroke-width="1.4"/><rect x="3" y="14" width="38" height="4" fill="#f3c640" stroke="#5e3612" stroke-width="1"/><rect x="19" y="16" width="6" height="8" rx="1" fill="#f3c640" stroke="#5e3612" stroke-width="1"/><circle cx="22" cy="20" r="1.2" fill="#5e3612"/><circle cx="12" cy="12" r="2" fill="#f3c640"/><circle cx="19" cy="9" r="2" fill="#f3c640"/><circle cx="28" cy="10" r="2" fill="#f3c640"/></svg>`,
+});
+Object.assign(THEME_SCENES, {
+  fishzoo: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 16; i++) { const w = fxRand(8, 22).toFixed(0); h += `<i class="rise" style="--dx:${fxRand(-30, 30).toFixed(0)}px;left:${fxRand(2, 97).toFixed(1)}%;width:${w}px;opacity:.5;text-shadow:none;animation-duration:${fxRand(26, 52).toFixed(0)}s;animation-delay:${(-fxRand(0, 52)).toFixed(0)}s"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="rgba(120,220,240,.18)" stroke="rgba(60,170,200,.7)" stroke-width="1"/><circle cx="4" cy="4" r="1.2" fill="rgba(255,255,255,.8)"/></svg></i>`; }
+      const f = [SCN.clown, SCN.angel("#ffd23f"), SCN.fish("#ff7ab6"), SCN.puffer];
+      for (let i = 0; i < 4; i++) h += `<span class="xing" style="top:${(14 + i * 21)}%;animation-duration:${(70 + i * 20)}s;animation-delay:${(-i * 24)}s;--w:${46 + (i % 2) * 14};opacity:.32">${f[i]}</span>`;
+      return h;
+    },
+    banner() {
+      let b = `<span class="bgrd" style="background:#e8cf93;height:7px"></span>`;
+      b += SBX("bsway", SCN.coral("#ff6f91"), "left:3%;bottom:5px;--w:34") + SBX("bsway", SCN.coral("#ff9a3c"), "left:90%;bottom:5px;--w:36;animation-delay:-1.4s");
+      b += SBX("", SCN.tankcastle, "left:12%;bottom:5px;--w:58") + SBX("", SCN.chest, "left:78%;bottom:5px;--w:42");
+      for (let i = 0; i < 6; i++) b += SBX("bsway", SCN.weed(pick(["#2f9a6a", "#3fb27a", "#238a5c"], i)), `left:${(34 + i * 7.5).toFixed(0)}%;bottom:5px;--w:${(11 + (i % 3) * 4)};animation-delay:${(-i * .7).toFixed(1)}s`);
+      b += SBX("", SCN.star5("#ff7a59"), "left:28%;bottom:4px;--w:20") + SBX("", SCN.star5("#ffb347"), "left:70%;bottom:4px;--w:16;transform:rotate(18deg)");
+      const f = [SCN.clown, SCN.angel("#ffd23f"), SCN.fish("#ff7ab6"), SCN.puffer, SCN.angel("#7fa8ff"), SCN.fish("#ffd166"), SCN.clown];
+      for (let i = 0; i < 7; i++) b += SBX("bcross", f[i], `left:0;top:${6 + (i % 3) * 12}px;--w:${(24 + (i % 3) * 4)};--still:${(6 + i * 13)}%;animation-duration:${(30 + i * 6)}s;animation-delay:${(-i * 7)}s`);
+      b += SBX("bbob", SCN.jelly("#ff9ad5"), "left:54%;top:4px;--w:22;animation-duration:7s");
+      for (let i = 0; i < 10; i++) b += `<i class="bubble" style="left:${fxRand(3, 96).toFixed(0)}%;animation-duration:${fxRand(4, 8).toFixed(1)}s;animation-delay:${(-fxRand(0, 8)).toFixed(1)}s;border-color:rgba(255,255,255,.8)"></i>`;
       return b;
     },
   },
