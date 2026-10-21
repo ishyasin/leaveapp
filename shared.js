@@ -68,7 +68,7 @@ const THEMES = {
   stgeorge:  "St George's Day (England)",
   stpatrick: "St Patrick's Day (Ireland)",
   standrew:  "St Andrew's Day (Scotland)",
-  emergency: "Emergency Hospital Care",
+  emergency: "EF / ACU",
   surgical:  "Surgical Care",
   intensive: "Intensive Care",
   elderly:   "Elderly Medicine",
@@ -88,6 +88,7 @@ const THEMES = {
   skyline:   "City Skyline at Dusk",
   desert:    "Desert Sunset",
   spaceconflict: "Space Conflict",
+  edgadp: "ED&G ADP",
 };
 const COLOR_MODES = {
   light:    "Light",
@@ -1150,6 +1151,46 @@ Object.assign(THEME_SCENES, {
       b += SBX("bbob", SCN.dart("#b8762f", amber, true), "left:74%;top:10px;--w:32;animation-duration:5.5s;animation-delay:-1s") + SBX("bbob", SCN.dart("#b8762f", amber, true), "left:72%;top:36px;--w:28;animation-duration:6.5s");
       for (let i = 0; i < 3; i++) b += SBX("bcross", SCN.bolt(blue), `left:0;top:${(18 + i * 13)}px;--w:14;--still:${(34 + i * 6)}%;filter:drop-shadow(0 0 3px ${blue});animation-duration:${(9 + i * 2)}s;animation-delay:${(-i * 3.4)}s`);
       for (let i = 0; i < 3; i++) b += SBX("bcross rev", SCN.bolt(amber), `left:0;top:${(24 + i * 11)}px;--w:14;--still:${(52 + i * 5)}%;filter:drop-shadow(0 0 3px ${amber});animation-duration:${(10 + i * 2)}s;animation-delay:${(-i * 3.9)}s`);
+      return b;
+    },
+  },
+});
+
+/* ED&G ADP (Advanced Development Programme): generic intelligence-agency look
+   (manila files, TOP SECRET stamps, redacted pages, world-map tracking, satellite). No real agency seal or logo. */
+Object.assign(SCN, {
+  folder: `<svg viewBox="0 0 52 38" aria-hidden="true"><path d="M2,6 a3,3 0 0 1 3,-3 H18 l4,4 H47 a3,3 0 0 1 3,3 V34 a3,3 0 0 1 -3,3 H5 a3,3 0 0 1 -3,-3Z" fill="#c9a96a" stroke="#8a6d32" stroke-width="1.2"/><rect x="2" y="12" width="48" height="25" rx="3" fill="#dcc08a" stroke="#8a6d32" stroke-width="1.2"/><rect x="8" y="18" width="20" height="3" fill="#7a5c25"/><rect x="8" y="24" width="30" height="2" fill="#7a5c25" opacity=".6"/><text x="40" y="33" text-anchor="middle" font-family="Courier New,monospace" font-weight="700" font-size="7" fill="#b3261e">TS</text></svg>`,
+  doc: `<svg viewBox="0 0 34 44" aria-hidden="true"><path d="M2,2 H24 L32,10 V42 H2Z" fill="#efe6cf" stroke="#8a6d32" stroke-width="1.2"/><path d="M24,2 V10 H32" fill="#d9ccaa" stroke="#8a6d32" stroke-width="1"/><rect x="6" y="14" width="22" height="4" fill="#111"/><rect x="6" y="21" width="15" height="4" fill="#111"/><rect x="6" y="28" width="22" height="4" fill="#111"/><rect x="6" y="35" width="10" height="3" fill="#111"/></svg>`,
+  stamp: (t, c) => `<svg viewBox="0 0 130 30" aria-hidden="true"><rect x="2" y="2" width="126" height="26" rx="2" fill="none" stroke="${c}" stroke-width="2.6"/><text x="65" y="21" text-anchor="middle" font-family="Courier New,monospace" font-weight="700" font-size="14" letter-spacing="1.5" fill="${c}">${t}</text></svg>`,
+  redact: (w) => `<svg viewBox="0 0 ${w} 8" aria-hidden="true"><rect width="${w}" height="8" fill="#000"/></svg>`,
+  worldmap: () => {
+    const rows = ["....oooo...ooooo.......", "..ooooooo.ooooooooo....", ".oooooo...ooooooooooo..", "..oooo.....oooooooo....", "...ooo......ooooo......", "....oo.......oo........"];
+    let d = "";
+    rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch === "o") d += `<circle cx="${x * 4 + 2}" cy="${y * 4 + 2}" r="1.2"/>`; }));
+    return `<svg viewBox="0 0 92 26" aria-hidden="true"><g fill="#4f7aa8" opacity=".85">${d}</g><circle cx="26" cy="9" r="2.4" fill="none" stroke="#e23b34" stroke-width="1"><animate attributeName="r" values="2;6;2" dur="3s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0;1" dur="3s" repeatCount="indefinite"/></circle><circle cx="26" cy="9" r="1.6" fill="#e23b34"/><circle cx="62" cy="13" r="1.6" fill="#e23b34"/><circle cx="74" cy="7" r="1.6" fill="#e23b34"/><path d="M26,9 L62,13 L74,7" fill="none" stroke="#e23b34" stroke-width=".7" stroke-dasharray="2 2" opacity=".8"/></svg>`;
+  },
+  cam: `<svg viewBox="0 0 40 26" aria-hidden="true"><rect x="2" y="4" width="26" height="12" rx="2" fill="#3a4658" stroke="#8aa0bf" stroke-width="1"/><circle cx="26" cy="10" r="4.5" fill="#0d1420" stroke="#8aa0bf" stroke-width="1"/><circle cx="26" cy="10" r="1.6" fill="#e23b34"/><path d="M12,16 V22 H20" fill="none" stroke="#8aa0bf" stroke-width="2"/></svg>`,
+  lens: `<svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="13" cy="13" r="9" fill="rgba(160,200,255,.12)" stroke="#c9a96a" stroke-width="2.6"/><path d="M20,20 L31,31" stroke="#c9a96a" stroke-width="4" stroke-linecap="round"/><path d="M8,10 a6,6 0 0 1 5,-3" fill="none" stroke="#fff" stroke-width="1.4" opacity=".6"/></svg>`,
+});
+Object.assign(THEME_SCENES, {
+  edgadp: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 7; i++) h += `<i class="rise" style="left:${fxRand(3, 94).toFixed(1)}%;width:${fxRand(30, 44).toFixed(0)}px;opacity:.22;text-shadow:none;animation-duration:${fxRand(70, 110).toFixed(0)}s;animation-delay:${(-fxRand(0, 100)).toFixed(0)}s;--dx:${fxRand(-40, 40).toFixed(0)}px">${SCN.doc}</i>`;
+      const co = ["51.5074 N  0.1278 W", "38.9072 N  77.0369 W", "48.8566 N  2.3522 E", "35.6762 N  139.6503 E", "33.3152 N  44.3661 E", "55.7558 N  37.6173 E"];
+      for (let i = 0; i < 6; i++) h += `<i class="rise" style="left:${fxRand(2, 88).toFixed(1)}%;font:600 11px 'Courier New',monospace;color:#c9a96a;opacity:.3;text-shadow:none;animation-duration:${fxRand(60, 100).toFixed(0)}s;animation-delay:${(-fxRand(0, 90)).toFixed(0)}s;--dx:0px">${co[i]}</i>`;
+      return h;
+    },
+    banner() {
+      let b = `<span class="bscan"></span>`;
+      b += SBX("bbob", SCN.folder, "left:3%;top:10px;--w:46;animation-duration:8s") + SBX("bbob", SCN.doc, "left:10%;top:6px;--w:30;animation-duration:7s;animation-delay:-2s");
+      b += SBX("btw", SCN.stamp("TOP SECRET", "#e23b34"), "left:19%;top:14px;--w:128;transform:rotate(-5deg)");
+      b += SBX("", SCN.worldmap(), "left:38%;top:12px;--w:130");
+      b += SBX("bbob", SCN.satellite, "left:58%;top:6px;--w:40;animation-duration:6s");
+      b += SBX("bbob", SCN.lens, "left:66%;top:12px;--w:34;animation-duration:5s");
+      b += SBX("bsway", SCN.cam, "left:74%;top:6px;--w:42");
+      b += SBX("", SCN.redact(86), "left:80%;top:12px;--w:80") + SBX("", SCN.redact(50), "left:80%;top:24px;--w:46") + SBX("", SCN.redact(100), "left:80%;top:36px;--w:92");
+      b += SBX("btw", SCN.stamp("EYES ONLY", "#c9a96a"), "left:88%;top:36px;--w:100;transform:rotate(4deg)");
       return b;
     },
   },

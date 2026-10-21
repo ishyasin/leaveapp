@@ -74,6 +74,7 @@
 :root[data-theme="desert"]{--navy:#6b2a14; --navy-light:#8e3a1c; --teal:#c8561c; --teal-light:#ee8a4a; --honey:#f4b942; --honey-dark:#d19a22;}
 
 :root[data-theme="spaceconflict"]{--navy:#0a1224; --navy-light:#142447; --teal:#2fb8ff; --teal-light:#8fdcff; --honey:#ffb020; --honey-dark:#d98f10;}
+:root[data-theme="edgadp"]{--navy:#0a111c; --navy-light:#16233a; --teal:#c9a96a; --teal-light:#e3cd9c; --honey:#e23b34; --honey-dark:#b3261e;}
 :root[data-theme="win98"]{--navy:#000080; --navy-light:#1084d0; --teal:#008080; --teal-light:#1084d0; --honey:#ffffe1; --honey-dark:#808080;}
 
 :root[data-theme="barbie"]{--navy:#c2185b; --navy-light:#e0306f; --teal:#ff4fa3; --teal-light:#ff86c1; --honey:#ffd1ea; --honey-dark:#ff9ac9;}
@@ -141,6 +142,7 @@
 :root[data-theme="skyline"] .theme-banner,
 :root[data-theme="desert"] .theme-banner,
 :root[data-theme="spaceconflict"] .theme-banner,
+:root[data-theme="edgadp"] .theme-banner,
 :root[data-theme="respiratory"] .theme-banner{display:block;}
 :root[data-theme="halloween"] .theme-banner{background:linear-gradient(#150f1c,#2a1f33);}
 :root[data-theme="christmas"] .theme-banner{background:linear-gradient(#5a0f19,#7a1621);}
@@ -590,3 +592,9 @@ tr.clash-row{background:#fff8e1;}
 :root[data-theme="spaceconflict"] .theme-banner{background:linear-gradient(#02040a,#0b1630);}
 :root[data-theme="spaceconflict"]:not([data-color-mode="inverted"]){--grey-bg:#05080f; --surface:#0c1424; --surface-alt:#121d35; --surface-subtle:#0f192e; --text:#e6f1ff; --text-muted:#8ba3c7; --border:#1f3a66; --heading-color:#ffb020;}
 .theme-banner .bcross.rev{animation-direction:reverse;}
+:root[data-theme="edgadp"] .theme-banner{background:linear-gradient(#060b14,#101c2e);}
+:root[data-theme="edgadp"]:not([data-color-mode="inverted"]){--grey-bg:#070c14; --surface:#0f1827; --surface-alt:#16233a; --surface-subtle:#121d30; --text:#ece6d6; --text-muted:#9aa5b8; --border:#2a3c5c; --heading-color:#e3cd9c;}
+.theme-banner .bscan{position:absolute;top:0;bottom:0;left:0;width:3px;background:#e23b34;box-shadow:0 0 12px 3px rgba(226,59,52,.6);animation:fxScan 7s linear infinite;}
+@keyframes fxScan{from{left:-2%}to{left:102%}}
+.adp-sweep{transform-origin:20px 20px;animation:fxShine 4s linear infinite;}
+:root[data-anim="off"] .theme-banner .bscan{display:none;}
