@@ -95,7 +95,7 @@ const THEMES = {
   wizard: "Wizard Academy",
   hospharm: "Hospital Pharmacy",
   clinfo: "Clinical Informatics",
-  beelist: "The Bee List",
+  beelist: "The Bee List\u2122",
   nhsblue: "NHS Blue",
   camo: "Camo",
   ufo: "UFO",
@@ -103,6 +103,7 @@ const THEMES = {
   rome: "Ancient Rome",
   greece: "Ancient Greece",
   aprilfools: "April Fools",
+  wordproc: "Word Processor",
 };
 const COLOR_MODES = {
   light:    "Light",
@@ -502,21 +503,6 @@ const THEME_SCENES = {
       return b;
     },
   },
-  winter: {
-    layer() {
-      let h = "";
-      for (let i = 0; i < 40; i++) h += `<i class="fall snowW" style="left:${fxRand(0, 99).toFixed(1)}%;font-size:${fxRand(9, 20).toFixed(0)}px;animation-duration:${fxRand(9, 18).toFixed(1)}s,${fxRand(3, 5).toFixed(1)}s;animation-delay:${(-fxRand(0, 18)).toFixed(1)}s,${(-fxRand(0, 5)).toFixed(1)}s;--sway:${fxRand(14, 46).toFixed(0)}px">${i % 3 ? "&#10052;" : "&#10053;"}</i>`;
-      return h;
-    },
-    banner() {
-      let ic = "M0,0 "; for (let x = 0; x < 1200; x += 24) { const hgt = 6 + ((x / 24) * 7 % 11); ic += `L${x},0 L${x + 12},${hgt} L${x + 24},0 `; }
-      let b = `<svg class="scn" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true"><path d="${ic}Z" fill="#fff" opacity=".9"/><path d="M0,60 L0,52 Q300,44 600,52 T1200,52 L1200,60Z" fill="#fff"/></svg>`;
-      for (let i = 0; i < 6; i++) b += SBX("", SCN.pine, `left:${(4 + i * 15).toFixed(0)}%;bottom:2px;--w:${(26 + (i % 2) * 8)}`);
-      b += SBX("bsway", SCN.snowman, "left:80%;bottom:2px;--w:34;animation-duration:5s");
-      for (let i = 0; i < 16; i++) b += `<i class="bsnow" style="left:${fxRand(1, 98).toFixed(0)}%;font-size:${fxRand(7, 13).toFixed(0)}px;--dx:${fxRand(-30, 30).toFixed(0)}px;animation-duration:${fxRand(4, 8).toFixed(1)}s;animation-delay:${(-fxRand(0, 8)).toFixed(1)}s">&#10052;</i>`;
-      return b;
-    },
-  },
   spring: {
     layer() {
       const cols = ["#ffc2d9", "#ff9ec2", "#fff", "#ffd9e8"]; let h = "";
@@ -891,7 +877,7 @@ Object.assign(SCN, {
   whale: `<svg viewBox="0 0 124 52" aria-hidden="true"><g transform="matrix(-1 0 0 1 124 0)"><path d="M4,26 Q10,6 50,6 Q100,6 112,24 Q116,30 122,20 Q121,40 108,37 Q100,34 96,37 Q60,50 20,41 Q6,37 4,26Z" fill="#3f6f9e"/><path d="M14,34 Q50,46 94,36 Q60,40 14,34Z" fill="#a9c9e4"/><circle cx="16" cy="24" r="2" fill="#0b1f33"/></g></svg>`,
   weed: (c) => `<svg viewBox="0 0 20 50" aria-hidden="true"><path d="M10,50 C2,40 18,32 10,22 C2,12 16,6 10,0" stroke="${c}" stroke-width="5" fill="none" stroke-linecap="round"/></svg>`,
   flower: (p, c) => `<svg viewBox="0 0 30 42" aria-hidden="true"><path d="M15,42 V18" stroke="#3f8a55" stroke-width="2.5"/><path d="M15,34 Q6,32 5,25 Q12,25 15,32" fill="#4fae68"/>${[0, 72, 144, 216, 288].map(a => `<ellipse cx="15" cy="9" rx="4.6" ry="7" fill="${p}" transform="rotate(${a} 15 15)"/>`).join("")}<circle cx="15" cy="15" r="3.8" fill="${c}"/></svg>`,
-  tulip: (c) => `<svg viewBox="0 0 24 44" aria-hidden="true"><path d="M12,44 V20" stroke="#3f8a55" stroke-width="2.6"/><path d="M12,36 Q4,34 3,26 Q10,27 12,34" fill="#4fae68"/><path d="M4,5 Q3,19 12,22 Q21,19 20,5 L15,11 L12,3 L9,11Z" fill="${c}"/></svg>`,
+  btulip: (c) => `<svg viewBox="0 0 24 44" aria-hidden="true"><path d="M12,44 V20" stroke="#3f8a55" stroke-width="2.6"/><path d="M12,36 Q4,34 3,26 Q10,27 12,34" fill="#4fae68"/><path d="M4,5 Q3,19 12,22 Q21,19 20,5 L15,11 L12,3 L9,11Z" fill="${c}"/></svg>`,
   monstera: `<svg viewBox="0 0 50 50" aria-hidden="true"><path d="M25,48 V30" stroke="#2f6f40" stroke-width="3"/><path d="M25,30 C4,34 0,12 12,4 C18,10 22,6 25,2 C28,6 32,10 38,4 C50,12 46,34 25,30Z" fill="#3f9a58"/><path d="M25,30 V6 M25,24 L12,14 M25,24 L38,14 M25,18 L16,10 M25,18 L34,10" stroke="#2a7a45" stroke-width="1.2" fill="none"/></svg>`,
   fern: `<svg viewBox="0 0 34 52" aria-hidden="true"><path d="M17,52 Q15,26 20,2" stroke="#2f7a45" stroke-width="2" fill="none"/>${Array.from({ length: 9 }, (_, i) => { const y = 8 + i * 4.6, w = 13 - i * 0.9; return `<path d="M${(17 + i * 0.4).toFixed(1)},${y.toFixed(1)} Q${(17 - w).toFixed(1)},${(y - 4).toFixed(1)} ${(17 - w - 2).toFixed(1)},${(y - 1).toFixed(1)} M${(17 + i * 0.4).toFixed(1)},${y.toFixed(1)} Q${(17 + w).toFixed(1)},${(y - 4).toFixed(1)} ${(17 + w + 2).toFixed(1)},${(y - 1).toFixed(1)}" stroke="#3f9a58" stroke-width="2.4" fill="none" stroke-linecap="round"/>`; }).join("")}</svg>`,
   can: `<svg viewBox="0 0 56 40" aria-hidden="true"><path d="M10,12 H34 L36,34 H8Z" fill="#6fb2d8" stroke="#4a8fb8"/><path d="M34,18 L50,6 L53,10 L36,25Z" fill="#6fb2d8" stroke="#4a8fb8"/><path d="M10,17 Q0,15 2,27 Q4,31 9,29" fill="none" stroke="#4a8fb8" stroke-width="3"/><path d="M14,12 Q22,1 30,12" fill="none" stroke="#4a8fb8" stroke-width="3"/></svg>`,
@@ -956,7 +942,7 @@ Object.assign(THEME_SCENES, {
       b += SBX("bsway", SCN.monstera, "left:2%;bottom:5px;--w:50") + SBX("bsway", SCN.monstera, "left:92%;bottom:5px;--w:46;animation-delay:-1.4s");
       b += SBX("bsway", SCN.fern, "left:12%;bottom:5px;--w:34;animation-delay:-.6s") + SBX("bsway", SCN.fern, "left:82%;bottom:5px;--w:34;animation-delay:-2s");
       const pet = [["#e75c9a", "#ffd23f"], ["#fff", "#f2c94c"], ["#ff9a5c", "#fff1a8"], ["#b389e8", "#ffd23f"], ["#ff6b81", "#ffe08a"]];
-      for (let i = 0; i < 8; i++) { const p = pet[i % pet.length]; b += i % 3 === 2 ? SBX("bsway", SCN.tulip(p[0]), `left:${(22 + i * 7.3).toFixed(0)}%;bottom:5px;--w:15;animation-delay:${(-i * .5).toFixed(1)}s`) : SBX("bsway", SCN.flower(p[0], p[1]), `left:${(22 + i * 7.3).toFixed(0)}%;bottom:5px;--w:${(24 + (i % 2) * 6)};animation-delay:${(-i * .5).toFixed(1)}s`); }
+      for (let i = 0; i < 8; i++) { const p = pet[i % pet.length]; b += i % 3 === 2 ? SBX("bsway", SCN.btulip(p[0]), `left:${(22 + i * 7.3).toFixed(0)}%;bottom:5px;--w:15;animation-delay:${(-i * .5).toFixed(1)}s`) : SBX("bsway", SCN.flower(p[0], p[1]), `left:${(22 + i * 7.3).toFixed(0)}%;bottom:5px;--w:${(24 + (i % 2) * 6)};animation-delay:${(-i * .5).toFixed(1)}s`); }
       b += SBX("", SCN.can, "left:60%;bottom:20px;--w:40") + `<i class="bdrip" style="left:calc(60% + 36px);bottom:12px"></i><i class="bdrip" style="left:calc(60% + 41px);bottom:12px;animation-delay:-1.2s"></i>`;
       return b;
     },
@@ -1357,7 +1343,7 @@ Object.assign(THEME_SCENES, {
 /* Hospital Pharmacy: clean green/teal dispensary look (shelves, medicine boxes, capsules, mortar, pharmacy cross, blister packs). */
 Object.assign(SCN, {
   gcross: `<svg viewBox="0 0 30 30" aria-hidden="true"><path d="M10,2 H20 V10 H28 V20 H20 V28 H10 V20 H2 V10 H10Z" fill="#1fa06b" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>`,
-  capsule: (a, b) => `<svg viewBox="0 0 30 12" aria-hidden="true"><rect x="1" y="1" width="28" height="10" rx="5" fill="${b}"/><path d="M15,1 H6 a5,5 0 0 0 0,10 H15Z" fill="${a}"/><rect x="4" y="3" width="10" height="2" rx="1" fill="rgba(255,255,255,.5)"/></svg>`,
+  phcapsule: (a, b) => `<svg viewBox="0 0 30 12" aria-hidden="true"><rect x="1" y="1" width="28" height="10" rx="5" fill="${b}"/><path d="M15,1 H6 a5,5 0 0 0 0,10 H15Z" fill="${a}"/><rect x="4" y="3" width="10" height="2" rx="1" fill="rgba(255,255,255,.5)"/></svg>`,
   tablet: (c) => `<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="${c}" stroke="rgba(0,0,0,.18)" stroke-width="1"/><path d="M3,8 H13" stroke="rgba(0,0,0,.25)" stroke-width="1.2"/></svg>`,
   medbox: (c) => `<svg viewBox="0 0 34 24" aria-hidden="true"><rect x="1" y="1" width="32" height="22" rx="2" fill="${c}" stroke="rgba(0,0,0,.25)" stroke-width="1"/><rect x="1" y="1" width="9" height="22" fill="rgba(255,255,255,.35)"/><rect x="13" y="6" width="16" height="3" rx="1" fill="rgba(255,255,255,.85)"/><rect x="13" y="12" width="10" height="2" rx="1" fill="rgba(255,255,255,.6)"/><path d="M4,9 h3 M5.5,7.5 v3" stroke="#fff" stroke-width="1.4"/></svg>`,
   bottle: (c) => `<svg viewBox="0 0 20 34" aria-hidden="true"><rect x="3" y="1" width="14" height="6" rx="1.5" fill="#fff" stroke="rgba(0,0,0,.25)" stroke-width="1"/><rect x="2" y="7" width="16" height="26" rx="3" fill="${c}" stroke="rgba(0,0,0,.25)" stroke-width="1"/><rect x="4" y="14" width="12" height="12" rx="1" fill="#fff"/><path d="M10,16 v8 M6,20 h8" stroke="${c}" stroke-width="2"/></svg>`,
@@ -1376,7 +1362,7 @@ Object.assign(THEME_SCENES, {
     layer() {
       let h = "";
       const cols = [["#1fa06b", "#fff"], ["#2b8bd6", "#fff"], ["#f29a2e", "#fff"], ["#e0524d", "#fff"], ["#8a63d2", "#fff"]];
-      for (let i = 0; i < 14; i++) { const c = cols[i % 5]; h += `<i class="fall" style="left:${fxRand(0, 98).toFixed(1)}%;width:${fxRand(18, 28).toFixed(0)}px;opacity:.55;animation-duration:${fxRand(20, 36).toFixed(1)}s,${fxRand(4, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 36)).toFixed(1)}s,${(-fxRand(0, 6)).toFixed(1)}s;--sway:${fxRand(20, 50).toFixed(0)}px">${i % 3 === 0 ? SCN.tablet(pick(["#fff", "#ffe08a", "#ffb3a7"], i)) : SCN.capsule(c[0], c[1])}</i>`; }
+      for (let i = 0; i < 14; i++) { const c = cols[i % 5]; h += `<i class="fall" style="left:${fxRand(0, 98).toFixed(1)}%;width:${fxRand(18, 28).toFixed(0)}px;opacity:.55;animation-duration:${fxRand(20, 36).toFixed(1)}s,${fxRand(4, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 36)).toFixed(1)}s,${(-fxRand(0, 6)).toFixed(1)}s;--sway:${fxRand(20, 50).toFixed(0)}px">${i % 3 === 0 ? SCN.tablet(pick(["#fff", "#ffe08a", "#ffb3a7"], i)) : SCN.phcapsule(c[0], c[1])}</i>`; }
       for (let i = 0; i < 4; i++) h += `<i class="rise" style="--dx:${fxRand(-20, 20).toFixed(0)}px;left:${fxRand(4, 92).toFixed(1)}%;width:${fxRand(16, 22).toFixed(0)}px;opacity:.18;text-shadow:none;animation-duration:${fxRand(70, 100).toFixed(0)}s;animation-delay:${(-fxRand(0, 90)).toFixed(0)}s">${SCN.gcross}</i>`;
       return h;
     },
@@ -1386,7 +1372,7 @@ Object.assign(THEME_SCENES, {
       b += SBX("bbob", SCN.gcross, "left:44%;top:6px;--w:34;animation-duration:5s");
       b += SBX("bbob", SCN.rxpad, "left:33%;top:8px;--w:26;animation-duration:6s") + SBX("bbob", SCN.mortar, "left:51%;top:10px;--w:36;animation-duration:7s;animation-delay:-1s");
       b += SBX("bbob", SCN.blister, "left:27%;top:12px;--w:34;animation-duration:5.5s;animation-delay:-2s") + SBX("bbob", SCN.bottle("#ffb347"), "left:93%;top:6px;--w:16;animation-duration:6s");
-      for (let i = 0; i < 3; i++) b += SBX("bcross", SCN.capsule(pick(["#1fa06b", "#2b8bd6", "#e0524d"], i), "#fff"), `left:0;top:${14 + i * 12}px;--w:26;--still:${(34 + i * 6)}%;animation-duration:${(22 + i * 5)}s;animation-delay:${(-i * 7)}s`);
+      for (let i = 0; i < 3; i++) b += SBX("bcross", SCN.phcapsule(pick(["#1fa06b", "#2b8bd6", "#e0524d"], i), "#fff"), `left:0;top:${14 + i * 12}px;--w:26;--still:${(34 + i * 6)}%;animation-duration:${(22 + i * 5)}s;animation-delay:${(-i * 7)}s`);
       return b;
     },
   },
@@ -1427,17 +1413,16 @@ Object.assign(THEME_SCENES, {
 /* The Bee List: honey-and-hive theme built around the supplied bee illustration (bee.png). The wings are a clipped copy that flaps. */
 Object.assign(SCN, {
   beeimg: `<span class="beeimg"><img src="bee.png" alt="" draggable="false"><img class="bw" src="bee.png" alt="" draggable="false"></span>`,
-  hex: (c) => `<svg viewBox="0 0 28 32" aria-hidden="true"><path d="M14,1 L26,8 V24 L14,31 L2,24 V8Z" fill="${c}" stroke="#b97d00" stroke-width="1.6" stroke-linejoin="round"/><path d="M14,8 L20,11.5 V19 L14,22.5 L8,19 V11.5Z" fill="rgba(255,255,255,.35)"/></svg>`,
+  beehex: (c) => `<svg viewBox="0 0 28 32" aria-hidden="true"><path d="M14,1 L26,8 V24 L14,31 L2,24 V8Z" fill="${c}" stroke="#b97d00" stroke-width="1.6" stroke-linejoin="round"/><path d="M14,8 L20,11.5 V19 L14,22.5 L8,19 V11.5Z" fill="rgba(255,255,255,.35)"/></svg>`,
   skep: `<svg viewBox="0 0 48 50" aria-hidden="true"><path d="M6,48 Q2,10 24,3 Q46,10 42,48Z" fill="#e9a824" stroke="#7a4a05" stroke-width="2"/><path d="M5,38 Q24,43 43,38 M7,27 Q24,32 41,27 M12,16 Q24,20 36,16" fill="none" stroke="#7a4a05" stroke-width="1.8"/><ellipse cx="24" cy="40" rx="7" ry="8" fill="#3a2403"/></svg>`,
   honeypot: `<svg viewBox="0 0 36 38" aria-hidden="true"><path d="M8,6 H28 V10 Q36,14 34,28 Q32,36 18,36 Q4,36 2,28 Q0,14 8,10Z" fill="#c98a1b" stroke="#7a4a05" stroke-width="1.8"/><rect x="7" y="3" width="22" height="6" rx="2" fill="#8a5a12" stroke="#7a4a05" stroke-width="1.6"/><rect x="8" y="16" width="20" height="12" rx="2" fill="#fff3c4"/><text x="18" y="25" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="7" fill="#7a4a05">HONEY</text><path d="M6,10 Q10,16 7,22" fill="none" stroke="#ffd84d" stroke-width="2" opacity=".7"/></svg>`,
-  drop: `<svg viewBox="0 0 12 18" aria-hidden="true"><path d="M6,1 C2,8 1,11 1,13 a5,5 0 0 0 10,0 C11,11 10,8 6,1Z" fill="#f2a900" stroke="#b97d00" stroke-width="1"/><ellipse cx="4.6" cy="12" rx="1.1" ry="1.8" fill="rgba(255,255,255,.6)"/></svg>`,
+  beedrop: `<svg viewBox="0 0 12 18" aria-hidden="true"><path d="M6,1 C2,8 1,11 1,13 a5,5 0 0 0 10,0 C11,11 10,8 6,1Z" fill="#f2a900" stroke="#b97d00" stroke-width="1"/><ellipse cx="4.6" cy="12" rx="1.1" ry="1.8" fill="rgba(255,255,255,.6)"/></svg>`,
 });
 Object.assign(THEME_SCENES, {
   beelist: {
     layer() {
       let h = "";
-      for (let i = 0; i < 12; i++) h += `<i class="fall" style="left:${fxRand(0, 98).toFixed(1)}%;width:${fxRand(8, 13).toFixed(0)}px;opacity:.8;animation-duration:${fxRand(14, 26).toFixed(1)}s,${fxRand(3, 5).toFixed(1)}s;animation-delay:${(-fxRand(0, 26)).toFixed(1)}s,${(-fxRand(0, 5)).toFixed(1)}s;--sway:${fxRand(8, 26).toFixed(0)}px">${SCN.drop}</i>`;
-      for (let i = 0; i < 8; i++) h += `<i class="rise" style="--dx:${fxRand(-25, 25).toFixed(0)}px;left:${fxRand(3, 95).toFixed(1)}%;width:${fxRand(20, 34).toFixed(0)}px;opacity:.22;text-shadow:none;animation-duration:${fxRand(60, 100).toFixed(0)}s;animation-delay:${(-fxRand(0, 90)).toFixed(0)}s">${SCN.hex(pick(["#ffd84d", "#f2b705", "#ffe58a"], i))}</i>`;
+      for (let i = 0; i < 8; i++) h += `<i class="rise" style="--dx:${fxRand(-25, 25).toFixed(0)}px;left:${fxRand(3, 95).toFixed(1)}%;width:${fxRand(20, 34).toFixed(0)}px;opacity:.22;text-shadow:none;animation-duration:${fxRand(60, 100).toFixed(0)}s;animation-delay:${(-fxRand(0, 90)).toFixed(0)}s">${SCN.beehex(pick(["#ffd84d", "#f2b705", "#ffe58a"], i))}</i>`;
       h += `<span class="bbob" style="position:absolute;right:2%;bottom:2%;width:150px;line-height:0;animation-duration:5s;opacity:.95">${SCN.beeimg}</span>`;
       return h;
     },
@@ -1447,9 +1432,8 @@ Object.assign(THEME_SCENES, {
       b += SBX("", SCN.skep, "left:22%;bottom:6px;--w:38") + SBX("", SCN.honeypot, "left:70%;bottom:6px;--w:30");
       const fl = [["#ff6b9a", "#fff3a0"], ["#fff", "#f2b705"], ["#b57aff", "#fff3a0"], ["#ff9a3c", "#fff3a0"]];
       for (let i = 0; i < 6; i++) { const f = fl[i % 4]; b += SBX("bsway", SCN.flower(f[0], f[1]), `left:${(31 + i * 6.4).toFixed(0)}%;bottom:5px;--w:${22 + (i % 2) * 6};animation-delay:${(-i * .6).toFixed(1)}s`); }
-      for (let i = 0; i < 5; i++) b += SBX("btw", SCN.hex(pick(["#ffd84d", "#f2b705", "#ffe58a"], i)), `left:${(14 + i * 17).toFixed(0)}%;top:${4 + (i % 2) * 12}px;--w:${14 + (i % 3) * 3};animation-delay:${(-i * .8).toFixed(1)}s`);
+      for (let i = 0; i < 5; i++) b += SBX("btw", SCN.beehex(pick(["#ffd84d", "#f2b705", "#ffe58a"], i)), `left:${(14 + i * 17).toFixed(0)}%;top:${4 + (i % 2) * 12}px;--w:${14 + (i % 3) * 3};animation-delay:${(-i * .8).toFixed(1)}s`);
       b += SBX("bbob", SCN.beeimg, "left:88%;top:6px;--w:58;transform:scaleX(-1);animation-duration:5s;animation-delay:-1.5s");
-      b += `<i class="bdrip" style="left:46%;bottom:8px;background:#f2a900"></i>`;
       return b;
     },
   },
@@ -1458,7 +1442,7 @@ Object.assign(THEME_SCENES, {
 /* NHS Blue: NHS-style blue palette with generic healthcare imagery. No NHS logo, lozenge or wordmark is drawn. */
 Object.assign(SCN, {
   hospital: `<svg viewBox="0 0 130 56" aria-hidden="true"><g stroke="#003087" stroke-width="1.4"><rect x="4" y="22" width="34" height="34" fill="#e8f1fb"/><rect x="38" y="8" width="54" height="48" fill="#fff"/><rect x="92" y="26" width="34" height="30" fill="#e8f1fb"/></g><g fill="#005eb8"><rect x="9" y="28" width="6" height="6"/><rect x="21" y="28" width="6" height="6"/><rect x="9" y="40" width="6" height="6"/><rect x="21" y="40" width="6" height="6"/><rect x="44" y="14" width="6" height="6"/><rect x="56" y="14" width="6" height="6"/><rect x="68" y="14" width="6" height="6"/><rect x="80" y="14" width="6" height="6"/><rect x="44" y="26" width="6" height="6"/><rect x="56" y="26" width="6" height="6"/><rect x="68" y="26" width="6" height="6"/><rect x="80" y="26" width="6" height="6"/><rect x="97" y="32" width="6" height="6"/><rect x="109" y="32" width="6" height="6"/><rect x="97" y="44" width="6" height="6"/><rect x="109" y="44" width="6" height="6"/></g><path d="M57,56 V44 a8,8 0 0 1 16,0 V56Z" fill="#003087"/><rect x="60" y="1" width="10" height="3" fill="#e8f1fb"/><path d="M62,3 h6 v8 h-6Z M60,6 h10" fill="#da291c" stroke="#da291c" stroke-width=".5"/></svg>`,
-  rainbow: `<svg viewBox="0 0 70 38" aria-hidden="true" fill="none" stroke-width="4"><path d="M4,36 A31,31 0 0 1 66,36" stroke="#e5342b"/><path d="M9,36 A26,26 0 0 1 61,36" stroke="#f7941d"/><path d="M14,36 A21,21 0 0 1 56,36" stroke="#ffd200"/><path d="M19,36 A16,16 0 0 1 51,36" stroke="#3fae49"/><path d="M24,36 A11,11 0 0 1 46,36" stroke="#2b7bdc"/><path d="M29,36 A6,6 0 0 1 41,36" stroke="#7b4fc4"/></svg>`,
+  nhsrainbow: `<svg viewBox="0 0 70 38" aria-hidden="true" fill="none" stroke-width="4"><path d="M4,36 A31,31 0 0 1 66,36" stroke="#e5342b"/><path d="M9,36 A26,26 0 0 1 61,36" stroke="#f7941d"/><path d="M14,36 A21,21 0 0 1 56,36" stroke="#ffd200"/><path d="M19,36 A16,16 0 0 1 51,36" stroke="#3fae49"/><path d="M24,36 A11,11 0 0 1 46,36" stroke="#2b7bdc"/><path d="M29,36 A6,6 0 0 1 41,36" stroke="#7b4fc4"/></svg>`,
   heartpulse: `<svg viewBox="0 0 48 44" aria-hidden="true"><path d="M24,41 C4,28 2,14 10,8 C16,4 22,7 24,13 C26,7 32,4 38,8 C46,14 44,28 24,41Z" fill="#da291c" stroke="#fff" stroke-width="1.6"/><path d="M6,22 H16 L19,14 L24,30 L28,18 L31,22 H42" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" stroke-dasharray="60" ><animate attributeName="stroke-dashoffset" values="60;0;0;-60" dur="2.8s" repeatCount="indefinite"/></path></svg>`,
   steth: `<svg viewBox="0 0 40 46" aria-hidden="true" fill="none" stroke="#003087" stroke-width="2.6" stroke-linecap="round"><path d="M8,3 V16 a9,9 0 0 0 18,0 V3"/><path d="M17,25 V30 a8,8 0 0 0 16,0 V25"/><circle cx="33" cy="21" r="4.2" fill="#fff"/><path d="M4,3 H12 M22,3 H30"/></svg>`,
   ward: `<svg viewBox="0 0 64 36" aria-hidden="true"><rect x="2" y="12" width="4" height="22" fill="#003087"/><rect x="58" y="22" width="4" height="12" fill="#003087"/><rect x="6" y="22" width="52" height="8" rx="2" fill="#fff" stroke="#003087" stroke-width="1.6"/><path d="M8,22 q4,-10 18,-8 V22Z" fill="#cfe2f7" stroke="#003087" stroke-width="1.4"/><rect x="6" y="30" width="52" height="3" fill="#005eb8"/><circle cx="10" cy="35" r="1.6" fill="#003087"/><circle cx="54" cy="35" r="1.6" fill="#003087"/></svg>`,
@@ -1470,13 +1454,13 @@ Object.assign(THEME_SCENES, {
     layer() {
       let h = "";
       for (let i = 0; i < 14; i++) h += `<i class="rise" style="--dx:${fxRand(-25, 25).toFixed(0)}px;left:${fxRand(2, 96).toFixed(1)}%;width:${fxRand(12, 24).toFixed(0)}px;opacity:.28;text-shadow:none;animation-duration:${fxRand(40, 80).toFixed(0)}s;animation-delay:${(-fxRand(0, 80)).toFixed(0)}s">${SCN.bheart(pick(["#005eb8", "#da291c", "#41b6e6", "#ffb81c"], i))}</i>`;
-      for (let i = 0; i < 3; i++) h += `<span class="xing" style="top:${(20 + i * 28)}%;animation-duration:${(90 + i * 20)}s;animation-delay:${(-i * 30)}s;--w:${50 + i * 8};opacity:.14">${SCN.rainbow}</span>`;
+      for (let i = 0; i < 3; i++) h += `<span class="xing" style="top:${(20 + i * 28)}%;animation-duration:${(90 + i * 20)}s;animation-delay:${(-i * 30)}s;--w:${50 + i * 8};opacity:.14">${SCN.nhsrainbow}</span>`;
       return h;
     },
     banner() {
       let b = `<span class="bgrd" style="background:#003087;height:6px"></span>`;
       b += SBX("", SCN.hospital, "left:3%;bottom:6px;--w:150");
-      b += SBX("bbob", SCN.rainbow, "left:22%;top:10px;--w:72;animation-duration:8s");
+      b += SBX("bbob", SCN.nhsrainbow, "left:22%;top:10px;--w:72;animation-duration:8s");
       b += SBX("bbob", SCN.heartpulse, "left:34%;top:8px;--w:44;animation-duration:5s");
       b += SBX("bbob", SCN.steth, "left:44%;top:6px;--w:34;animation-duration:6s;animation-delay:-1s");
       b += SBX("", SCN.ward, "left:54%;bottom:6px;--w:78") + SBX("bbob", SCN.clip, "left:68%;top:8px;--w:28;animation-duration:7s;animation-delay:-2s");
@@ -1489,12 +1473,12 @@ Object.assign(THEME_SCENES, {
 
 /* Camo: woodland camouflage with generic field-kit sprites (pines, tent, compass, binoculars, dog tags). */
 Object.assign(SCN, {
-  pine: (c) => `<svg viewBox="0 0 30 46" aria-hidden="true"><path d="M15,1 L24,15 H19 L27,28 H20 L29,42 H1 L10,28 H3 L11,15 H6Z" fill="${c}" stroke="#1d2512" stroke-width="1.4" stroke-linejoin="round"/><rect x="13" y="41" width="4" height="5" fill="#4a3516"/></svg>`,
+  cpine: (c) => `<svg viewBox="0 0 30 46" aria-hidden="true"><path d="M15,1 L24,15 H19 L27,28 H20 L29,42 H1 L10,28 H3 L11,15 H6Z" fill="${c}" stroke="#1d2512" stroke-width="1.4" stroke-linejoin="round"/><rect x="13" y="41" width="4" height="5" fill="#4a3516"/></svg>`,
   tent: `<svg viewBox="0 0 56 38" aria-hidden="true"><path d="M2,36 L28,4 L54,36Z" fill="#6b7a3a" stroke="#1d2512" stroke-width="1.8" stroke-linejoin="round"/><path d="M28,4 L20,36 H36Z" fill="#3a4524" stroke="#1d2512" stroke-width="1.4"/><path d="M28,4 V36" stroke="#1d2512" stroke-width="1"/><path d="M0,36 H56" stroke="#1d2512" stroke-width="2"/></svg>`,
   compass: `<svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15" fill="#2a331a" stroke="#c9b45a" stroke-width="2"/><circle cx="17" cy="17" r="11" fill="#e8e2c4"/><path d="M17,5 L21,17 L17,29 L13,17Z" fill="#fff" stroke="#2a331a" stroke-width=".8"/><path d="M17,5 L21,17 H13Z" fill="#c4372c"/><circle cx="17" cy="17" r="1.8" fill="#2a331a"/><text x="17" y="4.6" text-anchor="middle" font-family="Arial" font-weight="700" font-size="4.2" fill="#2a331a">N</text></svg>`,
   binocs: `<svg viewBox="0 0 44 34" aria-hidden="true"><rect x="3" y="6" width="14" height="26" rx="5" fill="#2f3a1e" stroke="#11160a" stroke-width="1.6"/><rect x="27" y="6" width="14" height="26" rx="5" fill="#2f3a1e" stroke="#11160a" stroke-width="1.6"/><rect x="15" y="14" width="14" height="8" fill="#4b5320" stroke="#11160a" stroke-width="1.4"/><rect x="5" y="1" width="10" height="8" rx="2" fill="#4b5320" stroke="#11160a" stroke-width="1.4"/><rect x="29" y="1" width="10" height="8" rx="2" fill="#4b5320" stroke="#11160a" stroke-width="1.4"/><circle cx="10" cy="29" r="3" fill="#9fc4cf" opacity=".7"/><circle cx="34" cy="29" r="3" fill="#9fc4cf" opacity=".7"/></svg>`,
   dogtag: `<svg viewBox="0 0 34 40" aria-hidden="true"><path d="M10,2 Q17,10 24,2" fill="none" stroke="#b9bcc2" stroke-width="1.6"/><rect x="5" y="9" width="24" height="29" rx="9" fill="#c4c8ce" stroke="#6e737a" stroke-width="1.4"/><rect x="9" y="13" width="16" height="3" rx="1" fill="#8a8f96"/><rect x="9" y="19" width="12" height="2" rx="1" fill="#8a8f96"/><rect x="9" y="24" width="14" height="2" rx="1" fill="#8a8f96"/><rect x="9" y="29" width="8" height="2" rx="1" fill="#8a8f96"/></svg>`,
-  leaf: (c) => `<svg viewBox="0 0 20 28" aria-hidden="true"><path d="M10,1 C20,8 20,20 10,27 C0,20 0,8 10,1Z" fill="${c}" stroke="rgba(0,0,0,.25)" stroke-width="1"/><path d="M10,4 V26" stroke="rgba(0,0,0,.3)" stroke-width="1.2"/></svg>`,
+  cleaf: (c) => `<svg viewBox="0 0 20 28" aria-hidden="true"><path d="M10,1 C20,8 20,20 10,27 C0,20 0,8 10,1Z" fill="${c}" stroke="rgba(0,0,0,.25)" stroke-width="1"/><path d="M10,4 V26" stroke="rgba(0,0,0,.3)" stroke-width="1.2"/></svg>`,
   stencil: (t) => `<svg viewBox="0 0 110 18" aria-hidden="true"><text x="2" y="14" font-family="Impact,Arial Black,sans-serif" font-weight="900" font-size="14" letter-spacing="3" fill="#d8d2a8" opacity=".9">${t}</text></svg>`,
 });
 Object.assign(THEME_SCENES, {
@@ -1502,13 +1486,13 @@ Object.assign(THEME_SCENES, {
     layer() {
       let h = `<span style="position:absolute;inset:0;background:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22240%22 height=%22160%22 viewBox=%220 0 240 160%22%3E%3Crect width=%22240%22 height=%22160%22 fill=%22%2355612f%22/%3E%3Cg fill=%22%233a4524%22%3E%3Cpath d=%22M0%2C20 Q30%2C0 62%2C22 T120%2C30 Q100%2C60 60%2C54 T0%2C50Z%22/%3E%3Cpath d=%22M150%2C100 Q190%2C80 240%2C104 V160 H170 Q150%2C140 150%2C100Z%22/%3E%3Cpath d=%22M96%2C120 Q130%2C104 150%2C128 T126%2C160 H80 Q70%2C134 96%2C120Z%22/%3E%3C/g%3E%3Cg fill=%22%237d8b45%22%3E%3Cpath d=%22M130%2C6 Q170%2C-6 200%2C16 T226%2C44 Q190%2C58 150%2C40 T130%2C6Z%22/%3E%3Cpath d=%22M20%2C84 Q50%2C66 84%2C84 T96%2C110 Q60%2C124 30%2C110 T20%2C84Z%22/%3E%3Cpath d=%22M200%2C130 Q226%2C120 240%2C136 V160 H214 Q196%2C148 200%2C130Z%22/%3E%3C/g%3E%3Cg fill=%22%232a331a%22%3E%3Cpath d=%22M60%2C70 Q84%2C60 100%2C76 T90%2C98 Q70%2C98 60%2C70Z%22/%3E%3Cpath d=%22M180%2C60 Q204%2C54 214%2C70 T196%2C84 Q178%2C80 180%2C60Z%22/%3E%3C/g%3E%3Cg fill=%22%238a7a4a%22 opacity=%22.85%22%3E%3Cpath d=%22M10%2C120 Q36%2C108 52%2C124 T40%2C148 Q16%2C148 10%2C120Z%22/%3E%3Cpath d=%22M104%2C20 Q124%2C12 134%2C26 T120%2C40 Q104%2C38 104%2C20Z%22/%3E%3Cpath d=%22M206%2C6 Q224%2C0 232%2C12 T218%2C26 Q204%2C22 206%2C6Z%22/%3E%3C/g%3E%3C/svg%3E');background-size:340px auto;opacity:.07;pointer-events:none"></span>`;
       const lc = ["#7d8b45", "#8a7a4a", "#55612f", "#a08a4a"];
-      for (let i = 0; i < 16; i++) h += `<i class="fall" style="left:${fxRand(0, 98).toFixed(1)}%;width:${fxRand(10, 17).toFixed(0)}px;opacity:.7;animation-duration:${fxRand(16, 30).toFixed(1)}s,${fxRand(4, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 30)).toFixed(1)}s,${(-fxRand(0, 6)).toFixed(1)}s;--sway:${fxRand(20, 60).toFixed(0)}px">${SCN.leaf(pick(lc, i))}</i>`;
+      for (let i = 0; i < 16; i++) h += `<i class="fall" style="left:${fxRand(0, 98).toFixed(1)}%;width:${fxRand(10, 17).toFixed(0)}px;opacity:.7;animation-duration:${fxRand(16, 30).toFixed(1)}s,${fxRand(4, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 30)).toFixed(1)}s,${(-fxRand(0, 6)).toFixed(1)}s;--sway:${fxRand(20, 60).toFixed(0)}px">${SCN.cleaf(pick(lc, i))}</i>`;
       return h;
     },
     banner() {
       let b = `<span class="bgrd" style="background:#2a331a;height:7px"></span>`;
       const gc = ["#3d5a2a", "#4b6a30", "#34502a"];
-      for (let i = 0; i < 12; i++) b += SBX("bsway", SCN.pine(pick(gc, i)), `left:${(1 + i * 8.6).toFixed(0)}%;bottom:6px;--w:${(18 + (i % 3) * 5)};animation-delay:${(-i * .6).toFixed(1)}s`);
+      for (let i = 0; i < 12; i++) b += SBX("bsway", SCN.cpine(pick(gc, i)), `left:${(1 + i * 8.6).toFixed(0)}%;bottom:6px;--w:${(18 + (i % 3) * 5)};animation-delay:${(-i * .6).toFixed(1)}s`);
       b += SBX("", SCN.tent, "left:20%;bottom:6px;--w:56") + SBX("bbob", SCN.compass, "left:36%;top:8px;--w:32;animation-duration:7s") + SBX("btw", SCN.stencil("RECON"), "left:44%;top:12px;--w:108");
       b += SBX("bbob", SCN.binocs, "left:62%;top:10px;--w:44;animation-duration:6s") + SBX("bbob", SCN.dogtag, "left:76%;top:6px;--w:28;animation-duration:5s;animation-delay:-1.5s");
       b += SBX("btw", SCN.stencil("FIELD OPS"), "left:84%;top:30px;--w:96");
@@ -1541,8 +1525,7 @@ Object.assign(THEME_SCENES, {
       for (let i = 0; i < 12; i++) b += `<i class="twk" style="position:absolute;left:${fxRand(1, 98).toFixed(0)}%;top:${fxRand(3, 30).toFixed(0)}px;font-size:7px;color:#fff;animation-duration:${fxRand(3, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">&#8226;</i>`;
       b += `<span class="bgrd" style="background:#0f2a1a;height:12px;border-top:2px solid #1f5a36"></span>`;
       b += SBX("", SCN.barn, "left:5%;bottom:8px;--w:50") + SBX("", SCN.crop, "left:20%;bottom:2px;--w:60");
-      b += SBX("bbob", SCN.saucer("#4a5a7a"), "left:30%;top:2px;--w:64;animation-duration:4s") + SBX("btw", SCN.beam, "left:34%;top:20px;--w:36");
-      b += SBX("bbob", SCN.cow, "left:35.5%;top:24px;--w:26;animation-duration:3s");
+      b += SBX("bbob", `<span style="position:relative;display:block;width:64px;height:30px">${SCN.beam.replace("<svg ", '<svg style="position:absolute;left:2px;top:24px;width:60px;height:70px;z-index:0" ')}${SCN.cow.replace("<svg ", '<svg style="position:absolute;left:19px;top:30px;width:26px;z-index:1" ')}${SCN.saucer("#4a5a7a").replace("<svg ", '<svg style="position:relative;width:64px;z-index:2" ')}</span>`, "left:30%;top:2px;--w:64;animation-duration:4s");
       b += SBX("", SCN.alien, "left:56%;bottom:6px;--w:20") + SBX("", SCN.alien, "left:60%;bottom:6px;--w:16;transform:scaleX(-1)");
       b += SBX("bbob", SCN.saucer("#5a4a7a"), "left:74%;top:4px;--w:46;animation-duration:5s;animation-delay:-1s") + SBX("bbob", SCN.saucer("#46526e"), "left:88%;top:10px;--w:36;animation-duration:6s;animation-delay:-2s");
       b += SBX("btw", `<svg viewBox="0 0 30 30"><circle cx="15" cy="15" r="11" fill="#e9f3ff"/><circle cx="11" cy="12" r="2" fill="#c8d6ea"/><circle cx="19" cy="18" r="2.4" fill="#c8d6ea"/></svg>`, "left:93%;top:2px;--w:20");
@@ -1557,7 +1540,7 @@ Object.assign(SCN, {
   pyramid: (c) => `<svg viewBox="0 0 60 38" aria-hidden="true"><path d="M2,36 L30,2 L58,36Z" fill="${c}" stroke="#7a5a1a" stroke-width="1.6" stroke-linejoin="round"/><path d="M30,2 L58,36 H36Z" fill="rgba(0,0,0,.14)"/><path d="M12,24 H48 M20,14 H40 M6,30 H54" stroke="rgba(120,80,20,.35)" stroke-width="1"/></svg>`,
   obelisk: `<svg viewBox="0 0 20 54" aria-hidden="true"><path d="M7,52 L8,8 L10,2 L12,8 L13,52Z" fill="#d9b25a" stroke="#7a5a1a" stroke-width="1.4" stroke-linejoin="round"/><path d="M10,2 L12,8 H8Z" fill="#ffe28a"/><rect x="3" y="50" width="14" height="4" fill="#b8913a" stroke="#7a5a1a" stroke-width="1.2"/><path d="M9,16 h2 M9,22 h2 M9,28 h2 M9,34 h2" stroke="#7a5a1a" stroke-width="1.2"/></svg>`,
   rasun: `<svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="22" fill="rgba(255,214,90,.25)"/><circle cx="25" cy="25" r="14" fill="#ffd45a" stroke="#c9901a" stroke-width="2"/><circle cx="25" cy="25" r="8" fill="#ffb02e"/></svg>`,
-  palm: `<svg viewBox="0 0 40 56" aria-hidden="true"><path d="M20,54 Q18,34 21,20" stroke="#7a5a2a" stroke-width="4" fill="none" stroke-linecap="round"/><g fill="#3f8a4a" stroke="#1f5a2a" stroke-width="1"><path d="M21,20 Q8,10 2,18 Q12,12 21,20Z"/><path d="M21,20 Q10,2 4,6 Q14,6 21,20Z"/><path d="M21,20 Q22,2 28,0 Q26,10 21,20Z"/><path d="M21,20 Q34,8 40,14 Q30,10 21,20Z"/><path d="M21,20 Q36,22 38,30 Q30,22 21,20Z"/></g></svg>`,
+  epalm: `<svg viewBox="0 0 40 56" aria-hidden="true"><path d="M20,54 Q18,34 21,20" stroke="#7a5a2a" stroke-width="4" fill="none" stroke-linecap="round"/><g fill="#3f8a4a" stroke="#1f5a2a" stroke-width="1"><path d="M21,20 Q8,10 2,18 Q12,12 21,20Z"/><path d="M21,20 Q10,2 4,6 Q14,6 21,20Z"/><path d="M21,20 Q22,2 28,0 Q26,10 21,20Z"/><path d="M21,20 Q34,8 40,14 Q30,10 21,20Z"/><path d="M21,20 Q36,22 38,30 Q30,22 21,20Z"/></g></svg>`,
   ankh: `<svg viewBox="0 0 24 40" aria-hidden="true"><path d="M12,16 C2,12 4,2 12,2 C20,2 22,12 12,16 V38 M4,22 H20" fill="none" stroke="#c9901a" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   horus: `<svg viewBox="0 0 44 26" aria-hidden="true"><path d="M2,12 Q22,-2 42,12 Q22,22 2,12Z" fill="#fff" stroke="#1f3a6b" stroke-width="2"/><circle cx="22" cy="11" r="5" fill="#1f3a6b"/><circle cx="22" cy="11" r="2" fill="#ffd45a"/><path d="M22,18 V25 M22,25 Q14,25 12,20 M2,12 L-1,18" fill="none" stroke="#1f3a6b" stroke-width="2"/></svg>`,
   sphinx: `<svg viewBox="0 0 70 38" aria-hidden="true"><path d="M2,36 V28 Q2,22 12,22 H40 Q56,22 62,28 Q68,32 68,36Z" fill="#e0b862" stroke="#7a5a1a" stroke-width="1.6" stroke-linejoin="round"/><path d="M8,22 V8 Q8,2 16,2 Q24,2 24,8 V22Z" fill="#e0b862" stroke="#7a5a1a" stroke-width="1.6" stroke-linejoin="round"/><path d="M8,8 H24 M6,12 L8,22 M26,12 L24,22" stroke="#2f5ba8" stroke-width="2.6"/><circle cx="19" cy="12" r="1.2" fill="#3a2a0a"/><path d="M2,30 H18" stroke="#7a5a1a" stroke-width="1.4"/></svg>`,
@@ -1594,7 +1577,7 @@ Object.assign(THEME_SCENES, {
       let b = `<span class="bgrd" style="background:#d9a441;height:8px;border-top:2px solid #7a5a1a"></span>`;
       b += SBX("bbob", SCN.rasun, "left:46%;top:-6px;--w:44;animation-duration:9s");
       b += SBX("", SCN.pyramid("#e8c375"), "left:4%;bottom:8px;--w:70") + SBX("", SCN.pyramid("#d9a95a"), "left:14%;bottom:8px;--w:46") + SBX("", SCN.sphinx, "left:26%;bottom:8px;--w:62");
-      b += SBX("", SCN.obelisk, "left:40%;bottom:8px;--w:16") + SBX("bsway", SCN.palm, "left:36%;bottom:8px;--w:34");
+      b += SBX("", SCN.obelisk, "left:40%;bottom:8px;--w:16") + SBX("bsway", SCN.epalm, "left:36%;bottom:8px;--w:34");
       b += SBX("btw", SCN.ankh, "left:58%;top:8px;--w:16") + SBX("btw", SCN.horus, "left:63%;top:14px;--w:40;animation-delay:-1s") + SBX("btw", SCN.ankh, "left:74%;top:8px;--w:16;animation-delay:-2s");
       b += SBX("bsway", SCN.reeds, "left:80%;bottom:8px;--w:20") + SBX("bsway", SCN.reeds, "left:84%;bottom:8px;--w:16;animation-delay:-1s") + SBX("", SCN.pyramid("#e8c375"), "left:90%;bottom:8px;--w:56");
       return b;
@@ -1640,7 +1623,7 @@ Object.assign(SCN, {
   duck: `<svg viewBox="0 0 40 36" aria-hidden="true"><path d="M4,26 Q2,16 14,16 Q14,4 24,4 Q34,4 32,14 L38,16 L32,18 Q34,26 26,32 Q10,36 4,26Z" fill="#ffdf2e" stroke="#a37a00" stroke-width="1.6" stroke-linejoin="round"/><path d="M32,14 L39,16 L32,18Z" fill="#ff8a1f" stroke="#a37a00" stroke-width="1"/><circle cx="26" cy="10" r="1.6" fill="#222"/><path d="M10,24 Q16,28 22,24" fill="none" stroke="#e8b800" stroke-width="2"/></svg>`,
   snakecan: `<svg viewBox="0 0 34 46" aria-hidden="true"><rect x="4" y="18" width="26" height="26" rx="3" fill="#ff4d4d" stroke="#8a1a1a" stroke-width="1.6"/><rect x="4" y="26" width="26" height="8" fill="#ffe14d"/><text x="17" y="33" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="6" fill="#8a1a1a">NUTS</text><path d="M10,18 C6,10 14,4 12,-0 M17,18 C16,8 24,6 22,-1 M24,18 C28,10 20,8 26,2" fill="none" stroke="#2fd16a" stroke-width="3.2" stroke-linecap="round"/></svg>`,
   spider: `<svg viewBox="0 0 30 40" aria-hidden="true"><path d="M15,0 V16" stroke="#555" stroke-width="1"/><ellipse cx="15" cy="24" rx="6" ry="7" fill="#222"/><circle cx="15" cy="17" r="3.6" fill="#222"/><g stroke="#222" stroke-width="1.6" fill="none" stroke-linecap="round"><path d="M10,22 L2,18 L1,26 M10,26 L3,30 L2,37 M20,22 L28,18 L29,26 M20,26 L27,30 L28,37"/></g><circle cx="13.6" cy="16.6" r="1" fill="#ff3b3b"/><circle cx="16.4" cy="16.6" r="1" fill="#ff3b3b"/></svg>`,
-  balloon: (c) => `<svg viewBox="0 0 26 44" aria-hidden="true"><ellipse cx="13" cy="14" rx="11" ry="13" fill="${c}" stroke="rgba(0,0,0,.2)" stroke-width="1"/><path d="M13,27 l-2,4 h4Z" fill="${c}"/><path d="M13,31 Q8,36 13,40 Q18,43 13,44" fill="none" stroke="#555" stroke-width="1"/><ellipse cx="8" cy="9" rx="2.4" ry="4" fill="rgba(255,255,255,.5)"/></svg>`,
+  afballoon: (c) => `<svg viewBox="0 0 26 44" aria-hidden="true"><ellipse cx="13" cy="14" rx="11" ry="13" fill="${c}" stroke="rgba(0,0,0,.2)" stroke-width="1"/><path d="M13,27 l-2,4 h4Z" fill="${c}"/><path d="M13,31 Q8,36 13,40 Q18,43 13,44" fill="none" stroke="#555" stroke-width="1"/><ellipse cx="8" cy="9" rx="2.4" ry="4" fill="rgba(255,255,255,.5)"/></svg>`,
   gotcha: `<svg viewBox="0 0 76 32" aria-hidden="true"><path d="M4,4 H72 Q74,4 74,6 V20 Q74,22 72,22 H30 L22,30 L22,22 H6 Q4,22 4,20 V6 Q4,4 6,4Z" fill="#fff" stroke="#222" stroke-width="2"/><text x="39" y="17" text-anchor="middle" font-family="Comic Sans MS,Chalkboard SE,Arial,sans-serif" font-weight="900" font-size="12" fill="#e0245e">GOTCHA!</text></svg>`,
   kickme: `<svg viewBox="0 0 50 24" aria-hidden="true"><rect x="2" y="2" width="46" height="20" rx="2" fill="#fff4b8" stroke="#a37a00" stroke-width="1.6"/><text x="25" y="16.5" text-anchor="middle" font-family="Comic Sans MS,Chalkboard SE,Arial,sans-serif" font-weight="900" font-size="10" fill="#d1242f">KICK ME</text></svg>`,
   pie: `<svg viewBox="0 0 40 26" aria-hidden="true"><path d="M2,20 Q4,22 20,22 Q36,22 38,20 L36,26 H4Z" fill="#c98a3a" stroke="#7a4a10" stroke-width="1.4"/><path d="M4,20 Q2,8 12,8 Q14,2 22,5 Q32,2 34,10 Q40,14 36,20Z" fill="#fff" stroke="#c9c9c9" stroke-width="1.4"/><circle cx="26" cy="9" r="3" fill="#ff4d6d"/></svg>`,
@@ -1651,7 +1634,7 @@ Object.assign(THEME_SCENES, {
     layer() {
       const cols = ["#ff4d8d", "#ffd23f", "#2fd1a0", "#8a3fd1", "#3aa6ff", "#ff8a1f"]; let h = "";
       for (let i = 0; i < 26; i++) h += `<i class="fall" style="left:${fxRand(0, 98).toFixed(1)}%;width:${fxRand(6, 12).toFixed(0)}px;opacity:.8;animation-duration:${fxRand(10, 20).toFixed(1)}s,${fxRand(3, 5).toFixed(1)}s;animation-delay:${(-fxRand(0, 20)).toFixed(1)}s,${(-fxRand(0, 5)).toFixed(1)}s;--sway:${fxRand(20, 70).toFixed(0)}px">${SCN.conf2(pick(cols, i))}</i>`;
-      for (let i = 0; i < 5; i++) h += `<i class="rise" style="--dx:${fxRand(-40, 40).toFixed(0)}px;left:${fxRand(3, 94).toFixed(1)}%;width:${fxRand(22, 34).toFixed(0)}px;opacity:.5;text-shadow:none;animation-duration:${fxRand(30, 55).toFixed(0)}s;animation-delay:${(-fxRand(0, 55)).toFixed(0)}s">${SCN.balloon(pick(cols, i + 1))}</i>`;
+      for (let i = 0; i < 5; i++) h += `<i class="rise" style="--dx:${fxRand(-40, 40).toFixed(0)}px;left:${fxRand(3, 94).toFixed(1)}%;width:${fxRand(22, 34).toFixed(0)}px;opacity:.5;text-shadow:none;animation-duration:${fxRand(30, 55).toFixed(0)}s;animation-delay:${(-fxRand(0, 55)).toFixed(0)}s">${SCN.afballoon(pick(cols, i + 1))}</i>`;
       return h;
     },
     banner() {
@@ -1659,8 +1642,94 @@ Object.assign(THEME_SCENES, {
       b += SBX("bhang", SCN.spider, "left:3%;top:0;--w:22") + SBX("bbob", SCN.jester, "left:9%;top:8px;--w:44;animation-duration:3s");
       b += SBX("btw", SCN.gotcha, "left:20%;top:6px;--w:80") + SBX("", SCN.banana, "left:32%;bottom:6px;--w:38;transform:rotate(-8deg)") + SBX("", SCN.whoopee, "left:42%;bottom:6px;--w:44");
       b += SBX("bbob", SCN.duck, "left:53%;top:10px;--w:34;animation-duration:2.6s") + SBX("", SCN.snakecan, "left:62%;bottom:6px;--w:32") + SBX("", SCN.pie, "left:70%;bottom:6px;--w:38");
-      b += SBX("btw", SCN.kickme, "left:79%;top:8px;--w:52;transform:rotate(5deg)") + SBX("bbob", SCN.balloon("#ff4d8d"), "left:90%;top:0;--w:24;animation-duration:4s") + SBX("bbob", SCN.balloon("#3aa6ff"), "left:94%;top:4px;--w:20;animation-duration:5s;animation-delay:-1s");
+      b += SBX("btw", SCN.kickme, "left:79%;top:8px;--w:52;transform:rotate(5deg)") + SBX("bbob", SCN.afballoon("#ff4d8d"), "left:90%;top:0;--w:24;animation-duration:4s") + SBX("bbob", SCN.afballoon("#3aa6ff"), "left:94%;top:4px;--w:20;animation-duration:5s;animation-delay:-1s");
       b += SBX("bhang", SCN.spider, "left:75%;top:0;--w:18;animation-delay:-1s");
+      return b;
+    },
+  },
+});
+
+/* Winter (redo): a snowy cabin village under a soft aurora, with layered snowfall. */
+Object.assign(SCN, {
+  wpine: (h) => `<svg viewBox="0 0 40 64" aria-hidden="true"><rect x="17" y="54" width="6" height="10" fill="#5a3a1f"/><path d="M20,2 L33,22 H26 L36,38 H28 L39,56 H1 L12,38 H4 L14,22 H7Z" fill="#2a6b4a" stroke="#194632" stroke-width="1.2" stroke-linejoin="round"/><path d="M20,2 L26,12 Q20,15 14,12Z M14,22 L12,25 Q20,29 28,25 L26,22 Q20,25 14,22Z M12,38 L9,42 Q20,47 31,42 L28,38 Q20,42 12,38Z" fill="#fff"/><path d="M4,56 Q20,52 36,56 L39,56 H1Z" fill="#fff"/></svg>`,
+  cabin: `<svg viewBox="0 0 72 56" aria-hidden="true"><rect x="52" y="6" width="9" height="16" fill="#8a4a3a" stroke="#4a2218" stroke-width="1.2"/><rect x="50" y="4" width="13" height="4" fill="#fff"/><rect x="8" y="26" width="56" height="28" fill="#a8683a" stroke="#4a2a10" stroke-width="1.6"/><path d="M8,34 H64 M8,42 H64 M8,50 H64" stroke="#7a4a22" stroke-width="1.2"/><path d="M2,28 L36,6 L70,28Z" fill="#4a6a8a" stroke="#22364a" stroke-width="1.6" stroke-linejoin="round"/><path d="M2,28 L36,6 L70,28 L66,29 Q36,16 6,29Z" fill="#fff"/><rect x="14" y="32" width="12" height="12" rx="1" fill="#ffd36e" stroke="#4a2a10" stroke-width="1.4"><animate attributeName="opacity" values="1;.78;1;.9;1" dur="3.4s" repeatCount="indefinite"/></rect><path d="M20,32 V44 M14,38 H26" stroke="#4a2a10" stroke-width="1"/><rect x="42" y="34" width="14" height="20" fill="#5a3418" stroke="#4a2a10" stroke-width="1.4"/><circle cx="53" cy="45" r="1.2" fill="#ffd36e"/></svg>`,
+  lamp: `<svg viewBox="0 0 20 52" aria-hidden="true"><rect x="9" y="12" width="3" height="38" fill="#33404d"/><rect x="5" y="48" width="11" height="4" fill="#33404d"/><path d="M5,12 L7,3 H14 L16,12Z" fill="#ffe9a0" stroke="#33404d" stroke-width="1.4"><animate attributeName="opacity" values="1;.8;1" dur="2.6s" repeatCount="indefinite"/></path><path d="M4,3 H17" stroke="#33404d" stroke-width="2"/><path d="M5,3 Q10.5,-2 16,3" fill="#fff"/></svg>`,
+  wsnowman: `<svg viewBox="0 0 40 58" aria-hidden="true"><circle cx="20" cy="46" r="11" fill="#fff" stroke="#bcd3ea"/><circle cx="20" cy="28" r="8.5" fill="#fff" stroke="#bcd3ea"/><circle cx="20" cy="14" r="6.5" fill="#fff" stroke="#bcd3ea"/><path d="M13,4 H27 V8 H13Z" fill="#c4372c"/><path d="M15,0 H25 V5 H15Z" fill="#c4372c"/><polygon points="20,14 29,16 20,17" fill="#ff8a1f"/><circle cx="17.5" cy="12" r="1" fill="#222"/><circle cx="22.5" cy="12" r="1" fill="#222"/><path d="M13,20 Q20,25 27,20 L27,24 Q20,29 13,24Z" fill="#2f8f5b"/><path d="M24,23 L26,34 L22,33Z" fill="#2f8f5b"/><circle cx="20" cy="31" r="1.2" fill="#555"/><circle cx="20" cy="37" r="1.2" fill="#555"/><path d="M12,32 L2,26 M28,32 L38,26" stroke="#6b4423" stroke-width="2" stroke-linecap="round"/></svg>`,
+  crystal: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><path d="M12,2 V22 M3.3,7 L20.7,17 M3.3,17 L20.7,7"/><path d="M9,4 L12,6.5 L15,4 M9,20 L12,17.5 L15,20 M2,10 L5.5,9.5 L4.5,6 M22,14 L18.5,14.5 L19.5,18 M2,14 L5.5,14.5 L4.5,18 M22,10 L18.5,9.5 L19.5,6"/></svg>`,
+  smoke: `<svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill="rgba(255,255,255,.7)"/></svg>`,
+});
+Object.assign(THEME_SCENES, {
+  winter: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 46; i++) { const big = i % 5 === 0; h += `<i class="fall snowW" style="left:${fxRand(0, 99).toFixed(1)}%;font-size:${(big ? fxRand(16, 24) : fxRand(7, 13)).toFixed(0)}px;opacity:${big ? .95 : .7};animation-duration:${(big ? fxRand(11, 17) : fxRand(15, 26)).toFixed(1)}s,${fxRand(3, 5).toFixed(1)}s;animation-delay:${(-fxRand(0, 26)).toFixed(1)}s,${(-fxRand(0, 5)).toFixed(1)}s;--sway:${fxRand(14, 46).toFixed(0)}px">${i % 3 ? "&#10052;" : "&#10053;"}</i>`; }
+      for (let i = 0; i < 12; i++) h += `<i class="twk" style="left:${fxRand(1, 98).toFixed(1)}%;top:${fxRand(2, 90).toFixed(1)}%;font-size:${fxRand(6, 11).toFixed(0)}px;color:#fff;animation-duration:${fxRand(3, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">&#10022;</i>`;
+      return h;
+    },
+    banner() {
+      let b = `<span class="bglow" style="left:8%;top:-6px;width:30%;height:40px;background:radial-gradient(ellipse,rgba(120,255,200,.5),transparent 70%)"></span><span class="bglow" style="left:48%;top:-8px;width:34%;height:44px;background:radial-gradient(ellipse,rgba(170,140,255,.45),transparent 70%);animation-delay:-2s"></span>`;
+      for (let i = 0; i < 10; i++) b += `<i class="twk" style="position:absolute;left:${fxRand(1, 98).toFixed(0)}%;top:${fxRand(3, 30).toFixed(0)}px;font-size:7px;color:#fff;animation-duration:${fxRand(3, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s">&#8226;</i>`;
+      b += SBX("btw", `<svg viewBox="0 0 30 30"><circle cx="15" cy="15" r="11" fill="#fff8d6"/><circle cx="11" cy="12" r="2" fill="#e8dca0"/><circle cx="19" cy="18" r="2.4" fill="#e8dca0"/></svg>`, "left:90%;top:4px;--w:24");
+      let ic = "M0,0 "; for (let x = 0; x < 1200; x += 24) { const hgt = 5 + ((x / 24) * 7 % 9); ic += `L${x},0 L${x + 12},${hgt} L${x + 24},0 `; }
+      b += `<svg class="scn" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true"><path d="${ic}Z" fill="#fff" opacity=".9"/><path d="M0,60 L0,50 Q200,40 420,50 T820,48 T1200,50 L1200,60Z" fill="#fff"/></svg>`;
+      [[1, 30], [9, 40], [17, 28], [60, 36], [68, 30], [95, 38]].forEach(([p, w], i) => b += SBX("", SCN.wpine(), `left:${p}%;bottom:4px;--w:${w}`));
+      b += SBX("", SCN.cabin, "left:26%;bottom:4px;--w:72");
+      for (let i = 0; i < 4; i++) b += `<i class="rise" style="position:absolute;left:calc(26% + 56px);bottom:48px;width:10px;opacity:.7;--dx:${fxRand(6, 22).toFixed(0)}px;animation-duration:${(5 + i * 1.2).toFixed(1)}s;animation-delay:${(-i * 1.4).toFixed(1)}s;text-shadow:none">${SCN.smoke}</i>`;
+      b += SBX("", SCN.lamp, "left:46%;bottom:4px;--w:16") + `<span class="bglow" style="left:calc(46% - 14px);bottom:10px;top:auto;width:44px;height:30px;background:radial-gradient(circle,rgba(255,224,140,.55),transparent 70%)"></span>`;
+      b += SBX("bsway", SCN.wsnowman, "left:78%;bottom:4px;--w:36;animation-duration:5s");
+      b += SBX("btw", SCN.crystal, "left:54%;top:8px;--w:16") + SBX("btw", SCN.crystal, "left:84%;top:18px;--w:12;animation-delay:-1.5s") + SBX("btw", SCN.crystal, "left:14%;top:14px;--w:12;animation-delay:-2.5s");
+      for (let i = 0; i < 14; i++) b += `<i class="bsnow" style="left:${fxRand(1, 98).toFixed(0)}%;font-size:${fxRand(6, 11).toFixed(0)}px;--dx:${fxRand(-30, 30).toFixed(0)}px;animation-duration:${fxRand(4, 8).toFixed(1)}s;animation-delay:${(-fxRand(0, 8)).toFixed(1)}s">&#10052;</i>`;
+      return b;
+    },
+  },
+});
+
+/* Word Processor: a 1990s-style word-processor look with clip art, WordArt-style text and an original pencil helper ("Penny"). */
+Object.assign(SCN, {
+  cbulb: `<svg viewBox="0 0 30 40" aria-hidden="true"><path d="M15,2 C5,2 2,12 8,19 C11,23 11,25 11,28 H19 C19,25 19,23 22,19 C28,12 25,2 15,2Z" fill="#ffe14d" stroke="#111" stroke-width="1.6"/><rect x="11" y="28" width="8" height="3" fill="#bbb" stroke="#111" stroke-width="1.2"/><rect x="12" y="31" width="6" height="3" fill="#999" stroke="#111" stroke-width="1.2"/><path d="M12,8 Q9,12 11,16" fill="none" stroke="#fff" stroke-width="2"/><path d="M15,-1 V-5 M4,4 L1,1 M26,4 L29,1" stroke="#111" stroke-width="1.6"/></svg>`,
+  cglobe: `<svg viewBox="0 0 36 40" aria-hidden="true"><circle cx="18" cy="17" r="14" fill="#3a8fe0" stroke="#111" stroke-width="1.6"/><path d="M9,10 Q14,6 18,10 Q16,16 20,18 Q16,24 12,22 Q10,16 9,10Z M24,12 Q30,14 29,20 Q26,22 24,18Z" fill="#4fbf5a" stroke="#111" stroke-width="1"/><path d="M18,3 V31 M4,17 H32" stroke="rgba(255,255,255,.55)" stroke-width="1"/><path d="M8,34 H28 M18,31 V36" stroke="#111" stroke-width="2.4"/></svg>`,
+  ctrophy: `<svg viewBox="0 0 34 40" aria-hidden="true"><path d="M8,4 H26 V14 Q26,24 17,24 Q8,24 8,14Z" fill="#ffd23f" stroke="#111" stroke-width="1.6"/><path d="M8,7 Q1,7 2,13 Q3,18 9,18 M26,7 Q33,7 32,13 Q31,18 25,18" fill="none" stroke="#111" stroke-width="1.6"/><rect x="15" y="24" width="4" height="7" fill="#e0a800" stroke="#111" stroke-width="1.2"/><rect x="9" y="31" width="16" height="6" rx="1" fill="#8a5a1a" stroke="#111" stroke-width="1.4"/><path d="M12,8 Q12,16 15,19" fill="none" stroke="#fff" stroke-width="2"/></svg>`,
+  cenv: `<svg viewBox="0 0 42 30" aria-hidden="true"><rect x="2" y="3" width="38" height="24" fill="#fff" stroke="#111" stroke-width="1.6"/><path d="M2,3 L21,18 L40,3" fill="#e8eef8" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/><path d="M2,27 L15,14 M40,27 L27,14" fill="none" stroke="#111" stroke-width="1.2"/><circle cx="34" cy="8" r="0" fill="none"/></svg>`,
+  csmile: `<svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="14" fill="#ffe14d" stroke="#111" stroke-width="1.8"/><ellipse cx="12" cy="13" rx="2" ry="3" fill="#111"/><ellipse cx="22" cy="13" rx="2" ry="3" fill="#111"/><path d="M8,20 Q17,31 26,20" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round"/></svg>`,
+  cbrief: `<svg viewBox="0 0 40 32" aria-hidden="true"><path d="M14,8 V4 Q14,2 16,2 H24 Q26,2 26,4 V8" fill="none" stroke="#111" stroke-width="2"/><rect x="2" y="8" width="36" height="22" rx="3" fill="#b8742a" stroke="#111" stroke-width="1.6"/><path d="M2,17 H38" stroke="#111" stroke-width="1.4"/><rect x="17" y="14" width="6" height="7" rx="1" fill="#ffd23f" stroke="#111" stroke-width="1.2"/></svg>`,
+  ccalc: `<svg viewBox="0 0 30 40" aria-hidden="true"><rect x="2" y="2" width="26" height="36" rx="3" fill="#cfd6df" stroke="#111" stroke-width="1.6"/><rect x="6" y="6" width="18" height="8" fill="#b8f0c8" stroke="#111" stroke-width="1.2"/><g fill="#555" stroke="#111" stroke-width=".8">${[0,1,2].map(r=>[0,1,2].map(c=>`<rect x="${6+c*6.4}" y="${18+r*6.4}" width="5" height="5"/>`).join("")).join("")}</g><rect x="6" y="31" width="18" height="4" fill="#e0524d" stroke="#111" stroke-width=".8"/></svg>`,
+  cburst: (t) => `<svg viewBox="0 0 54 44" aria-hidden="true"><path d="M27,1 L32,10 L42,5 L41,16 L52,18 L45,26 L52,34 L41,35 L43,43 L33,39 L27,43 L21,39 L11,43 L13,35 L2,34 L9,26 L2,18 L13,16 L12,5 L22,10Z" fill="#ffe14d" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/><text x="27" y="26" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="10" fill="#d1242f">${t}</text></svg>`,
+  wordart: (t) => `<svg viewBox="0 0 250 36" aria-hidden="true"><defs><linearGradient id="wag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe97a"/><stop offset=".5" stop-color="#ff7a3c"/><stop offset="1" stop-color="#c01f5a"/></linearGradient></defs><g transform="skewX(-8) translate(8 0)" font-family="Impact,Arial Black,sans-serif" font-weight="900" font-size="25" letter-spacing="1"><text x="4" y="29" fill="#1a1a40">${t}</text><text x="2" y="27" fill="url(#wag)" stroke="#1a1a40" stroke-width="1">${t}</text></g></svg>`,
+  penny: `<svg viewBox="0 0 54 100" aria-hidden="true"><g class="pn-sway"><path d="M27,96 L16,82 H38Z" fill="#f3d3a8" stroke="#333" stroke-width="1.6" stroke-linejoin="round"/><path d="M27,96 L23,89 H31Z" fill="#333"/><path d="M16,82 V26 H38 V82Z" fill="#ffd23f" stroke="#333" stroke-width="1.8"/><path d="M24,26 V82 M30,26 V82" stroke="#e0a800" stroke-width="1.6"/><rect x="14" y="16" width="26" height="12" fill="#c8ccd2" stroke="#333" stroke-width="1.6"/><path d="M14,20 H40 M14,24 H40" stroke="#8a8f98" stroke-width="1"/><path d="M14,16 V10 Q14,2 27,2 Q40,2 40,10 V16Z" fill="#ff8fb0" stroke="#333" stroke-width="1.8"/><g><ellipse cx="22" cy="44" rx="4" ry="5.4" fill="#fff" stroke="#333" stroke-width="1.4"/><ellipse cx="32" cy="44" rx="4" ry="5.4" fill="#fff" stroke="#333" stroke-width="1.4"/><circle cx="23" cy="45" r="2" fill="#222"><animate attributeName="cy" values="45;45;46;45" dur="5s" repeatCount="indefinite"/></circle><circle cx="33" cy="45" r="2" fill="#222"/><rect x="17" y="38" width="10" height="0" fill="#ffd23f"><animate attributeName="height" values="0;0;12;0;0" keyTimes="0;.9;.93;.96;1" dur="4.5s" repeatCount="indefinite"/></rect><rect x="27" y="38" width="10" height="0" fill="#ffd23f"><animate attributeName="height" values="0;0;12;0;0" keyTimes="0;.9;.93;.96;1" dur="4.5s" repeatCount="indefinite"/></rect></g><path d="M21,56 Q27,62 33,56" fill="none" stroke="#333" stroke-width="1.8" stroke-linecap="round"/><circle cx="19" cy="55" r="2.4" fill="#ff9ab4" opacity=".7"/><circle cx="35" cy="55" r="2.4" fill="#ff9ab4" opacity=".7"/><g class="pn-wave"><path d="M38,66 Q48,60 50,50" fill="none" stroke="#333" stroke-width="2.4" stroke-linecap="round"/><circle cx="50" cy="48" r="3" fill="#fff" stroke="#333" stroke-width="1.4"/></g><path d="M16,66 Q8,70 6,78" fill="none" stroke="#333" stroke-width="2.4" stroke-linecap="round"/><circle cx="6" cy="79" r="3" fill="#fff" stroke="#333" stroke-width="1.4"/></g></svg>`,
+});
+Object.assign(THEME_SCENES, {
+  wordproc: {
+    layer() {
+      const page = (location.pathname.split("/").pop() || "portal.html").replace(".html", "");
+      const byPage = {
+        portal: ["Welcome back! Pick a tile to get started.", "Leave Manager is where you request annual leave, TOIL and study leave.", "The Huddle Board holds pinned notices and a searchable history."],
+        index: ["Click a day on the calendar to start a leave request.", "Coloured tiles show who is off and what kind of leave it is.", "Use the filters to see just your site or your team."],
+        calendar: ["Click a day on the calendar to start a leave request.", "Coloured tiles show who is off and what kind of leave it is.", "Approvers: hold Ctrl and click days to approve several in one go."],
+        approvals: ["Check the capacity message before you approve a request.", "Approvers can add an optional note; only other approvers can see it.", "A tile with an asterisk (*) has an approver note attached."],
+        "my-leave": ["Your requests and their status are all listed here.", "Pending requests can be changed or withdrawn before they are approved.", "Book early: popular dates fill up fast!"],
+        huddle: ["Pinned notices stay at the top of the Huddle Board.", "Older notices live in the searchable history.", "PDF attachments open straight from the notice."],
+        links: ["Quick Links gives one-click shortcuts to the systems you use every day.", "Can't find a link? Ask an admin to add it.", "Add the portal to your browser bookmarks for even quicker access."],
+        oncall: ["Need to swap an on-call shift? Send a swap request from here.", "Check the rota before you book leave so you don't clash.", "Overnight and onsite cover are shown for each site."],
+        admin: ["Admins can change themes for everyone, or for a single month.", "Double-check roles before saving: they control what people can see.", "Backups can be sent on a schedule or with Send now."],
+      };
+      const general = ["Change how this looks with the theme picker in the top bar.", "Press Animations: Off and I will sit still.", "Remember to take your breaks and stay hydrated!", "Your colleagues can see approved leave on the calendar.", "Sign out when you leave a shared computer.", "Got a good idea for the portal? Tell the team!", "Dark mode is just a drop-down away in the top bar.", "Check your leave balance before you book a holiday.", "A quick huddle each shift keeps everyone in the loop.", "Handover notes now save time later!"];
+      const tips = (byPage[page] || []).slice(0, 3);
+      const pool = general.slice().sort(() => Math.random() - .5);
+      while (tips.length < 6) tips.push(pool.pop());
+      tips.sort(() => Math.random() - .5);
+      let h = `<span class="pn-wrap">`;
+      tips.forEach((t, i) => h += `<span class="pn-tip" style="animation-delay:${-(i * 6)}s">${t}</span>`);
+      h += `<span class="pn-char" style="line-height:0">${SCN.penny}</span></span>`;
+      return h;
+    },
+    banner() {
+      let b = `<span class="bgrd" style="background:#cfd6e2;height:5px"></span>`;
+      b += SBX("bbob", SCN.wordart("Pharmacy Portal"), "left:1%;top:10px;--w:240;animation-duration:6s");
+      b += SBX("bbob", SCN.cbulb, "left:28%;top:12px;--w:26;animation-duration:5s") + SBX("bbob", SCN.cglobe, "left:33.5%;top:8px;--w:32;animation-duration:6s;animation-delay:-1s");
+      b += SBX("btw", SCN.cburst("NEW!"), "left:40%;top:6px;--w:44") + SBX("bbob", SCN.ctrophy, "left:48%;top:8px;--w:30;animation-duration:7s;animation-delay:-2s");
+      b += SBX("bbob", SCN.cenv, "left:56%;top:14px;--w:36;animation-duration:5.5s") + SBX("bbob", SCN.csmile, "left:64%;top:10px;--w:32;animation-duration:4.5s;animation-delay:-1.5s");
+      b += SBX("bbob", SCN.cbrief, "left:72%;top:12px;--w:34;animation-duration:6s;animation-delay:-3s") + SBX("bbob", SCN.ccalc, "left:80%;top:8px;--w:26;animation-duration:5s;animation-delay:-2s");
+      b += SBX("btw", SCN.cburst("HOT!"), "left:87%;top:8px;--w:40") + SBX("bbob", SCN.cbulb, "left:95%;top:12px;--w:22;animation-duration:5s;animation-delay:-1s");
       return b;
     },
   },
