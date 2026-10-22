@@ -127,7 +127,7 @@ const THEMES = {
   edgadp: "ED&G ADP",
   fishzoo: "Fish Zoo",
   rockpool: "Scourer Bob",
-  flashsale: "Discount Items",
+  flashsale: "Portal from TEMU",
   wizard: "Pigwarts",
   hospharm: "Hospital Pharmacy",
   clinfo: "Clinical Informatics",
