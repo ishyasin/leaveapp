@@ -62,7 +62,7 @@ let PROFILES = [];
 let PENDING = [];
 
 (async () => {
-  PROFILE = await requireAuth(["lead_pharmacist","superuser","developer"]);
+  PROFILE = await requireAuth(["lead_pharmacist","superuser","developer","pharmacy_admin"]);
   if (!PROFILE) return;
   const { data } = await sb.from("profiles").select("id, full_name, initials, role, suspended_last_day");
   PROFILES = data || [];

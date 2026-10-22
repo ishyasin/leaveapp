@@ -154,7 +154,7 @@ let NEW_FILES = [];         // File objects chosen but not yet uploaded
   PROFILE = await requireAuth(null);
   if (!PROFILE) return;
   if (canPostHuddle(PROFILE)) document.getElementById("newPostBtn").style.display = "";
-  if (isTechnicianRole(PROFILE)) document.body.classList.add("ro-technician");
+  if (isTechnicianRole(PROFILE) || isPharmacyAdmin(PROFILE)) document.body.classList.add("ro-technician");
   VIEW = PROFILE.cross_site ? "both" : (PROFILE.primary_site || "both");
   const { data } = await sb.rpc("get_name_directory");
   DIR = data || [];

@@ -11,6 +11,41 @@ const LOGIN_EMAIL_DOMAIN = "leave.gdgspecialprojects.local";
 const EDGE_FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Pharmacy Admin is a read-only role. The database refuses every write for it; this guard
+// additionally stops the browser even trying (friendlier message) except for harmless reads and
+// the person's own colour/theme preference.
+const RO_ADMIN_RPC_OK = new Set(["get_profile_directory", "get_oncall_people", "get_oncall_pending_swaps", "get_oncall_audit", "get_name_directory", "get_backup_schedule", "search_huddle_posts", "set_own_theme", "set_own_color_mode"]);
+const RO_ADMIN_MSG = "Pharmacy Admin accounts are read-only: you can view everything but cannot make changes.";
+(function () {
+  const rpc0 = sb.rpc.bind(sb);
+  sb.rpc = (fn, args, opts) => (window.__RO_ADMIN && !RO_ADMIN_RPC_OK.has(fn))
+    ? Promise.resolve({ data: null, error: { message: RO_ADMIN_MSG } })
+    : rpc0(fn, args, opts);
+})();
+function applyPharmacyAdminMode() {
+  window.__RO_ADMIN = true;
+  document.body.classList.add("ro-padmin");
+  if (!document.getElementById("roAdminBanner")) {
+    const bar = document.createElement("div");
+    bar.id = "roAdminBanner"; bar.className = "ro-admin-banner";
+    bar.textContent = "Read-only account (Pharmacy Admin): you can view everything, but you cannot request, amend or approve leave or change any data.";
+    const tb = document.getElementById("topbar");
+    if (tb && tb.parentNode) tb.parentNode.insertBefore(bar, tb.nextSibling); else document.body.prepend(bar);
+  }
+  const KEEP = /^\s*(search|cancel|close|back|continue|ok|done|clear search|reset filters)\b/i;
+  let queued = false;
+  const sweep = () => {
+    queued = false;
+    document.querySelectorAll("button.primary, button.danger, button[data-act='delcomment']").forEach((b) => {
+      if (KEEP.test(b.textContent || "")) return;
+      b.style.display = "none"; b.setAttribute("data-ro-hidden", "1");
+    });
+  };
+  const queue = () => { if (!queued) { queued = true; requestAnimationFrame(sweep); } };
+  new MutationObserver(queue).observe(document.body, { childList: true, subtree: true });
+  sweep();
+}
+
 
 const LEAVE_TYPE_LABEL = {
   full_day: "Annual Leave (Full Day)",
@@ -28,6 +63,7 @@ const ROLE_LABEL = {
   developer: "Developer",
   technician: "Technician",
   senior_technician: "Senior Technician",
+  pharmacy_admin: "Pharmacy Admin",
 };
 
 const SITE_LABEL = {
@@ -104,6 +140,7 @@ const THEMES = {
   greece: "Ancient Greece",
   aprilfools: "April Fools",
   wordproc: "Word Processor",
+  calmforest: "Calm Forest",
 };
 const COLOR_MODES = {
   light:    "Light",
@@ -1735,6 +1772,44 @@ Object.assign(THEME_SCENES, {
   },
 });
 
+/* Calm Forest: soft, slow, low-contrast misty woodland (sprite names are prefixed "cf" to avoid clashing with older themes). */
+Object.assign(SCN, {
+  cftree: (c, c2) => `<svg viewBox="0 0 40 80" aria-hidden="true"><rect x="18" y="64" width="5" height="16" fill="#6b5a45"/><path d="M20,2 L31,26 H25 L35,46 H27 L38,68 H2 L13,46 H5 L15,26 H9Z" fill="${c}"/><path d="M20,2 L31,26 H25 L35,46 H27 L38,68 H20Z" fill="${c2}" opacity=".5"/></svg>`,
+  cfoak: (c) => `<svg viewBox="0 0 56 72" aria-hidden="true"><path d="M24,70 L26,40 Q20,34 16,26 M32,70 L30,42 Q36,34 40,28" fill="none" stroke="#6b5a45" stroke-width="5" stroke-linecap="round"/><rect x="24" y="36" width="8" height="34" fill="#6b5a45"/><circle cx="28" cy="22" r="18" fill="${c}"/><circle cx="14" cy="30" r="12" fill="${c}"/><circle cx="42" cy="30" r="12" fill="${c}"/><circle cx="22" cy="16" r="8" fill="rgba(255,255,255,.18)"/></svg>`,
+  cfdeer: `<svg viewBox="0 0 54 50" aria-hidden="true"><g fill="#a98f6a" stroke="#7a6444" stroke-width="1.2" stroke-linejoin="round"><path d="M10,22 Q10,14 22,14 H36 Q46,14 46,22 V28 Q46,32 42,32 H14 Q10,32 10,28Z"/><path d="M38,16 L44,6 Q48,4 50,8 L48,18 Q44,20 40,20Z"/><rect x="14" y="30" width="4" height="16"/><rect x="22" y="30" width="4" height="16"/><rect x="34" y="30" width="4" height="16"/><rect x="42" y="30" width="4" height="16"/></g><path d="M44,6 L42,1 M44,6 L48,1 M42,4 L38,2" stroke="#6b5a45" stroke-width="1.6" stroke-linecap="round"/><circle cx="46" cy="9" r="1" fill="#2a2018"/><circle cx="20" cy="22" r="1.2" fill="#fff" opacity=".8"/><circle cx="28" cy="19" r="1.2" fill="#fff" opacity=".8"/><circle cx="34" cy="24" r="1.2" fill="#fff" opacity=".8"/></svg>`,
+  cfmush: (c) => `<svg viewBox="0 0 28 26" aria-hidden="true"><path d="M12,24 Q11,16 12,12 H16 Q17,16 16,24Z" fill="#efe6d2" stroke="#b8a888" stroke-width="1"/><path d="M2,13 Q2,2 14,2 Q26,2 26,13Z" fill="${c}" stroke="rgba(0,0,0,.18)" stroke-width="1"/><circle cx="9" cy="8" r="1.8" fill="rgba(255,255,255,.8)"/><circle cx="16" cy="6" r="1.4" fill="rgba(255,255,255,.8)"/><circle cx="20" cy="10" r="1.6" fill="rgba(255,255,255,.8)"/></svg>`,
+  cffern: (c) => `<svg viewBox="0 0 36 40" aria-hidden="true" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round"><path d="M18,40 Q16,24 18,2"/><path d="M18,34 Q8,30 4,22 M18,28 Q8,24 6,14 M18,22 Q10,18 10,8 M18,34 Q28,30 32,22 M18,28 Q28,24 30,14 M18,22 Q26,18 26,8"/></svg>`,
+  cfrock: `<svg viewBox="0 0 40 22" aria-hidden="true"><path d="M2,21 Q2,8 14,6 Q22,2 30,8 Q40,10 38,21Z" fill="#a8b0a8" stroke="#7f887f" stroke-width="1.2"/><path d="M8,17 Q14,12 22,14" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="2"/><path d="M4,20 Q8,14 12,20 M26,20 Q30,15 36,20" fill="#6a9a6a" stroke="#4a7a4a" stroke-width="1"/></svg>`,
+  cfleaf: (c) => `<svg viewBox="0 0 20 26" aria-hidden="true"><path d="M10,1 C19,8 19,19 10,25 C1,19 1,8 10,1Z" fill="${c}"/><path d="M10,4 V24" stroke="rgba(0,0,0,.2)" stroke-width="1"/></svg>`,
+  cfmist: `<svg viewBox="0 0 200 40" aria-hidden="true"><defs><radialGradient id="cfmg"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs><ellipse cx="100" cy="20" rx="98" ry="18" fill="url(#cfmg)"/></svg>`,
+  cfbeam: `<svg viewBox="0 0 40 100" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="cfbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c8" stop-opacity=".65"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></linearGradient></defs><path d="M10,0 H26 L40,100 H0Z" fill="url(#cfbg)"/></svg>`,
+});
+Object.assign(THEME_SCENES, {
+  calmforest: {
+    layer() {
+      let h = "";
+      const lc = ["#9fbf8a", "#c9b27a", "#b7cfa2", "#d8c79a"];
+      for (let i = 0; i < 9; i++) h += `<i class="fall" style="left:${fxRand(0, 98).toFixed(1)}%;width:${fxRand(9, 14).toFixed(0)}px;opacity:.55;animation-duration:${fxRand(28, 46).toFixed(1)}s,${fxRand(6, 9).toFixed(1)}s;animation-delay:${(-fxRand(0, 46)).toFixed(1)}s,${(-fxRand(0, 9)).toFixed(1)}s;--sway:${fxRand(20, 50).toFixed(0)}px">${SCN.cfleaf(pick(lc, i))}</i>`;
+      for (let i = 0; i < 3; i++) h += `<span class="xing" style="top:${(52 + i * 16)}%;animation-duration:${(150 + i * 40)}s;animation-delay:${(-i * 60)}s;--w:${360 + i * 60};opacity:.5">${SCN.cfmist}</span>`;
+      for (let i = 0; i < 10; i++) h += `<i class="twk" style="left:${fxRand(2, 97).toFixed(1)}%;top:${fxRand(20, 95).toFixed(1)}%;font-size:6px;color:#f6ecb0;animation-duration:${fxRand(5, 9).toFixed(1)}s;animation-delay:${(-fxRand(0, 9)).toFixed(1)}s">&#8226;</i>`;
+      return h;
+    },
+    banner() {
+      let b = `<span class="bgrd" style="background:#7a9a6a;height:7px"></span>`;
+      b += SBX("btw", SCN.cfbeam, "left:18%;top:0;--w:60;opacity:.8;animation-duration:7s") + SBX("btw", SCN.cfbeam, "left:56%;top:0;--w:50;opacity:.7;animation-duration:9s;animation-delay:-3s");
+      const far = ["#9bb89a", "#a7c1a2", "#94b093"], near = ["#5f8a6a", "#6b9674", "#557f60"];
+      for (let i = 0; i < 12; i++) b += SBX("", SCN.cftree(pick(far, i), "#8aa88a"), `left:${(2 + i * 8.2).toFixed(0)}%;bottom:6px;--w:${(18 + (i % 3) * 5)};opacity:.7`);
+      [[5, 30], [26, 26], [46, 32], [74, 28], [92, 30]].forEach(([p, w], i) => b += SBX("bsway", SCN.cftree(pick(near, i), "#7aa886"), `left:${p}%;bottom:6px;--w:${w};animation-duration:9s;animation-delay:${(-i * 1.3).toFixed(1)}s`));
+      b += SBX("bsway", SCN.cfoak("#7fa56f"), "left:36%;bottom:6px;--w:44;animation-duration:10s");
+      b += SBX("", SCN.cfdeer, "left:60%;bottom:6px;--w:42") + SBX("", SCN.cfrock, "left:14%;bottom:6px;--w:26");
+      b += SBX("bsway", SCN.cffern("#4f8a5a"), "left:20%;bottom:6px;--w:22;animation-duration:7s") + SBX("bsway", SCN.cffern("#5f9a6a"), "left:68%;bottom:6px;--w:18;animation-duration:8s;animation-delay:-2s") + SBX("bsway", SCN.cffern("#4f8a5a"), "left:84%;bottom:6px;--w:22;animation-duration:7.5s;animation-delay:-1s");
+      b += SBX("", SCN.cfmush("#c8706a"), "left:30%;bottom:6px;--w:14") + SBX("", SCN.cfmush("#d9a860"), "left:33%;bottom:6px;--w:10") + SBX("", SCN.cfmush("#c8706a"), "left:80%;bottom:6px;--w:12");
+      b += SBX("xing", SCN.cfmist, "left:0;top:26px;--w:240;opacity:.55;animation-duration:140s") + SBX("xing", SCN.cfmist, "left:0;top:34px;--w:300;opacity:.45;animation-duration:190s;animation-delay:-80s");
+      return b;
+    },
+  },
+});
+
 function buildThemeFx() {
   const theme = document.documentElement.getAttribute("data-theme");
   const SCENE = THEME_SCENES[theme];
@@ -2341,6 +2416,7 @@ async function requireAuth(allowedRoles) {
     return null;
   }
   renderTopbar(profile);
+  if (isPharmacyAdmin(profile)) applyPharmacyAdminMode();
   return profile;
 }
 
@@ -2351,7 +2427,10 @@ function isDeveloper(profile) { return profile.role === "developer"; }
 // "senior_technician" can also post on the Huddle Board and view the on-call
 // rota (read-only). Neither sees the leave calendar. Neither takes leave or sits in the on-call pool.
 function isTechnicianRole(profile) { return profile.role === "technician"; }
-function isReadOnlyRole(profile) { return profile.role === "technician" || profile.role === "senior_technician"; }
+function isReadOnlyRole(profile) { return profile.role === "technician" || profile.role === "senior_technician" || profile.role === "pharmacy_admin"; }
+// Pharmacy Admin: can VIEW everything (all leave, approvals, admin, audit, on-call) but can never
+// request, amend, approve or delete anything. Enforced in the database; the UI also hides write controls.
+function isPharmacyAdmin(profile) { return !!profile && profile.role === "pharmacy_admin"; }
 function canPostHuddle(profile) { return ["lead_pharmacist", "superuser", "developer", "senior_technician"].includes(profile.role); }
 const VIEWER_PAGES = ["portal.html", "huddle.html", "links.html", "reset-password.html", "login.html", "index.html", ""];
 // In the on-call pool for at least one site — governs whether "My
@@ -2404,13 +2483,13 @@ function renderTopbar(profile) {
     // Huddle Board, Quick Links and the on-call rota — no leave calendar.
     for (let i = links.length - 1; i >= 0; i--) if (links[i][0] === "calendar.html") links.splice(i, 1);
   }
-  if (isSuperuserPlus(profile)) {
+  if (isSuperuserPlus(profile) || isPharmacyAdmin(profile)) {
     links.push(["admin.html", "Admin", page === "admin.html"]);
     links.push(["audit.html", "Audit Trail", page === "audit.html"]);
   }
   const subLinks = [["calendar.html", "Calendar"]];
   if (!isReadOnlyRole(profile)) subLinks.push(["my-leave.html", "My Leave"]);
-  if (isLeadPlus(profile)) subLinks.push(["approvals.html", "Approvals"]);
+  if (isLeadPlus(profile) || isPharmacyAdmin(profile)) subLinks.push(["approvals.html", "Approvals"]);
 
   const modeOptions = Object.entries(COLOR_MODES)
     .map(([val, label]) => `<option value="${val}"${profile.color_mode === val ? " selected" : ""}>${label}</option>`)

@@ -90,6 +90,7 @@
 :root[data-theme="greece"]{--navy:#0d4f8b; --navy-light:#1d7ac8; --teal:#1d7ac8; --teal-light:#7fc1f0; --honey:#d4af37; --honey-dark:#a8892a;}
 :root[data-theme="aprilfools"]{--navy:#5a1f9a; --navy-light:#8a3fd1; --teal:#ff4d8d; --teal-light:#ff9ac0; --honey:#ffd23f; --honey-dark:#e0a800;}
 :root[data-theme="wordproc"]{--navy:#2a4d8f; --navy-light:#3b67b8; --teal:#2a6ac8; --teal-light:#7fb0ee; --honey:#f0b429; --honey-dark:#c48f10;}
+:root[data-theme="calmforest"]{--navy:#2f4a3a; --navy-light:#4a6b58; --teal:#6b8f71; --teal-light:#a9c7a8; --honey:#c9b27a; --honey-dark:#a08a52;}
 :root[data-theme="win98"]{--navy:#000080; --navy-light:#1084d0; --teal:#008080; --teal-light:#1084d0; --honey:#ffffe1; --honey-dark:#808080;}
 
 :root[data-theme="barbie"]{--navy:#c2185b; --navy-light:#e0306f; --teal:#ff4fa3; --teal-light:#ff86c1; --honey:#ffd1ea; --honey-dark:#ff9ac9;}
@@ -173,6 +174,7 @@
 :root[data-theme="greece"] .theme-banner,
 :root[data-theme="aprilfools"] .theme-banner,
 :root[data-theme="wordproc"] .theme-banner,
+:root[data-theme="calmforest"] .theme-banner,
 :root[data-theme="respiratory"] .theme-banner{display:block;}
 :root[data-theme="halloween"] .theme-banner{background:linear-gradient(#150f1c,#2a1f33);}
 :root[data-theme="christmas"] .theme-banner{background:linear-gradient(#5a0f19,#7a1621);}
@@ -685,3 +687,8 @@ tr.clash-row{background:#fff8e1;}
 @keyframes fxBob{from{transform:translateY(0)}to{transform:translateY(-8px)}}
 .theme-fx .bbob{animation:fxBob 4s ease-in-out infinite alternate;}
 :root[data-anim="off"] .theme-fx .bbob{animation:none;}
+:root[data-theme="calmforest"] .theme-banner{background:linear-gradient(#eef5e8,#c9dcc2 65%,#a9c4a4);border-bottom:3px solid #6b8f71;}
+:root[data-theme="calmforest"] .theme-banner .bx.xing{animation:fxRun linear infinite;}
+.ro-admin-banner{background:#fff4cc;color:#5a4300;border-bottom:1px solid #e6cf7a;padding:6px 16px;font-size:13px;text-align:center;}
+:root[data-color-mode="dark"] .ro-admin-banner,:root[data-color-mode="inverted"] .ro-admin-banner{background:#3a3000;color:#ffe9a0;border-bottom-color:#6b5a10;}
+body.ro-padmin td.daynum[data-day]{cursor:default;}

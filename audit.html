@@ -124,7 +124,7 @@ let PROFILE = null;
 let PROFILES = [];
 
 (async () => {
-  PROFILE = await requireAuth(["superuser","developer"]);
+  PROFILE = await requireAuth(["superuser","developer","pharmacy_admin"]);
   if (!PROFILE) return;
   if (isDeveloper(PROFILE)) document.getElementById("clearLogsCard").style.display = "";
   const { data } = await sb.from("profiles").select("id, full_name, initials");

@@ -134,6 +134,7 @@
           <option value="superuser">Team Leader (Clinical Team Lead)</option>
           <option value="technician">Technician</option>
           <option value="senior_technician">Senior Technician</option>
+          <option value="pharmacy_admin">Pharmacy Admin</option>
         </select>
         <button type="button" class="secondary" id="usersFilterClear" style="display:none;">Clear filters</button>
       </div>
@@ -619,7 +620,7 @@ let PROFILE = null;
 let PROFILES = [];
 
 (async () => {
-  PROFILE = await requireAuth(["superuser","developer"]);
+  PROFILE = await requireAuth(["superuser","developer","pharmacy_admin"]);
   if (!PROFILE) return;
   if (isDeveloper(PROFILE)) {
     document.getElementById("tabBtn-import").style.display = "";
@@ -693,8 +694,8 @@ document.getElementById("inviteEmails").addEventListener("input", updateInviteCo
 
 function setupInviteRoles() {
   const options = isDeveloper(PROFILE)
-    ? ["pharmacist","lead_pharmacist","superuser","developer","technician","senior_technician"]
-    : ["pharmacist","lead_pharmacist","superuser","technician","senior_technician"];
+    ? ["pharmacist","lead_pharmacist","superuser","developer","technician","senior_technician","pharmacy_admin"]
+    : ["pharmacist","lead_pharmacist","superuser","technician","senior_technician","pharmacy_admin"];
   document.getElementById("inviteRole").innerHTML = options.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join("");
 }
 
@@ -825,8 +826,8 @@ function toggleCreateForm() {
 function setupRoleOptions() {
   const sel = document.getElementById("newRole");
   const options = isDeveloper(PROFILE)
-    ? ["pharmacist","lead_pharmacist","superuser","developer","technician","senior_technician"]
-    : ["pharmacist","lead_pharmacist","superuser","technician","senior_technician"];
+    ? ["pharmacist","lead_pharmacist","superuser","developer","technician","senior_technician","pharmacy_admin"]
+    : ["pharmacist","lead_pharmacist","superuser","technician","senior_technician","pharmacy_admin"];
   sel.innerHTML = options.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join("");
   document.getElementById("roleHint").textContent = isDeveloper(PROFILE)
     ? "As Developer you may create any account type."
@@ -1385,8 +1386,8 @@ function openRoleModal(id) {
   // Clinical Team Lead. 'developer' is never offered — that stays the
   // dashboard-only bootstrap path.
   const options = isDeveloper(PROFILE)
-    ? ["pharmacist", "lead_pharmacist", "superuser", "technician", "senior_technician"]
-    : ["pharmacist", "lead_pharmacist", "technician", "senior_technician"];
+    ? ["pharmacist", "lead_pharmacist", "superuser", "technician", "senior_technician", "pharmacy_admin"]
+    : ["pharmacist", "lead_pharmacist", "technician", "senior_technician", "pharmacy_admin"];
   const sel = document.getElementById("roleSelect");
   sel.innerHTML = options.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join("");
   sel.value = options.includes(p.role) ? p.role : options[0];
