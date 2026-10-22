@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
+<title>My Tasks — Pharmacy Portal</title>
+<script>
+// Applies the last-known colour theme/mode (cached by applyTheme()/
+// applyColorMode() in shared.js) before first paint, so a user who
+// picked Dark or Inverted doesn't see a flash of the light page while
+// their profile loads. The profile itself (fetched in requireAuth())
+// remains the source of truth and corrects this on every page load.
+(function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="wrap">
+  <div class="tk-wrap">
+    <div class="tk-head">
+      <div style="flex:1;min-width:240px;">
+        <h1 style="margin:0;">My Tasks</h1>
+        <div class="tk-private"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> Private &mdash; only you can see these tasks</div>
+      </div>
+      <div class="tk-tabs" role="tablist">
+        <button type="button" role="tab" id="tabLong" class="on" onclick="showTab('long')">Long-term</button>
+        <button type="button" role="tab" id="tabDaily" onclick="showTab('daily')">Daily list</button>
+      </div>
+    </div>
+    <div id="tkMsg"></div>
+
+    <!-- LONG-TERM -->
+    <div id="paneLong">
+      <div class="card">
+        <h2 style="margin-top:0;">Add a long-term task</h2>
+        <form id="longForm" class="tk-form">
+          <div style="flex:2 1 280px;"><label for="lgTitle">What needs doing?</label><input type="text" id="lgTitle" maxlength="200" required placeholder="e.g. Finish CD audit action plan"></div>
+          <div style="flex:0 1 170px;"><label for="lgDue">Deadline</label><input type="date" id="lgDue" required></div>
+          <div style="flex:2 1 220px;"><label for="lgNote">Note (optional)</label><input type="text" id="lgNote" maxlength="500" placeholder="Anything to remember"></div>
+          <div><button type="submit" class="primary" id="lgBtn">Add task</button></div>
+        </form>
+        <p class="small" style="margin:10px 0 0;">The bar on each task fills from the day you add it to its deadline &mdash; the fuller it is, the closer you are to the date.</p>
+      </div>
+      <div class="tk-legend"><strong id="lgCount" style="margin-right:auto;font-size:16px;">Open tasks</strong>
+        <span><i style="background:#15803d"></i>Plenty of time</span><span><i style="background:#b45309"></i>Getting close</span><span><i style="background:#b91c1c"></i>Due very soon / overdue</span></div>
+      <div id="lgList"></div>
+      <p id="lgEmpty" class="small" style="display:none;">No open long-term tasks. Add one above.</p>
+      <details class="tk-done" id="lgDoneBox" style="display:none;"><summary id="lgDoneSum"></summary><div id="lgDone"></div></details>
+    </div>
+
+    <!-- DAILY -->
+    <div id="paneDaily" style="display:none;">
+      <div class="card tk-narrow">
+        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">
+          <h2 style="margin:0;flex:1;" id="dyDate"></h2>
+          <strong id="dyCount" class="tk-count"></strong>
+        </div>
+        <div class="tk-bar"><div id="dyBar" class="tk-fill" style="background:var(--teal);"></div></div>
+        <div id="dyCarry" class="tk-carry" style="display:none;"></div>
+        <div id="dyList"></div>
+        <p id="dyEmpty" class="small" style="display:none;">Nothing on today's list yet. Add your first task below.</p>
+        <form id="dailyForm" class="tk-form" style="margin-top:12px;">
+          <div style="flex:1 1 240px;"><label for="dyTitle" class="sr-only">New daily task</label><input type="text" id="dyTitle" maxlength="200" placeholder="Add a task for today&hellip;" required></div>
+          <div><button type="submit" class="primary" id="dyBtn">Add</button></div>
+        </form>
+        <p class="small" style="margin:12px 0 0;">Ticked tasks clear at midnight. Anything unfinished is offered to carry over to the next day.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="editOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Edit task</h3>
+    <div id="edMsg"></div>
+    <form id="editForm">
+      <label for="edTitle">Task</label><input type="text" id="edTitle" maxlength="200" required>
+      <div id="edLongOnly">
+        <label for="edDue">Deadline</label><input type="date" id="edDue">
+        <label for="edNote">Note (optional)</label><input type="text" id="edNote" maxlength="500">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeEdit()">Cancel</button>
+        <button type="submit" class="primary" id="edSave">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+  .tk-wrap{max-width:1000px;margin:0 auto;}
+  .tk-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px;}
+  .tk-private{display:inline-flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;font-weight:600;color:#14532d;background:#dcfce7;border:1px solid #86efac;padding:4px 12px;border-radius:999px;}
+  .tk-tabs{display:flex;background:var(--border);border-radius:12px;padding:4px;gap:4px;}
+  .tk-tabs button{border:0;background:transparent;color:inherit;padding:10px 20px;border-radius:9px;font-weight:700;font-size:15px;cursor:pointer;width:auto;margin:0;}
+  .tk-tabs button.on{background:var(--surface);font-weight:800;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+  .tk-narrow{max-width:760px;margin-left:auto;margin-right:auto;}
+  .tk-form{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;}
+  .tk-form label{margin-top:0;}
+  .tk-form input{margin-bottom:0;}
+  .tk-legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:13px;margin:6px 0 12px;}
+  .tk-legend span{display:inline-flex;align-items:center;gap:6px;}
+  .tk-legend i{width:14px;height:14px;border-radius:3px;display:inline-block;}
+  .tk-card{background:var(--surface);border:1px solid var(--border);border-left:6px solid var(--tc,#15803d);border-radius:12px;padding:14px 16px;margin-bottom:12px;}
+  .tk-row{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;}
+  .tk-row input[type=checkbox]{width:22px;height:22px;margin:2px 0 0;accent-color:var(--teal);flex:none;}
+  .tk-main{flex:1 1 260px;min-width:0;}
+  .tk-title{font-weight:800;font-size:16px;overflow-wrap:anywhere;}
+  .tk-note{font-size:13px;opacity:.75;margin-top:2px;overflow-wrap:anywhere;}
+  .tk-due{text-align:right;min-width:140px;}
+  .tk-left{font-weight:800;font-size:15px;color:var(--tc,#15803d);}
+  .tk-actions{display:flex;gap:6px;margin-top:6px;justify-content:flex-end;}
+  .tk-actions button{padding:3px 10px;font-size:12px;width:auto;margin:0;}
+  .tk-prog{display:flex;align-items:center;gap:12px;margin-top:10px;}
+  .tk-bar{flex:1;height:12px;border-radius:999px;background:var(--border);overflow:hidden;margin:10px 0;}
+  .tk-prog .tk-bar{margin:0;}
+  .tk-fill{height:100%;width:0;border-radius:999px;background:var(--tc,#15803d);transition:width 1.4s cubic-bezier(.2,.7,.2,1);}
+  .tk-pct{font-size:12.5px;font-weight:700;min-width:100px;text-align:right;}
+  .tk-count{font-size:15px;color:var(--teal);}
+  .tk-item{display:flex;align-items:center;gap:14px;padding:11px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--surface);}
+  .tk-item input{width:22px;height:22px;margin:0;accent-color:var(--teal);flex:none;}
+  .tk-item span{flex:1;font-size:16px;overflow-wrap:anywhere;}
+  .tk-item.done span{text-decoration:line-through;opacity:.6;}
+  .tk-item button{padding:2px 9px;font-size:16px;line-height:1;width:auto;margin:0;}
+  .tk-carry{background:rgba(180,83,9,.12);border:1px solid #b45309;border-radius:10px;padding:10px 14px;margin:8px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px;}
+  .tk-carry span{flex:1;min-width:200px;}
+  .tk-carry button{width:auto;margin:0;}
+  .tk-done{margin-top:14px;border:1px dashed var(--border);border-radius:12px;padding:10px 16px;}
+  .tk-done summary{cursor:pointer;font-weight:800;}
+  .tk-done .tk-item{margin-top:8px;}
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);}
+  @media (prefers-reduced-motion:reduce){.tk-fill{transition:none;}}
+</style>
+
+<script src="shared.js"></script>
+<script>
+let PROFILE = null, TASKS = [];
+const TZ = "Europe/London";
+const todayStr = () => new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+const dayNum = (s) => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d) / 86400000; };
+const msg = (t, k) => showMsg(document.getElementById("tkMsg"), t, k || "error");
+const clr = () => { document.getElementById("tkMsg").innerHTML = ""; };
+
+(async () => {
+  PROFILE = await requireAuth();
+  if (!PROFILE) return;
+  document.getElementById("lgDue").min = todayStr();
+  try { const t = localStorage.getItem("tk_tab"); if (t === "daily") showTab("daily"); } catch (e) {}
+  await load();
+})();
+
+function showTab(t) {
+  document.getElementById("paneLong").style.display = t === "long" ? "" : "none";
+  document.getElementById("paneDaily").style.display = t === "daily" ? "" : "none";
+  document.getElementById("tabLong").classList.toggle("on", t === "long");
+  document.getElementById("tabDaily").classList.toggle("on", t === "daily");
+  try { localStorage.setItem("tk_tab", t); } catch (e) {}
+  if (t === "long") animateBars();
+}
+
+async function load() {
+  const { data, error } = await sb.from("personal_tasks").select("*").order("created_at", { ascending: true });
+  if (error) { msg(error.message); return; }
+  TASKS = data || [];
+  render();
+}
+
+function urgency(t, today) {
+  const start = dayNum(t.start_date), due = dayNum(t.due_date), now = dayNum(today);
+  const left = due - now;
+  let pct = due <= start ? 100 : Math.round(Math.min(1, Math.max(0, (now - start) / (due - start))) * 100);
+  if (left <= 0) pct = 100;
+  const color = (left <= 2 || pct >= 85) ? "#b91c1c" : pct >= 66 ? "#b45309" : "#15803d";
+  const label = left < 0 ? `Overdue by ${-left} day${-left === 1 ? "" : "s"}` : left === 0 ? "Due today" : left === 1 ? "1 day left" : `${left} days left`;
+  return { pct, color, label, left };
+}
+
+function render() {
+  const today = todayStr();
+  // long-term
+  const open = TASKS.filter(t => t.kind === "long" && !t.done).sort((a, b) => a.due_date.localeCompare(b.due_date));
+  const done = TASKS.filter(t => t.kind === "long" && t.done).sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""));
+  document.getElementById("lgCount").textContent = `Open tasks (${open.length})`;
+  document.getElementById("lgEmpty").style.display = open.length ? "none" : "";
+  document.getElementById("lgList").innerHTML = open.map(t => {
+    const u = urgency(t, today);
+    return `<div class="tk-card" style="--tc:${u.color}">
+      <div class="tk-row">
+        <input type="checkbox" aria-label="Mark complete" onchange="toggle('${t.id}', this.checked)">
+        <div class="tk-main"><div class="tk-title">${escapeHtml(t.title)}</div>${t.note ? `<div class="tk-note">${escapeHtml(t.note)}</div>` : ""}</div>
+        <div class="tk-due"><div class="tk-left">${u.label}</div><div class="small">Due ${escapeHtml(fmtDate(t.due_date))}</div>
+          <div class="tk-actions"><button type="button" class="secondary" onclick="openEdit('${t.id}')">Edit</button><button type="button" class="secondary" onclick="del('${t.id}')">Delete</button></div></div>
+      </div>
+      <div class="tk-prog"><div class="tk-bar"><div class="tk-fill" data-pct="${u.pct}"></div></div><div class="tk-pct">${u.pct}% of time used</div></div>
+    </div>`;
+  }).join("");
+  document.getElementById("lgDoneBox").style.display = done.length ? "" : "none";
+  document.getElementById("lgDoneSum").textContent = `Completed (${done.length})`;
+  document.getElementById("lgDone").innerHTML = done.map(t => `<div class="tk-item done"><input type="checkbox" checked aria-label="Reopen" onchange="toggle('${t.id}', this.checked)"><span>${escapeHtml(t.title)}</span><button type="button" class="secondary" aria-label="Delete" onclick="del('${t.id}')">&times;</button></div>`).join("");
+  animateBars();
+
+  // daily
+  const dts = TASKS.filter(t => t.kind === "daily");
+  const todays = dts.filter(t => t.task_date === today).sort((a, b) => Number(a.done) - Number(b.done) || a.created_at.localeCompare(b.created_at));
+  const stale = dts.filter(t => !t.done && t.task_date < today);
+  const dn = todays.filter(t => t.done).length;
+  document.getElementById("dyDate").textContent = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: TZ });
+  document.getElementById("dyCount").textContent = `${dn} of ${todays.length} done`;
+  document.getElementById("dyBar").style.width = (todays.length ? Math.round(dn / todays.length * 100) : 0) + "%";
+  const carry = document.getElementById("dyCarry");
+  if (stale.length) {
+    carry.style.display = "";
+    carry.innerHTML = `<span><strong>${stale.length}</strong> unfinished task${stale.length === 1 ? "" : "s"} from earlier days.</span><button type="button" class="primary" onclick="carryOver(false)">Carry over to today</button><button type="button" class="secondary" onclick="carryOver(true)">Discard</button>`;
+  } else carry.style.display = "none";
+  document.getElementById("dyEmpty").style.display = todays.length ? "none" : "";
+  document.getElementById("dyList").innerHTML = todays.map(t => `<div class="tk-item${t.done ? " done" : ""}"><input type="checkbox" ${t.done ? "checked" : ""} aria-label="Done" onchange="toggle('${t.id}', this.checked)"><span>${escapeHtml(t.title)}</span><button type="button" class="secondary" aria-label="Delete task" onclick="del('${t.id}')">&times;</button></div>`).join("");
+}
+
+function animateBars() {
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.querySelectorAll(".tk-fill[data-pct]").forEach(el => { el.style.width = el.dataset.pct + "%"; });
+  }));
+}
+
+async function rpc(fn, args) {
+  clr();
+  const { data, error } = await sb.rpc(fn, args);
+  if (error) { msg(error.message); return { error }; }
+  await load();
+  return { data };
+}
+
+document.getElementById("longForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const b = document.getElementById("lgBtn"); b.disabled = true;
+  const r = await rpc("add_personal_task", { p_kind: "long", p_title: document.getElementById("lgTitle").value, p_note: document.getElementById("lgNote").value || null, p_due: document.getElementById("lgDue").value });
+  b.disabled = false;
+  if (!r.error) { document.getElementById("lgTitle").value = ""; document.getElementById("lgNote").value = ""; document.getElementById("lgDue").value = ""; }
+});
+document.getElementById("dailyForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const b = document.getElementById("dyBtn"); b.disabled = true;
+  const r = await rpc("add_personal_task", { p_kind: "daily", p_title: document.getElementById("dyTitle").value });
+  b.disabled = false;
+  if (!r.error) { document.getElementById("dyTitle").value = ""; document.getElementById("dyTitle").focus(); }
+});
+const toggle = (id, done) => rpc("toggle_personal_task", { p_id: id, p_done: !!done });
+async function del(id) {
+  if (!await uiConfirm("Delete this task? This can't be undone.")) return;
+  rpc("delete_personal_task", { p_id: id });
+}
+async function carryOver(discard) {
+  if (discard && !await uiConfirm("Discard the unfinished tasks from earlier days?")) return;
+  rpc("carry_over_personal_tasks", { p_discard: !!discard });
+}
+
+let EDIT_ID = null;
+function openEdit(id) {
+  const t = TASKS.find(x => x.id === id); if (!t) return;
+  EDIT_ID = id;
+  document.getElementById("edMsg").innerHTML = "";
+  document.getElementById("edTitle").value = t.title;
+  document.getElementById("edLongOnly").style.display = t.kind === "long" ? "" : "none";
+  document.getElementById("edDue").value = t.due_date || "";
+  document.getElementById("edNote").value = t.note || "";
+  document.getElementById("editOverlay").style.display = "";
+}
+function closeEdit() { document.getElementById("editOverlay").style.display = "none"; EDIT_ID = null; }
+document.getElementById("editForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const { error } = await sb.rpc("update_personal_task", { p_id: EDIT_ID, p_title: document.getElementById("edTitle").value, p_note: document.getElementById("edNote").value || null, p_due: document.getElementById("edDue").value || null });
+  if (error) { showMsg(document.getElementById("edMsg"), error.message, "error"); return; }
+  closeEdit(); await load();
+});
+</script>
+</body>
+</html>

@@ -14,7 +14,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Pharmacy Admin is a read-only role. The database refuses every write for it; this guard
 // additionally stops the browser even trying (friendlier message) except for harmless reads and
 // the person's own colour/theme preference.
-const RO_ADMIN_RPC_OK = new Set(["get_profile_directory", "get_oncall_people", "get_oncall_pending_swaps", "get_oncall_audit", "get_name_directory", "get_backup_schedule", "search_huddle_posts", "set_own_theme", "set_own_color_mode"]);
+const RO_ADMIN_RPC_OK = new Set(["get_profile_directory", "get_oncall_people", "get_oncall_pending_swaps", "get_oncall_audit", "get_name_directory", "get_backup_schedule", "search_huddle_posts", "set_own_theme", "set_own_color_mode", "add_personal_task", "update_personal_task", "toggle_personal_task", "delete_personal_task", "carry_over_personal_tasks"]);
 const RO_ADMIN_MSG = "Pharmacy Admin accounts are read-only: you can view everything but cannot make changes.";
 (function () {
   const rpc0 = sb.rpc.bind(sb);
@@ -24,6 +24,8 @@ const RO_ADMIN_MSG = "Pharmacy Admin accounts are read-only: you can view everyt
 })();
 function applyPharmacyAdminMode() {
   window.__RO_ADMIN = true;
+  // My Tasks holds only the person's own private lists, so it stays fully usable.
+  if (window.location.pathname.split("/").pop() === "tasks.html") return;
   document.body.classList.add("ro-padmin");
   if (!document.getElementById("roAdminBanner")) {
     const bar = document.createElement("div");
@@ -99,7 +101,7 @@ const THEMES = {
   spring:    "Spring",
   summer:    "Summer",
   seaside:   "Seaside",
-  hills:     "South Downs",
+  hills:     "South Downs (hills)",
   stdavid:   "St David's Day (Wales)",
   stgeorge:  "St George's Day (England)",
   stpatrick: "St Patrick's Day (Ireland)",
@@ -125,7 +127,7 @@ const THEMES = {
   desert:    "Desert Sunset",
   spaceconflict: "Space Conflict",
   edgadp: "ED&G ADP",
-  fishzoo: "Fish Zoo",
+  fishzoo: "Fish Zoo (aquarium)",
   rockpool: "Scourer Bob",
   flashsale: "Portal from TEMU",
   wizard: "Pigwarts",
@@ -2433,7 +2435,7 @@ function isReadOnlyRole(profile) { return profile.role === "technician" || profi
 // request, amend, approve or delete anything. Enforced in the database; the UI also hides write controls.
 function isPharmacyAdmin(profile) { return !!profile && profile.role === "pharmacy_admin"; }
 function canPostHuddle(profile) { return ["lead_pharmacist", "superuser", "developer", "senior_technician"].includes(profile.role); }
-const VIEWER_PAGES = ["portal.html", "huddle.html", "links.html", "reset-password.html", "login.html", "index.html", ""];
+const VIEWER_PAGES = ["portal.html", "huddle.html", "links.html", "tasks.html", "reset-password.html", "login.html", "index.html", ""];
 // In the on-call pool for at least one site — governs whether "My
 // On-Call Dates" and "Swaps" are shown on oncall.html.
 function isOncallPoolMember(profile) { return !!(profile.oncall_worthing || profile.oncall_st_richards); }
@@ -2476,6 +2478,7 @@ function renderTopbar(profile) {
     ["huddle.html", "Huddle Board", page === "huddle.html"],
     ["links.html", "Quick Links", page === "links.html"],
     ["oncall.html", "On-Call Rota", page === "oncall.html"],
+    ["tasks.html", "My Tasks", page === "tasks.html"],
   ];
   if (isTechnicianRole(profile)) {
     // Technician: only Home, Huddle Board and Quick Links.
