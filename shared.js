@@ -92,19 +92,19 @@ const THEMES = {
   easter:    "Easter",
   antimicrobial: "Antimicrobial",
   swiftie:   "Taylor Quick",
-  barbie:    "Barbie-style (pink)",
-  fairytale: "Fairytale (Disney-style)",
+  barbie:    "Barbie-style",
+  fairytale: "Fairytale",
   autumn:    "Autumn",
   winter:    "Winter",
   spring:    "Spring",
   summer:    "Summer",
   seaside:   "Seaside",
-  hills:     "South Downs (hills)",
+  hills:     "South Downs",
   stdavid:   "St David's Day (Wales)",
   stgeorge:  "St George's Day (England)",
   stpatrick: "St Patrick's Day (Ireland)",
   standrew:  "St Andrew's Day (Scotland)",
-  emergency: "EF / ACU",
+  emergency: "EF / AAU",
   surgical:  "Surgical Care",
   intensive: "Intensive Care",
   elderly:   "Elderly Medicine",
@@ -126,9 +126,9 @@ const THEMES = {
   spaceconflict: "Space Conflict",
   edgadp: "ED&G ADP",
   fishzoo: "Fish Zoo",
-  rockpool: "Rock Pool",
+  rockpool: "Scourer Bob",
   flashsale: "Discount Items",
-  wizard: "Wizard Academy",
+  wizard: "Pigwarts",
   hospharm: "Hospital Pharmacy",
   clinfo: "Clinical Informatics",
   beelist: "The Bee List\u2122",
@@ -1776,8 +1776,8 @@ Object.assign(THEME_SCENES, {
 Object.assign(SCN, {
   cftree: (c, c2) => `<svg viewBox="0 0 40 80" aria-hidden="true"><rect x="18" y="64" width="5" height="16" fill="#6b5a45"/><path d="M20,2 L31,26 H25 L35,46 H27 L38,68 H2 L13,46 H5 L15,26 H9Z" fill="${c}"/><path d="M20,2 L31,26 H25 L35,46 H27 L38,68 H20Z" fill="${c2}" opacity=".5"/></svg>`,
   cfoak: (c) => `<svg viewBox="0 0 56 72" aria-hidden="true"><path d="M24,70 L26,40 Q20,34 16,26 M32,70 L30,42 Q36,34 40,28" fill="none" stroke="#6b5a45" stroke-width="5" stroke-linecap="round"/><rect x="24" y="36" width="8" height="34" fill="#6b5a45"/><circle cx="28" cy="22" r="18" fill="${c}"/><circle cx="14" cy="30" r="12" fill="${c}"/><circle cx="42" cy="30" r="12" fill="${c}"/><circle cx="22" cy="16" r="8" fill="rgba(255,255,255,.18)"/></svg>`,
-  cfdeer: `<svg viewBox="0 0 54 50" aria-hidden="true"><g fill="#a98f6a" stroke="#7a6444" stroke-width="1.2" stroke-linejoin="round"><path d="M10,22 Q10,14 22,14 H36 Q46,14 46,22 V28 Q46,32 42,32 H14 Q10,32 10,28Z"/><path d="M38,16 L44,6 Q48,4 50,8 L48,18 Q44,20 40,20Z"/><rect x="14" y="30" width="4" height="16"/><rect x="22" y="30" width="4" height="16"/><rect x="34" y="30" width="4" height="16"/><rect x="42" y="30" width="4" height="16"/></g><path d="M44,6 L42,1 M44,6 L48,1 M42,4 L38,2" stroke="#6b5a45" stroke-width="1.6" stroke-linecap="round"/><circle cx="46" cy="9" r="1" fill="#2a2018"/><circle cx="20" cy="22" r="1.2" fill="#fff" opacity=".8"/><circle cx="28" cy="19" r="1.2" fill="#fff" opacity=".8"/><circle cx="34" cy="24" r="1.2" fill="#fff" opacity=".8"/></svg>`,
-  cfmush: (c) => `<svg viewBox="0 0 28 26" aria-hidden="true"><path d="M12,24 Q11,16 12,12 H16 Q17,16 16,24Z" fill="#efe6d2" stroke="#b8a888" stroke-width="1"/><path d="M2,13 Q2,2 14,2 Q26,2 26,13Z" fill="${c}" stroke="rgba(0,0,0,.18)" stroke-width="1"/><circle cx="9" cy="8" r="1.8" fill="rgba(255,255,255,.8)"/><circle cx="16" cy="6" r="1.4" fill="rgba(255,255,255,.8)"/><circle cx="20" cy="10" r="1.6" fill="rgba(255,255,255,.8)"/></svg>`,
+  cfdeer: `<svg viewBox="0 0 64 50" aria-hidden="true"><g class="cfleg cfl-b" style="transform-origin:15px 27px"><rect x="14" y="26" width="2.2" height="21" rx="1" fill="#8d7350"/><rect x="13.6" y="45" width="3" height="3" rx="1" fill="#3a2e20"/></g><g class="cfleg cfl-a" style="transform-origin:38px 27px"><rect x="37" y="26" width="2.2" height="21" rx="1" fill="#8d7350"/><rect x="36.6" y="45" width="3" height="3" rx="1" fill="#3a2e20"/></g><path d="M9,22 L5,18 L8,25Z" fill="#c9b894" stroke="#8d7350" stroke-width=".8"/><path d="M10,23 Q10,18 20,18 H38 Q45,18 45,23 Q45,27.5 40,27.5 H17 Q10,27.5 10,23Z" fill="#b39970" stroke="#7a6444" stroke-width="1" stroke-linejoin="round"/><path d="M12,26 Q26,29 42,26 Q40,28.5 26,28.5 Q14,28.5 12,26Z" fill="#e9dfc8" opacity=".85"/><g class="cfleg cfl-a" style="transform-origin:19px 27px"><rect x="18" y="26" width="2.2" height="21" rx="1" fill="#a98f6a"/><rect x="17.6" y="45" width="3" height="3" rx="1" fill="#3a2e20"/></g><g class="cfleg cfl-b" style="transform-origin:42px 27px"><rect x="41" y="26" width="2.2" height="21" rx="1" fill="#a98f6a"/><rect x="40.6" y="45" width="3" height="3" rx="1" fill="#3a2e20"/></g><circle cx="22" cy="21" r="1" fill="#fff" opacity=".8"/><circle cx="29" cy="20.5" r="1" fill="#fff" opacity=".8"/><circle cx="34" cy="22" r="1" fill="#fff" opacity=".8"/><g class="cfhead" style="transform-origin:42px 21px"><path d="M40,20 L48,5 L51,6.5 L44,24Z" fill="#b39970" stroke="#7a6444" stroke-width="1" stroke-linejoin="round"/><path d="M47,4 Q50,1.5 55,4 L61,9 Q62,11 60,11.5 L54,10.5 Q49,10 47,8Z" fill="#b39970" stroke="#7a6444" stroke-width="1" stroke-linejoin="round"/><ellipse cx="60.5" cy="9.8" rx="1.2" ry="1" fill="#2a2018"/><circle cx="52.5" cy="6" r="1" fill="#2a2018"/><path d="M47.5,4 Q44.5,2 43.5,5 Q45.5,7 48,6.5Z" fill="#9b8160" stroke="#7a6444" stroke-width=".8"/><path d="M50,3 L48.5,-1 M49.3,1 L46.5,-1.5 M49.5,0 L52,-2" stroke="#6b5a45" stroke-width="1.3" stroke-linecap="round" fill="none"/></g></svg>`,
+  cfbunny: `<svg viewBox="0 0 38 32" aria-hidden="true"><ellipse cx="4.5" cy="21" rx="3.2" ry="3" fill="#fff6ea" stroke="#d9c9b0" stroke-width=".8"/><ellipse cx="17" cy="21" rx="12" ry="8.5" fill="#8b5e3c" stroke="#5e3d24" stroke-width="1"/><ellipse cx="11" cy="22" rx="7" ry="6.5" fill="#7a5032" stroke="#5e3d24" stroke-width=".8"/><path d="M10,28 Q18,31 26,28 L26,30 Q18,32 10,30Z" fill="#7a5032"/><ellipse cx="25.5" cy="27.5" rx="4" ry="2" fill="#7a5032" stroke="#5e3d24" stroke-width=".8"/><circle cx="29" cy="15" r="6.2" fill="#946642" stroke="#5e3d24" stroke-width="1"/><ellipse cx="27" cy="5" rx="2.2" ry="6.5" transform="rotate(-10 27 5)" fill="#8b5e3c" stroke="#5e3d24" stroke-width="1"/><ellipse cx="27" cy="5.5" rx="1" ry="4.5" transform="rotate(-10 27 5)" fill="#d9a58a"/><ellipse cx="32" cy="5.5" rx="2.2" ry="6.2" transform="rotate(14 32 5.5)" fill="#7a5032" stroke="#5e3d24" stroke-width="1"/><circle cx="31" cy="14" r="1.1" fill="#1f140c"/><circle cx="31.4" cy="13.6" r=".35" fill="#fff"/><ellipse cx="34.8" cy="16.5" rx="1.1" ry=".8" fill="#e29a8a"/><path d="M13,15 Q16,13 20,15" stroke="#a37548" stroke-width="1" fill="none" opacity=".6"/></svg>`,  cfmush: (c) => `<svg viewBox="0 0 28 26" aria-hidden="true"><path d="M12,24 Q11,16 12,12 H16 Q17,16 16,24Z" fill="#efe6d2" stroke="#b8a888" stroke-width="1"/><path d="M2,13 Q2,2 14,2 Q26,2 26,13Z" fill="${c}" stroke="rgba(0,0,0,.18)" stroke-width="1"/><circle cx="9" cy="8" r="1.8" fill="rgba(255,255,255,.8)"/><circle cx="16" cy="6" r="1.4" fill="rgba(255,255,255,.8)"/><circle cx="20" cy="10" r="1.6" fill="rgba(255,255,255,.8)"/></svg>`,
   cffern: (c) => `<svg viewBox="0 0 36 40" aria-hidden="true" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round"><path d="M18,40 Q16,24 18,2"/><path d="M18,34 Q8,30 4,22 M18,28 Q8,24 6,14 M18,22 Q10,18 10,8 M18,34 Q28,30 32,22 M18,28 Q28,24 30,14 M18,22 Q26,18 26,8"/></svg>`,
   cfrock: `<svg viewBox="0 0 40 22" aria-hidden="true"><path d="M2,21 Q2,8 14,6 Q22,2 30,8 Q40,10 38,21Z" fill="#a8b0a8" stroke="#7f887f" stroke-width="1.2"/><path d="M8,17 Q14,12 22,14" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="2"/><path d="M4,20 Q8,14 12,20 M26,20 Q30,15 36,20" fill="#6a9a6a" stroke="#4a7a4a" stroke-width="1"/></svg>`,
   cfleaf: (c) => `<svg viewBox="0 0 20 26" aria-hidden="true"><path d="M10,1 C19,8 19,19 10,25 C1,19 1,8 10,1Z" fill="${c}"/><path d="M10,4 V24" stroke="rgba(0,0,0,.2)" stroke-width="1"/></svg>`,
@@ -1801,7 +1801,8 @@ Object.assign(THEME_SCENES, {
       for (let i = 0; i < 12; i++) b += SBX("", SCN.cftree(pick(far, i), "#8aa88a"), `left:${(2 + i * 8.2).toFixed(0)}%;bottom:6px;--w:${(18 + (i % 3) * 5)};opacity:.7`);
       [[5, 30], [26, 26], [46, 32], [74, 28], [92, 30]].forEach(([p, w], i) => b += SBX("bsway", SCN.cftree(pick(near, i), "#7aa886"), `left:${p}%;bottom:6px;--w:${w};animation-duration:9s;animation-delay:${(-i * 1.3).toFixed(1)}s`));
       b += SBX("bsway", SCN.cfoak("#7fa56f"), "left:36%;bottom:6px;--w:44;animation-duration:10s");
-      b += SBX("", SCN.cfdeer, "left:60%;bottom:6px;--w:42") + SBX("", SCN.cfrock, "left:14%;bottom:6px;--w:26");
+      b += SBX("cfdeerwalk", SCN.cfdeer, "left:0;bottom:6px;--w:50") + SBX("", SCN.cfrock, "left:14%;bottom:6px;--w:26");
+      b += SBX("bcross", `<span class="cfhop">${SCN.cfbunny}</span>`, "bottom:6px;--w:24;animation-duration:46s;animation-delay:-14s");
       b += SBX("bsway", SCN.cffern("#4f8a5a"), "left:20%;bottom:6px;--w:22;animation-duration:7s") + SBX("bsway", SCN.cffern("#5f9a6a"), "left:68%;bottom:6px;--w:18;animation-duration:8s;animation-delay:-2s") + SBX("bsway", SCN.cffern("#4f8a5a"), "left:84%;bottom:6px;--w:22;animation-duration:7.5s;animation-delay:-1s");
       b += SBX("", SCN.cfmush("#c8706a"), "left:30%;bottom:6px;--w:14") + SBX("", SCN.cfmush("#d9a860"), "left:33%;bottom:6px;--w:10") + SBX("", SCN.cfmush("#c8706a"), "left:80%;bottom:6px;--w:12");
       b += SBX("xing", SCN.cfmist, "left:0;top:26px;--w:240;opacity:.55;animation-duration:140s") + SBX("xing", SCN.cfmist, "left:0;top:34px;--w:300;opacity:.45;animation-duration:190s;animation-delay:-80s");

@@ -45,6 +45,13 @@
   .oncall-weekgrid{grid-template-columns:repeat(auto-fill,280px);justify-content:start;}
   @media (max-width:420px){.oncall-weekgrid{grid-template-columns:280px;justify-content:center;}}
   .week-block{width:280px;box-sizing:border-box;}
+  /* On-call rota layout: 4 weeks per row; an incomplete (partial) week sits on its own row. */
+  #rotaGrid.oncall-weekgrid{display:flex;flex-direction:column;align-items:center;gap:14px;}
+  .oncall-weekrow{display:grid;grid-template-columns:repeat(4,280px);gap:14px;justify-content:center;max-width:100%;}
+  @media (max-width:1240px){.oncall-weekrow{grid-template-columns:repeat(auto-fit,280px);}}
+  @media (max-width:420px){.oncall-weekrow{grid-template-columns:280px;justify-content:center;}}
+  @media print{#rotaGrid.oncall-weekgrid{gap:6px;}.oncall-weekrow{grid-template-columns:repeat(4,1fr);gap:6px;width:100%;}}
+
   .week-block h4{height:26px;box-sizing:border-box;align-items:center;white-space:nowrap;}
   .week-block table{table-layout:fixed;width:100%;}
   .week-block th,.week-block td{height:26px;box-sizing:border-box;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 4px;}
@@ -61,7 +68,31 @@
   .person-chip.sel{outline:2px solid #1d4ed8;background:rgba(29,78,216,.22);border-radius:6px;}
   .selbar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:50;background:var(--surface);border:2px solid #1d4ed8;border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.28);padding:10px 14px;display:none;gap:10px;align-items:center;flex-wrap:wrap;max-width:94vw;}
   .selbar select,.selbar input{width:auto;min-width:150px;margin:0;}
-  .audit-table td{vertical-align:top;font-size:13px;}
+  /* Audit trail feed */
+  .aud-chips{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px;}
+  .aud-chip{border:1px solid var(--border);background:var(--surface);color:inherit;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;width:auto;margin:0;}
+  .aud-chip.on{background:var(--teal);border-color:var(--teal);color:#fff;}
+  .aud-chip.aud-refresh{margin-left:auto;}
+  .aud-day{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.65;margin:18px 0 8px;}
+  .aud-item{display:flex;gap:12px;border:1px solid var(--border);border-left:5px solid var(--ac,#64748b);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--surface);}
+  .aud-item.swap{--ac:#7c3aed;}.aud-item.alloc{--ac:#0d9488;}.aud-item.setup{--ac:#64748b;}
+  .aud-item.bad{--ac:#b91c1c;}.aud-item.good{--ac:#15803d;}.aud-item.wait{--ac:#b45309;}
+  .aud-ico{flex:0 0 32px;height:32px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;}
+  .aud-body{flex:1;min-width:0;}
+  .aud-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .aud-title{font-weight:800;font-size:14px;}
+  .aud-badge{font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--ac);color:#fff;}
+  .aud-time{margin-left:auto;font-size:12px;opacity:.7;white-space:nowrap;}
+  .aud-swap{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap;margin:8px 0 4px;}
+  .aud-side{flex:1 1 200px;border:1px solid var(--border);border-radius:8px;padding:7px 10px;background:rgba(124,58,237,.06);}
+  .aud-side b{display:block;font-size:13px;}
+  .aud-side span{font-size:12.5px;opacity:.85;}
+  .aud-side em{display:block;font-style:normal;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;opacity:.6;margin-bottom:2px;}
+  .aud-arrow{align-self:center;font-size:20px;font-weight:800;color:var(--ac);}
+  .aud-reason{font-size:13px;margin-top:4px;}
+  .aud-by{font-size:12px;opacity:.7;margin-top:4px;}
+  @media (max-width:560px){.aud-arrow{transform:rotate(90deg);width:100%;text-align:center;}.aud-time{margin-left:0;width:100%;}}
+
   @media print{.selbar{display:none !important;}}
   .legend-sw{display:inline-flex;align-items:center;gap:6px;font-size:12px;margin-right:14px;}
   .legend-sw i{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.25);display:inline-block;}
@@ -259,20 +290,16 @@
     <div class="card">
       <h2>On-call audit trail</h2>
       <p class="small">Every change to the on-call rota — allocations, manual swaps, swap requests and approvals, bank holidays and rota periods — newest first. Visible to everyone with access to the rota.</p>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
-        <select id="auditFilter" style="width:220px;" onchange="renderAudit()">
-          <option value="">All activity</option>
-          <option value="alloc">Allocations &amp; manual swaps</option>
-          <option value="swap">Swap requests &amp; approvals</option>
-          <option value="setup">Bank holidays, periods &amp; settings</option>
-        </select>
-        <button class="secondary" onclick="loadAudit(true)">Refresh</button>
+      <input type="hidden" id="auditFilter" value="">
+      <div class="aud-chips" id="auditChips">
+        <button type="button" class="aud-chip on" data-f="">All activity</button>
+        <button type="button" class="aud-chip" data-f="swap">&#8644; Swaps</button>
+        <button type="button" class="aud-chip" data-f="alloc">Allocations</button>
+        <button type="button" class="aud-chip" data-f="setup">Setup &amp; settings</button>
+        <button type="button" class="aud-chip aud-refresh" onclick="loadAudit(true)">&#8635; Refresh</button>
       </div>
       <div id="auditMsg"></div>
-      <table class="audit-table">
-        <thead><tr><th>When</th><th>What</th><th>By</th></tr></thead>
-        <tbody id="auditRows"></tbody>
-      </table>
+      <div id="auditRows" class="aud-feed"></div>
       <p id="auditEmpty" class="small" style="display:none;">Nothing recorded yet.</p>
       <div style="text-align:center;margin-top:10px;"><button class="secondary" id="auditMoreBtn" style="display:none;" onclick="loadAudit(false)">Load older entries</button></div>
     </div>
@@ -766,11 +793,21 @@ function renderRota() {
       : "No on-call rota has been published yet."}</p></div>`;
     return;
   }
-  const blocks = [];
+  // Layout: 4 full weeks per row. A week that is only partly inside the period (e.g. the
+  // first week of a year that starts on a Friday) is shown on a row of its own.
+  const rowsHtml = [];
+  let chunk = [];
+  const flush = () => { if (chunk.length) rowsHtml.push(`<div class="oncall-weekrow">${chunk.join("")}</div>`); chunk = []; };
   for (let w = 0; w < WEEKS_SHOWN; w++) {
-    const html = renderWeekBlock(addDays(RANGE_START, w * 7));
-    if (html) blocks.push(html);
+    const ws = addDays(RANGE_START, w * 7);
+    const html = renderWeekBlock(ws);
+    if (!html) continue;
+    const partial = ws < RANGE_FIRST || addDays(ws, 6) > RANGE_LAST;
+    if (partial) { flush(); rowsHtml.push(`<div class="oncall-weekrow">${html}</div>`); }
+    else { chunk.push(html); if (chunk.length === 4) flush(); }
   }
+  flush();
+  const blocks = rowsHtml;
   const sum = document.getElementById("filterSummary");
   if (FILTER_USER) {
     const mine = ASSIGNMENTS.filter(a => a.user_id === FILTER_USER);
@@ -1106,18 +1143,81 @@ async function loadAudit(reset) {
   AUDIT_LOADED = true;
   renderAudit();
 }
+const AUDIT_STYLE = {
+  request_oncall_swap:["swap","\u21C4","Swap requested","wait"], accept_oncall_swap:["swap","\u2713","Swap accepted","good"],
+  decline_oncall_swap:["swap","\u2715","Swap declined","bad"], cancel_oncall_swap:["swap","\u2715","Swap cancelled","bad"],
+  apply_oncall_swap:["swap","\u21C4","Swap applied","good"], approve_oncall_swap:["swap","\u2713","Swap approved","good"],
+  reject_oncall_swap:["swap","\u2715","Swap rejected","bad"],
+  set_oncall_assignment:["alloc","+","Shift allocated"], clear_oncall_assignment:["alloc","\u2212","Shift removed","bad"],
+  bulk_set_oncall_assignments:["alloc","+","Multiple shifts allocated"], annotate_oncall_assignments:["alloc","\u270E","Shift note updated"],
+};
+const AUDIT_SWAP_ROLE = {
+  request_oncall_swap:["Requested by","Asked to swap with"], accept_oncall_swap:["Accepted by","Swap requested by"],
+  decline_oncall_swap:["Declined by","Swap requested by"], cancel_oncall_swap:["Cancelled by","Swap with"],
+  approve_oncall_swap:["Approved by","Swap between"], reject_oncall_swap:["Rejected by","Swap between"],
+  apply_oncall_swap:["Applied by","Swap with"],
+};
+function auditShiftHtml(r) {
+  return `${escapeHtml(dutyWord(r.duty_type))}<br>${escapeHtml(fmtDate(r.shift_date))} \u00B7 ${escapeHtml(SITE_LABEL[r.site] || r.site)}`;
+}
+function auditEntry(a) {
+  const b = a.before_state, n = a.after_state;
+  const st = AUDIT_STYLE[a.action];
+  let cat = AUDIT_CATEGORY[a.action] || "setup", ico = "\u2699", title = AUDIT_LABEL[a.action] || a.action, tone = "", body = "";
+  if (st) { cat = st[0]; ico = st[1]; title = st[2]; tone = st[3] || ""; }
+  const after = /\[after completion\]/.test(a.note || "");
+  const reasonOf = (x) => { let r = (x || "").replace(/\s*\[after completion\]/, "").trim().replace(/[.\s]+$/, ""); return r; };
+  if (a.action === "set_oncall_assignment" && n) {
+    if (b && b.user_id !== n.user_id) {
+      title = "Manual swap"; ico = "\u21C4"; cat = "swap"; tone = "";
+      const reason = reasonOf(n.note);
+      body = `<div class="aud-swap">
+        <div class="aud-side"><em>Was covering</em><b>${escapeHtml(whoFull(b.user_id))}</b><span>${auditShiftHtml(n)}</span></div>
+        <div class="aud-arrow">\u2192</div>
+        <div class="aud-side"><em>Now covering</em><b>${escapeHtml(whoFull(n.user_id))}</b><span>${auditShiftHtml(n)}</span></div></div>`
+        + (reason ? `<div class="aud-reason"><strong>Reason:</strong> ${escapeHtml(reason)}</div>` : "");
+    } else if (!b) {
+      body = `<div class="aud-reason"><b>${escapeHtml(whoFull(n.user_id))}</b> allocated to ${auditShiftHtml(n).replace("<br>", " \u00B7 ")}.</div>` + (n.note ? `<div class="aud-reason"><strong>Note:</strong> ${escapeHtml(reasonOf(n.note))}</div>` : "");
+    } else {
+      title = "Shift note updated";
+      body = `<div class="aud-reason"><b>${escapeHtml(whoFull(n.user_id))}</b> \u2014 ${auditShiftHtml(n).replace("<br>", " \u00B7 ")}</div><div class="aud-reason">${n.note ? "<strong>Note:</strong> " + escapeHtml(reasonOf(n.note)) : "Note removed."}</div>`;
+    }
+  } else if (a.action === "clear_oncall_assignment" && b) {
+    body = `<div class="aud-reason"><b>${escapeHtml(whoFull(b.user_id))}</b> removed from ${auditShiftHtml(b).replace("<br>", " \u00B7 ")}.</div>`;
+  } else if (cat === "swap") {
+    const note = reasonOf(a.note);
+    body = `<div class="aud-swap"><div class="aud-side"><em>${AUDIT_SWAP_ROLE[a.action][0]}</em><b>${escapeHtml(whoFull(a.actor_id))}</b></div>`
+      + (a.target_user_id ? `<div class="aud-arrow">\u21C4</div><div class="aud-side"><em>${AUDIT_SWAP_ROLE[a.action][1]}</em><b>${escapeHtml(whoFull(a.target_user_id))}</b></div>` : "")
+      + `</div>` + (note ? `<div class="aud-reason">${escapeHtml(note)}</div>` : "");
+  } else if (a.action === "bulk_set_oncall_assignments") {
+    body = `<div class="aud-reason"><b>${escapeHtml(whoFull(a.target_user_id))}</b> \u2014 ${escapeHtml(a.note || "")}</div>`;
+  } else {
+    const txt = describeAuditCore(a), pre = (AUDIT_LABEL[a.action] || a.action) + ": ";
+    body = txt.startsWith(pre) ? `<div class="aud-reason">${escapeHtml(txt.slice(pre.length))}</div>` : "";
+  }
+  const badge = after ? `<span class="aud-badge" style="--ac:#b45309">Edited after rota completed</span>` : "";
+  return `<div class="aud-item ${cat} ${tone}"><div class="aud-ico">${ico}</div><div class="aud-body">
+    <div class="aud-top"><span class="aud-title">${escapeHtml(title)}</span>${badge}<span class="aud-time">${escapeHtml(fmtDateTime(a.created_at))}</span></div>
+    ${body}<div class="aud-by">By ${escapeHtml(whoFull(a.actor_id))}</div></div></div>`;
+}
 function renderAudit() {
   const f = document.getElementById("auditFilter").value;
   const rows = AUDIT.filter(a => !f || (AUDIT_CATEGORY[a.action] || "setup") === f);
   document.getElementById("auditEmpty").style.display = rows.length ? "none" : "";
-  document.getElementById("auditRows").innerHTML = rows.map(a => `
-    <tr>
-      <td class="small" style="white-space:nowrap;">${fmtDateTime(a.created_at)}</td>
-      <td>${escapeHtml(describeAudit(a))}</td>
-      <td class="small">${escapeHtml(whoFull(a.actor_id))}</td>
-    </tr>`).join("");
+  let lastDay = "", html = "";
+  rows.forEach(a => {
+    const day = String(a.created_at).slice(0, 10);
+    if (day !== lastDay) { lastDay = day; html += `<div class="aud-day">${escapeHtml(fmtDate(day))}</div>`; }
+    html += auditEntry(a);
+  });
+  document.getElementById("auditRows").innerHTML = html;
+  document.querySelectorAll("#auditChips .aud-chip[data-f]").forEach(c => c.classList.toggle("on", c.dataset.f === f));
   document.getElementById("auditMoreBtn").style.display = AUDIT_MORE ? "" : "none";
 }
+document.getElementById("auditChips").addEventListener("click", e => {
+  const c = e.target.closest(".aud-chip[data-f]"); if (!c) return;
+  document.getElementById("auditFilter").value = c.dataset.f; renderAudit();
+});
 
 /* ---------------- single-cell assign/clear/annotate ---------------- */
 let CELL_DATE = null, CELL_DUTY = null;
