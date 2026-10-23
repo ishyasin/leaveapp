@@ -143,7 +143,7 @@ const THEMES = {
   aprilfools: "April Fools",
   wordproc: "Word Processor",
   calmforest: "Calm Forest",
-  stormaustin: "Storm Austin",
+  stormaustin: "Storm Austen",
 };
 const COLOR_MODES = {
   light:    "Light",
