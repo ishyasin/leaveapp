@@ -90,6 +90,7 @@
 :root[data-theme="greece"]{--navy:#0d4f8b; --navy-light:#1d7ac8; --teal:#1d7ac8; --teal-light:#7fc1f0; --honey:#d4af37; --honey-dark:#a8892a;}
 :root[data-theme="aprilfools"]{--navy:#5a1f9a; --navy-light:#8a3fd1; --teal:#ff4d8d; --teal-light:#ff9ac0; --honey:#ffd23f; --honey-dark:#e0a800;}
 :root[data-theme="wordproc"]{--navy:#2a4d8f; --navy-light:#3b67b8; --teal:#2a6ac8; --teal-light:#7fb0ee; --honey:#f0b429; --honey-dark:#c48f10;}
+:root[data-theme="stormaustin"]{--navy:#2a3a4d; --navy-light:#40566e; --teal:#5f8fb4; --teal-light:#9cc3e0; --honey:#e8c15a; --honey-dark:#c49b2e;}
 :root[data-theme="calmforest"]{--navy:#2f4a3a; --navy-light:#4a6b58; --teal:#6b8f71; --teal-light:#a9c7a8; --honey:#c9b27a; --honey-dark:#a08a52;}
 :root[data-theme="win98"]{--navy:#000080; --navy-light:#1084d0; --teal:#008080; --teal-light:#1084d0; --honey:#ffffe1; --honey-dark:#808080;}
 
@@ -175,6 +176,7 @@
 :root[data-theme="aprilfools"] .theme-banner,
 :root[data-theme="wordproc"] .theme-banner,
 :root[data-theme="calmforest"] .theme-banner,
+:root[data-theme="stormaustin"] .theme-banner,
 :root[data-theme="respiratory"] .theme-banner{display:block;}
 :root[data-theme="halloween"] .theme-banner{background:linear-gradient(#150f1c,#2a1f33);}
 :root[data-theme="christmas"] .theme-banner{background:linear-gradient(#5a0f19,#7a1621);}
@@ -707,3 +709,53 @@ body.ro-padmin td.daynum[data-day]{cursor:default;}
 :root[data-theme="calmforest"][data-anim="off"] .theme-banner .bx.cfdeerwalk{animation:none;transform:translateX(60vw);}
 :root[data-theme="calmforest"][data-anim="off"] .cfhead,:root[data-theme="calmforest"][data-anim="off"] .cfl-a,:root[data-theme="calmforest"][data-anim="off"] .cfl-b,:root[data-theme="calmforest"][data-anim="off"] .cfhop{animation:none;}
 :root[data-theme="calmforest"][data-anim="off"] .cfhead{transform:rotate(126deg);}
+
+/* Calm Forest: bunny hops along, pauses three times to sit still, then hops on */
+@keyframes cfBunWalk{0%{transform:translateX(-30px)}16%{transform:translateX(22vw)}23%{transform:translateX(22vw)}38%{transform:translateX(44vw)}45%{transform:translateX(44vw)}60%{transform:translateX(66vw)}67%{transform:translateX(66vw)}100%{transform:translateX(calc(100vw + 20px))}}
+@keyframes cfBunHop{0%{transform:translateY(0)}0.643%{transform:translateY(-15px) rotate(-6deg)}1.286%{transform:translateY(0)}1.929%{transform:translateY(-15px) rotate(-6deg)}2.571%{transform:translateY(0)}3.214%{transform:translateY(-15px) rotate(-6deg)}3.857%{transform:translateY(0)}4.500%{transform:translateY(-15px) rotate(-6deg)}5.143%{transform:translateY(0)}5.786%{transform:translateY(-15px) rotate(-6deg)}6.429%{transform:translateY(0)}7.071%{transform:translateY(-15px) rotate(-6deg)}7.714%{transform:translateY(0)}8.357%{transform:translateY(-15px) rotate(-6deg)}9.000%{transform:translateY(0)}9.643%{transform:translateY(-15px) rotate(-6deg)}10.286%{transform:translateY(0)}10.929%{transform:translateY(-15px) rotate(-6deg)}11.571%{transform:translateY(0)}12.214%{transform:translateY(-15px) rotate(-6deg)}12.857%{transform:translateY(0)}13.500%{transform:translateY(-15px) rotate(-6deg)}14.143%{transform:translateY(0)}14.786%{transform:translateY(-15px) rotate(-6deg)}15.429%{transform:translateY(0)}16%{transform:translateY(0)}23%{transform:translateY(0)}23.643%{transform:translateY(-15px) rotate(-6deg)}24.286%{transform:translateY(0)}24.929%{transform:translateY(-15px) rotate(-6deg)}25.571%{transform:translateY(0)}26.214%{transform:translateY(-15px) rotate(-6deg)}26.857%{transform:translateY(0)}27.500%{transform:translateY(-15px) rotate(-6deg)}28.143%{transform:translateY(0)}28.786%{transform:translateY(-15px) rotate(-6deg)}29.429%{transform:translateY(0)}30.071%{transform:translateY(-15px) rotate(-6deg)}30.714%{transform:translateY(0)}31.357%{transform:translateY(-15px) rotate(-6deg)}32.000%{transform:translateY(0)}32.643%{transform:translateY(-15px) rotate(-6deg)}33.286%{transform:translateY(0)}33.929%{transform:translateY(-15px) rotate(-6deg)}34.571%{transform:translateY(0)}35.214%{transform:translateY(-15px) rotate(-6deg)}35.857%{transform:translateY(0)}36.500%{transform:translateY(-15px) rotate(-6deg)}37.143%{transform:translateY(0)}38%{transform:translateY(0)}45%{transform:translateY(0)}45.643%{transform:translateY(-15px) rotate(-6deg)}46.286%{transform:translateY(0)}46.929%{transform:translateY(-15px) rotate(-6deg)}47.571%{transform:translateY(0)}48.214%{transform:translateY(-15px) rotate(-6deg)}48.857%{transform:translateY(0)}49.500%{transform:translateY(-15px) rotate(-6deg)}50.143%{transform:translateY(0)}50.786%{transform:translateY(-15px) rotate(-6deg)}51.429%{transform:translateY(0)}52.071%{transform:translateY(-15px) rotate(-6deg)}52.714%{transform:translateY(0)}53.357%{transform:translateY(-15px) rotate(-6deg)}54.000%{transform:translateY(0)}54.643%{transform:translateY(-15px) rotate(-6deg)}55.286%{transform:translateY(0)}55.929%{transform:translateY(-15px) rotate(-6deg)}56.571%{transform:translateY(0)}57.214%{transform:translateY(-15px) rotate(-6deg)}57.857%{transform:translateY(0)}58.500%{transform:translateY(-15px) rotate(-6deg)}59.143%{transform:translateY(0)}60%{transform:translateY(0)}67%{transform:translateY(0)}67.643%{transform:translateY(-15px) rotate(-6deg)}68.286%{transform:translateY(0)}68.929%{transform:translateY(-15px) rotate(-6deg)}69.571%{transform:translateY(0)}70.214%{transform:translateY(-15px) rotate(-6deg)}70.857%{transform:translateY(0)}71.500%{transform:translateY(-15px) rotate(-6deg)}72.143%{transform:translateY(0)}72.786%{transform:translateY(-15px) rotate(-6deg)}73.429%{transform:translateY(0)}74.071%{transform:translateY(-15px) rotate(-6deg)}74.714%{transform:translateY(0)}75.357%{transform:translateY(-15px) rotate(-6deg)}76.000%{transform:translateY(0)}76.643%{transform:translateY(-15px) rotate(-6deg)}77.286%{transform:translateY(0)}77.929%{transform:translateY(-15px) rotate(-6deg)}78.571%{transform:translateY(0)}79.214%{transform:translateY(-15px) rotate(-6deg)}79.857%{transform:translateY(0)}80.500%{transform:translateY(-15px) rotate(-6deg)}81.143%{transform:translateY(0)}81.786%{transform:translateY(-15px) rotate(-6deg)}82.429%{transform:translateY(0)}83.071%{transform:translateY(-15px) rotate(-6deg)}83.714%{transform:translateY(0)}84.357%{transform:translateY(-15px) rotate(-6deg)}85.000%{transform:translateY(0)}85.643%{transform:translateY(-15px) rotate(-6deg)}86.286%{transform:translateY(0)}86.929%{transform:translateY(-15px) rotate(-6deg)}87.571%{transform:translateY(0)}88.214%{transform:translateY(-15px) rotate(-6deg)}88.857%{transform:translateY(0)}89.500%{transform:translateY(-15px) rotate(-6deg)}90.143%{transform:translateY(0)}90.786%{transform:translateY(-15px) rotate(-6deg)}91.429%{transform:translateY(0)}92.071%{transform:translateY(-15px) rotate(-6deg)}92.714%{transform:translateY(0)}93.357%{transform:translateY(-15px) rotate(-6deg)}94.000%{transform:translateY(0)}94.643%{transform:translateY(-15px) rotate(-6deg)}95.286%{transform:translateY(0)}95.929%{transform:translateY(-15px) rotate(-6deg)}96.571%{transform:translateY(0)}97.214%{transform:translateY(-15px) rotate(-6deg)}97.857%{transform:translateY(0)}98.500%{transform:translateY(-15px) rotate(-6deg)}99.143%{transform:translateY(0)}100%{transform:translateY(0)}}
+:root[data-theme="calmforest"] .theme-banner .bx.cfbunwalk{animation:cfBunWalk 70s linear infinite;will-change:transform;}
+:root[data-theme="calmforest"] .cfhop{animation:cfBunHop 70s linear infinite;}
+:root[data-theme="calmforest"][data-anim="off"] .theme-banner .bx.cfbunwalk{animation:none;transform:translateX(34vw);}
+
+/* Notifications bell + panel */
+.notif-bell{position:relative;display:inline-flex;align-items:center;justify-content:center;padding:6px 9px;}
+.notif-badge{position:absolute;top:-6px;right:-6px;min-width:17px;height:17px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:800;line-height:17px;text-align:center;padding:0 4px;box-sizing:border-box;}
+.notif-panel{position:fixed;z-index:200;width:min(380px,calc(100vw - 16px));max-height:70vh;display:flex;flex-direction:column;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,.3);overflow:hidden;}
+.notif-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);}
+.notif-link{background:none !important;border:0 !important;color:var(--teal) !important;font-weight:700;font-size:12.5px;cursor:pointer;padding:2px 6px !important;margin:0 !important;width:auto;}
+.notif-list{overflow-y:auto;}
+.notif-item{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;background:transparent !important;color:var(--text) !important;border:0 !important;border-bottom:1px solid var(--border) !important;border-radius:0 !important;padding:10px 14px !important;margin:0 !important;cursor:pointer;font-size:13px;}
+.notif-item:hover{background:var(--surface-alt) !important;}
+.notif-item.unread{background:rgba(14,124,134,.10) !important;}
+.notif-dot{flex:none;width:9px;height:9px;border-radius:50%;margin-top:5px;background:transparent;}
+.notif-item.unread .notif-dot{background:var(--teal-light);}
+.notif-text{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.notif-text span{opacity:.85;overflow-wrap:anywhere;}
+.notif-text em{font-style:normal;font-size:11.5px;opacity:.6;}
+.notif-empty{padding:22px;text-align:center;opacity:.7;font-size:13px;}
+
+/* Storm Austin: windy and rainy */
+:root[data-theme="stormaustin"] .theme-banner{background:linear-gradient(#141b24,#2c3a4a 60%,#3f5266);border-bottom:3px solid #5f8fb4;overflow:hidden;}
+:root[data-theme="stormaustin"]:not([data-color-mode="inverted"]){--grey-bg:#12181f; --surface:#1c2631; --surface-alt:#243140; --surface-subtle:#202c39; --text:#e4ebf2; --text-muted:#98a9ba; --border:#34465a; --heading-color:#9cc3e0;}
+.theme-fx .sarain{position:absolute;top:-100px;width:1.5px;background:linear-gradient(rgba(190,215,240,0),rgba(190,215,240,.9));animation:saRain linear infinite;will-change:transform;}
+@keyframes saRain{from{transform:translate(0,-100px) rotate(18deg)}to{transform:translate(-38vh,112vh) rotate(18deg)}}
+.theme-fx .sawind{position:absolute;left:0;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,rgba(220,235,250,.5),transparent);opacity:.5;animation:saWind linear infinite;}
+@keyframes saWind{from{transform:translateX(105vw)}to{transform:translateX(-340px)}}
+.theme-fx .saflash{position:absolute;inset:0;background:#dbe8ff;opacity:0;animation:saFlash 17s linear infinite;}
+@keyframes saFlash{0%,90%,100%{opacity:0}91%{opacity:.16}91.8%{opacity:.02}92.6%{opacity:.2}94.5%{opacity:0}}
+.saspin{display:inline-block;animation:saSpin 1.2s linear infinite;}
+@keyframes saSpin{to{transform:rotate(360deg)}}
+.theme-banner .bx.sabend{transform-origin:50% 100%;animation:saBend 2.4s ease-in-out infinite alternate;}
+@keyframes saBend{from{transform:rotate(-5deg)}to{transform:rotate(-13deg)}}
+.theme-banner .bx.sabolt{opacity:0;animation:saBolt 17s linear infinite;filter:drop-shadow(0 0 6px #fff6c2);}
+@keyframes saBolt{0%,90%,100%{opacity:0}91%{opacity:1}91.8%{opacity:.1}92.6%{opacity:1}94.5%{opacity:0}}
+.theme-banner .sasockbx{transform-origin:100% 50%;}
+.theme-banner .saflap{transform-box:fill-box;transform-origin:100% 50%;animation:saFlap .5s ease-in-out infinite alternate;}
+@keyframes saFlap{from{transform:rotate(-3deg) scaleY(1)}to{transform:rotate(3deg) scaleY(.88)}}
+.theme-banner .saring{transform-box:fill-box;transform-origin:50% 50%;animation:saRing 1.6s ease-out infinite;}
+@keyframes saRing{from{transform:scale(.2);opacity:.9}to{transform:scale(2.6);opacity:0}}
+.theme-banner .sarainb{position:absolute;top:-14px;width:1.2px;height:16px;background:linear-gradient(rgba(190,215,240,0),rgba(190,215,240,.8));animation:saRainB linear infinite;}
+@keyframes saRainB{from{transform:translate(0,-10px) rotate(18deg)}to{transform:translate(-26px,80px) rotate(18deg)}}
+:root[data-theme="stormaustin"][data-anim="off"] .theme-banner .bx.sabend{animation:none;transform:rotate(-9deg);}
+:root[data-theme="stormaustin"][data-anim="off"] .theme-banner .sarainb,:root[data-theme="stormaustin"][data-anim="off"] .theme-banner .bx.sabolt{display:none;}
+:root[data-theme="stormaustin"] .theme-banner .bx.xing{animation-name:fxRun;animation-timing-function:linear;animation-iteration-count:infinite;}

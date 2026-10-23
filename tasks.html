@@ -23,11 +23,12 @@
     <div class="tk-head">
       <div style="flex:1;min-width:240px;">
         <h1 style="margin:0;">My Tasks</h1>
-        <div class="tk-private"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> Private &mdash; only you can see these tasks</div>
+        <div class="tk-private" id="tkPrivate"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> <span id="tkPrivateTxt">Private &mdash; only you can see these tasks</span></div>
       </div>
       <div class="tk-tabs" role="tablist">
         <button type="button" role="tab" id="tabLong" class="on" onclick="showTab('long')">Long-term</button>
         <button type="button" role="tab" id="tabDaily" onclick="showTab('daily')">Daily list</button>
+        <button type="button" role="tab" id="tabSet" onclick="showTab('set')">Set tasks <span id="setBadge" class="tk-badge" style="display:none;"></span></button>
       </div>
     </div>
     <div id="tkMsg"></div>
@@ -67,6 +68,43 @@
           <div><button type="submit" class="primary" id="dyBtn">Add</button></div>
         </form>
         <p class="small" style="margin:12px 0 0;">Ticked tasks clear at midnight. Anything unfinished is offered to carry over to the next day.</p>
+      </div>
+    </div>
+
+    <!-- SET TASKS -->
+    <div id="paneSet" style="display:none;">
+      <div class="card">
+        <h2 style="margin-top:0;">Set for me</h2>
+        <p class="small" style="margin-top:0;">Tasks that a Lead Pharmacist or Clinical Team Lead has set for you. Tick one when it is done.</p>
+        <div id="setMine"></div>
+        <p id="setMineEmpty" class="small" style="display:none;">Nothing has been set for you.</p>
+      </div>
+
+      <div class="card" id="setForm" style="display:none;">
+        <h2 style="margin-top:0;">Set a task</h2>
+        <p class="small" style="margin-top:0;">Choose one or more people. Everyone ticked gets their own copy and is notified.</p>
+        <form id="assignForm">
+          <div class="tk-people-head"><strong>Who is it for?</strong>
+            <span><button type="button" class="secondary" onclick="pickAll(true)">Select all</button> <button type="button" class="secondary" onclick="pickAll(false)">Clear</button></span></div>
+          <div id="assignPeople" class="tk-people"></div>
+          <div class="tk-form" style="margin-top:12px;">
+            <div style="flex:2 1 280px;"><label for="asTitle">Task</label><input type="text" id="asTitle" maxlength="200" required placeholder="e.g. Complete CD stock check"></div>
+            <div style="flex:0 1 170px;"><label for="asDue">Deadline (optional)</label><input type="date" id="asDue"></div>
+            <div style="flex:2 1 220px;"><label for="asNote">Note (optional)</label><input type="text" id="asNote" maxlength="500"></div>
+            <div><button type="submit" class="primary" id="asBtn">Set task</button></div>
+          </div>
+        </form>
+      </div>
+
+      <div class="card" id="setOverview" style="display:none;">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <h2 style="margin:0;flex:1;min-width:180px;">All set tasks <span class="small" id="ovCount"></span></h2>
+          <select id="ovPerson" style="width:auto;margin:0;" onchange="renderSet()"><option value="">Everyone</option></select>
+          <select id="ovStatus" style="width:auto;margin:0;" onchange="renderSet()"><option value="open">Open</option><option value="done">Completed</option><option value="">All</option></select>
+        </div>
+        <p class="small" style="margin-top:0;" id="ovHint"></p>
+        <div id="ovList"></div>
+        <p id="ovEmpty" class="small" style="display:none;">No tasks to show.</p>
       </div>
     </div>
   </div>
@@ -131,13 +169,26 @@
   .tk-done{margin-top:14px;border:1px dashed var(--border);border-radius:12px;padding:10px 16px;}
   .tk-done summary{cursor:pointer;font-weight:800;}
   .tk-done .tk-item{margin-top:8px;}
+  .tk-badge{display:inline-block;min-width:18px;padding:0 6px;border-radius:999px;background:#b91c1c;color:#fff;font-size:12px;line-height:18px;text-align:center;margin-left:4px;}
+  .tk-people-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;}
+  .tk-people-head button{padding:3px 10px;font-size:12px;width:auto;margin:0;}
+  .tk-people{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 14px;max-height:230px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px;}
+  .tk-people h4{grid-column:1/-1;margin:6px 0 0;font-size:12px;text-transform:uppercase;letter-spacing:.05em;opacity:.7;}
+  .tk-people label{display:flex;align-items:center;gap:8px;font-weight:400;margin:0;cursor:pointer;}
+  .tk-people input{width:auto;margin:0;accent-color:var(--teal);}
+  .tk-ov{border:1px solid var(--border);border-left:6px solid var(--tc,#64748b);border-radius:10px;padding:10px 14px;margin-bottom:8px;background:var(--surface);}
+  .tk-ov .who{font-weight:800;}
+  .tk-ov .meta{font-size:12.5px;opacity:.75;}
+  .tk-ov .st{font-size:12px;font-weight:800;padding:1px 9px;border-radius:999px;background:var(--border);}
+  .tk-ov .st.done{background:#dcfce7;color:#14532d;}
   .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);}
   @media (prefers-reduced-motion:reduce){.tk-fill{transition:none;}}
 </style>
 
 <script src="shared.js"></script>
 <script>
-let PROFILE = null, TASKS = [];
+let PROFILE = null, TASKS = [], ASSIGNED = [], PEOPLE = [];
+const CAN_SET = () => ["lead_pharmacist", "superuser", "developer"].includes(PROFILE.role);
 const TZ = "Europe/London";
 const todayStr = () => new Date().toLocaleDateString("en-CA", { timeZone: TZ });
 const dayNum = (s) => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d) / 86400000; };
@@ -147,26 +198,121 @@ const clr = () => { document.getElementById("tkMsg").innerHTML = ""; };
 (async () => {
   PROFILE = await requireAuth();
   if (!PROFILE) return;
-  document.getElementById("lgDue").min = todayStr();
+  document.getElementById("lgDue").min = todayStr(); document.getElementById("asDue").min = todayStr();
   try { const t = localStorage.getItem("tk_tab"); if (t === "daily") showTab("daily"); } catch (e) {}
+  if (location.hash === "#set") showTab("set");
   await load();
 })();
 
 function showTab(t) {
   document.getElementById("paneLong").style.display = t === "long" ? "" : "none";
   document.getElementById("paneDaily").style.display = t === "daily" ? "" : "none";
+  document.getElementById("paneSet").style.display = t === "set" ? "" : "none";
   document.getElementById("tabLong").classList.toggle("on", t === "long");
   document.getElementById("tabDaily").classList.toggle("on", t === "daily");
+  document.getElementById("tabSet").classList.toggle("on", t === "set");
+  document.getElementById("tkPrivateTxt").textContent = t === "set" ? "Set tasks are visible only to the person they are set for and the Lead Pharmacists / Clinical Team Leads who oversee them" : "Private \u2014 only you can see these tasks";
   try { localStorage.setItem("tk_tab", t); } catch (e) {}
-  if (t === "long") animateBars();
+  if (t === "long" || t === "set") animateBars();
 }
 
 async function load() {
   const { data, error } = await sb.from("personal_tasks").select("*").order("created_at", { ascending: true });
   if (error) { msg(error.message); return; }
   TASKS = data || [];
+  const r2 = await sb.rpc("get_assigned_tasks");
+  if (r2.error) { msg(r2.error.message); } else ASSIGNED = r2.data || [];
+  if (CAN_SET() && !PEOPLE.length) {
+    const r3 = await sb.rpc("get_assignable_users");
+    if (!r3.error) { PEOPLE = r3.data || []; buildPeople(); }
+  }
   render();
+  renderSet();
 }
+
+const ROLE_HEAD = { pharmacist: "Pharmacists", lead_pharmacist: "Lead Pharmacists", superuser: "Clinical Team Leads" };
+function buildPeople() {
+  const keep = new Set(picked());
+  let h = "";
+  ["pharmacist", "lead_pharmacist", "superuser"].forEach(r => {
+    const g = PEOPLE.filter(p => p.role === r); if (!g.length) return;
+    h += `<h4>${ROLE_HEAD[r]}</h4>` + g.map(p => `<label><input type="checkbox" value="${p.id}" ${keep.has(p.id) ? "checked" : ""}> ${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})</label>`).join("");
+  });
+  document.getElementById("assignPeople").innerHTML = h || '<span class="small">There is nobody you can set tasks for.</span>';
+  const sel = document.getElementById("ovPerson"), cur = sel.value;
+  sel.innerHTML = '<option value="">Everyone</option>' + PEOPLE.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})</option>`).join("");
+  sel.value = cur;
+}
+const picked = () => [...document.querySelectorAll("#assignPeople input:checked")].map(i => i.value);
+const pickAll = (on) => document.querySelectorAll("#assignPeople input").forEach(i => { i.checked = on; });
+
+function dueInfo(t, today) {
+  if (!t.due_date) return null;
+  return urgency({ start_date: t.start_date, due_date: t.due_date }, today);
+}
+function renderSet() {
+  const today = todayStr();
+  const mine = ASSIGNED.filter(t => t.assigned_to === PROFILE.id);
+  const open = mine.filter(t => !t.done).sort((a, b) => (a.due_date || "9999").localeCompare(b.due_date || "9999"));
+  const done = mine.filter(t => t.done);
+  const badge = document.getElementById("setBadge");
+  badge.textContent = open.length; badge.style.display = open.length ? "" : "none";
+  document.getElementById("setMineEmpty").style.display = mine.length ? "none" : "";
+  const card = (t, own) => {
+    const u = dueInfo(t, today);
+    return `<div class="tk-card" style="--tc:${u ? u.color : "#64748b"}"><div class="tk-row">
+      <input type="checkbox" ${t.done ? "checked" : ""} aria-label="Done" ${own ? `onchange="toggleAssigned('${t.id}', this.checked)"` : "disabled"}>
+      <div class="tk-main"><div class="tk-title" ${t.done ? 'style="text-decoration:line-through;opacity:.6"' : ""}>${escapeHtml(t.title)}</div>
+        ${t.note ? `<div class="tk-note">${escapeHtml(t.note)}</div>` : ""}<div class="tk-note">Set by ${escapeHtml(t.by_name)} on ${escapeHtml(fmtDate(t.created_at.slice(0, 10)))}</div></div>
+      <div class="tk-due"><div class="tk-left">${t.done ? "Done" : u ? u.label : "No deadline"}</div>${t.due_date ? `<div class="small">Due ${escapeHtml(fmtDate(t.due_date))}</div>` : ""}</div></div>
+      ${u && !t.done ? `<div class="tk-prog"><div class="tk-bar"><div class="tk-fill" data-pct="${u.pct}"></div></div><div class="tk-pct">${u.pct}% of time used</div></div>` : ""}</div>`;
+  };
+  document.getElementById("setMine").innerHTML = open.map(t => card(t, true)).join("") +
+    (done.length ? `<details class="tk-done"><summary>Completed (${done.length})</summary>${done.map(t => card(t, true)).join("")}</details>` : "");
+
+  // setters: form + everyone-I-can-see overview
+  const canSet = CAN_SET();
+  document.getElementById("setForm").style.display = canSet ? "" : "none";
+  const others = ASSIGNED.filter(t => t.assigned_to !== PROFILE.id);
+  const showOv = canSet || others.length > 0;
+  document.getElementById("setOverview").style.display = showOv ? "" : "none";
+  if (showOv) {
+    const p = document.getElementById("ovPerson").value, st = document.getElementById("ovStatus").value;
+    const list = others.filter(t => (!p || t.assigned_to === p) && (!st || (st === "done") === t.done))
+      .sort((a, b) => a.to_name.localeCompare(b.to_name) || (a.due_date || "9999").localeCompare(b.due_date || "9999"));
+    document.getElementById("ovCount").textContent = `(${list.length})`;
+    document.getElementById("ovHint").textContent = PROFILE.role === "lead_pharmacist" ? "You can see tasks set for Pharmacists. Tasks set for other Lead Pharmacists are not shown."
+      : PROFILE.role === "superuser" ? "You can see tasks set for Pharmacists and Lead Pharmacists." : "You can see every set task.";
+    document.getElementById("ovEmpty").style.display = list.length ? "none" : "";
+    document.getElementById("ovList").innerHTML = list.map(t => {
+      const u = dueInfo(t, today);
+      return `<div class="tk-ov" style="--tc:${t.done ? "#15803d" : u ? u.color : "#64748b"}">
+        <div class="tk-row"><div class="tk-main"><span class="who">${escapeHtml(t.to_name)}</span> &mdash; ${escapeHtml(t.title)}
+          <div class="meta">Set by ${escapeHtml(t.by_name)} on ${escapeHtml(fmtDate(t.created_at.slice(0, 10)))}${t.note ? " &middot; " + escapeHtml(t.note) : ""}</div></div>
+          <div class="tk-due"><span class="st ${t.done ? "done" : ""}">${t.done ? "Completed" : u ? u.label : "Open"}</span>${t.due_date ? `<div class="meta">Due ${escapeHtml(fmtDate(t.due_date))}</div>` : ""}
+          ${t.assigned_by === PROFILE.id ? `<div class="tk-actions"><button type="button" class="secondary" onclick="delAssigned('${t.id}')">Delete</button></div>` : ""}</div></div>
+        ${u && !t.done ? `<div class="tk-prog"><div class="tk-bar"><div class="tk-fill" data-pct="${u.pct}"></div></div><div class="tk-pct">${u.pct}% of time used</div></div>` : ""}</div>`;
+    }).join("");
+  }
+  animateBars();
+}
+const toggleAssigned = (id, done) => rpc("toggle_assigned_task", { p_id: id, p_done: !!done });
+async function delAssigned(id) {
+  if (!await uiConfirm("Delete this task for this person? This can't be undone.")) return;
+  rpc("delete_assigned_task", { p_id: id });
+}
+document.getElementById("assignForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const ids = picked();
+  if (!ids.length) { msg("Choose at least one person."); return; }
+  const b = document.getElementById("asBtn"); b.disabled = true;
+  const r = await rpc("assign_task", { p_to: ids, p_title: document.getElementById("asTitle").value, p_note: document.getElementById("asNote").value || null, p_due: document.getElementById("asDue").value || null });
+  b.disabled = false;
+  if (!r.error) {
+    document.getElementById("asTitle").value = ""; document.getElementById("asNote").value = ""; document.getElementById("asDue").value = ""; pickAll(false);
+    msg(`Task set for ${r.data} ${r.data === 1 ? "person" : "people"}. They have been notified.`, "ok");
+  }
+});
 
 function urgency(t, today) {
   const start = dayNum(t.start_date), due = dayNum(t.due_date), now = dayNum(today);

@@ -14,7 +14,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Pharmacy Admin is a read-only role. The database refuses every write for it; this guard
 // additionally stops the browser even trying (friendlier message) except for harmless reads and
 // the person's own colour/theme preference.
-const RO_ADMIN_RPC_OK = new Set(["get_profile_directory", "get_oncall_people", "get_oncall_pending_swaps", "get_oncall_audit", "get_name_directory", "get_backup_schedule", "search_huddle_posts", "set_own_theme", "set_own_color_mode", "add_personal_task", "update_personal_task", "toggle_personal_task", "delete_personal_task", "carry_over_personal_tasks"]);
+const RO_ADMIN_RPC_OK = new Set(["get_profile_directory", "get_oncall_people", "get_oncall_pending_swaps", "get_oncall_audit", "get_name_directory", "get_backup_schedule", "search_huddle_posts", "set_own_theme", "set_own_color_mode", "add_personal_task", "update_personal_task", "toggle_personal_task", "delete_personal_task", "carry_over_personal_tasks", "toggle_assigned_task", "get_assigned_tasks", "mark_notifications_read", "clear_notifications"]);
 const RO_ADMIN_MSG = "Pharmacy Admin accounts are read-only: you can view everything but cannot make changes.";
 (function () {
   const rpc0 = sb.rpc.bind(sb);
@@ -94,8 +94,8 @@ const THEMES = {
   easter:    "Easter",
   antimicrobial: "Antimicrobial",
   swiftie:   "Taylor Quick",
-  barbie:    "Barbie-style",
-  fairytale: "Fairytale",
+  barbie:    "Barbie-style (pink)",
+  fairytale: "Fairytale (Disney-style)",
   autumn:    "Autumn",
   winter:    "Winter",
   spring:    "Spring",
@@ -106,7 +106,7 @@ const THEMES = {
   stgeorge:  "St George's Day (England)",
   stpatrick: "St Patrick's Day (Ireland)",
   standrew:  "St Andrew's Day (Scotland)",
-  emergency: "EF / AAU",
+  emergency: "EF / ACU",
   surgical:  "Surgical Care",
   intensive: "Intensive Care",
   elderly:   "Elderly Medicine",
@@ -127,10 +127,10 @@ const THEMES = {
   desert:    "Desert Sunset",
   spaceconflict: "Space Conflict",
   edgadp: "ED&G ADP",
-  fishzoo: "Fish Zoo (aquarium)",
-  rockpool: "Scourer Bob",
-  flashsale: "Portal from TEMU",
-  wizard: "Pigwarts",
+  fishzoo: "Fish Zoo",
+  rockpool: "Rock Pool",
+  flashsale: "Discount Items",
+  wizard: "Wizard Academy",
   hospharm: "Hospital Pharmacy",
   clinfo: "Clinical Informatics",
   beelist: "The Bee List\u2122",
@@ -143,6 +143,7 @@ const THEMES = {
   aprilfools: "April Fools",
   wordproc: "Word Processor",
   calmforest: "Calm Forest",
+  stormaustin: "Storm Austin",
 };
 const COLOR_MODES = {
   light:    "Light",
@@ -1804,10 +1805,46 @@ Object.assign(THEME_SCENES, {
       [[5, 30], [26, 26], [46, 32], [74, 28], [92, 30]].forEach(([p, w], i) => b += SBX("bsway", SCN.cftree(pick(near, i), "#7aa886"), `left:${p}%;bottom:6px;--w:${w};animation-duration:9s;animation-delay:${(-i * 1.3).toFixed(1)}s`));
       b += SBX("bsway", SCN.cfoak("#7fa56f"), "left:36%;bottom:6px;--w:44;animation-duration:10s");
       b += SBX("cfdeerwalk", SCN.cfdeer, "left:0;bottom:6px;--w:50") + SBX("", SCN.cfrock, "left:14%;bottom:6px;--w:26");
-      b += SBX("bcross", `<span class="cfhop">${SCN.cfbunny}</span>`, "bottom:6px;--w:24;animation-duration:46s;animation-delay:-14s");
+      b += SBX("cfbunwalk", `<span class="cfhop">${SCN.cfbunny}</span>`, "left:0;bottom:6px;--w:24");
       b += SBX("bsway", SCN.cffern("#4f8a5a"), "left:20%;bottom:6px;--w:22;animation-duration:7s") + SBX("bsway", SCN.cffern("#5f9a6a"), "left:68%;bottom:6px;--w:18;animation-duration:8s;animation-delay:-2s") + SBX("bsway", SCN.cffern("#4f8a5a"), "left:84%;bottom:6px;--w:22;animation-duration:7.5s;animation-delay:-1s");
       b += SBX("", SCN.cfmush("#c8706a"), "left:30%;bottom:6px;--w:14") + SBX("", SCN.cfmush("#d9a860"), "left:33%;bottom:6px;--w:10") + SBX("", SCN.cfmush("#c8706a"), "left:80%;bottom:6px;--w:12");
       b += SBX("xing", SCN.cfmist, "left:0;top:26px;--w:240;opacity:.55;animation-duration:140s") + SBX("xing", SCN.cfmist, "left:0;top:34px;--w:300;opacity:.45;animation-duration:190s;animation-delay:-80s");
+      return b;
+    },
+  },
+});
+
+/* Storm Austin: windy, rainy storm (sprite names prefixed "sa"). Wind blows right-to-left. */
+Object.assign(SCN, {
+  sacloud: (c) => `<svg viewBox="0 0 120 40" aria-hidden="true"><path d="M8,34 Q0,34 2,26 Q4,18 14,19 Q16,8 30,9 Q38,0 52,6 Q62,0 74,8 Q90,4 94,16 Q108,14 112,24 Q118,34 106,34Z" fill="${c}"/></svg>`,
+  sabolt: `<svg viewBox="0 0 24 60" aria-hidden="true"><path d="M15,0 L4,26 H11 L6,60 L21,22 H13 L19,0Z" fill="#fff6c2" stroke="#ffe066" stroke-width="1.2" stroke-linejoin="round"/></svg>`,
+  saumb: (c) => `<svg viewBox="0 0 40 34" aria-hidden="true"><path d="M4,22 Q6,8 20,6 Q34,8 36,22 L30,17 L25,23 L20,17 L15,23 L10,17Z" fill="${c}" stroke="#101820" stroke-width="1" stroke-linejoin="round"/><path d="M20,6 V30 Q20,34 15,33" fill="none" stroke="#c8d2dc" stroke-width="1.8" stroke-linecap="round"/><path d="M4,22 L12,8 M36,22 L28,8 M20,6 L7,24 M20,6 L33,24" stroke="#101820" stroke-width=".8" fill="none" opacity=".7"/></svg>`,
+  sasock: `<svg viewBox="0 0 70 50" aria-hidden="true"><rect x="64" y="4" width="3" height="46" rx="1" fill="#6b7a88"/><circle cx="65.5" cy="4" r="3" fill="#8b9aa8"/><g class="saflap"><path d="M63,10 L10,6 L10,22 L63,20Z" fill="#e8553b"/><path d="M50,9 L50,21 L38,20.5 L38,8Z" fill="#f4f4f4"/><path d="M26,7.5 L26,21.5 L14,21 L14,6.5Z" fill="#f4f4f4"/><ellipse cx="10" cy="14" rx="2" ry="8" fill="#2a3440"/></g></svg>`,
+  salamp: `<svg viewBox="0 0 24 70" aria-hidden="true"><rect x="10.5" y="14" width="3" height="56" fill="#4a5866"/><rect x="6" y="64" width="12" height="6" rx="1" fill="#3c4854"/><path d="M12,14 Q12,6 20,6" fill="none" stroke="#4a5866" stroke-width="3" stroke-linecap="round"/><path d="M16,6 H24 L22,12 H18Z" fill="#2f3a46"/><path d="M17,12 H23 L28,40 H12Z" fill="#ffe9a0" opacity=".16"/><circle cx="20" cy="12" r="2" fill="#ffe9a0"/></svg>`,
+  sapud: `<svg viewBox="0 0 50 10" aria-hidden="true"><ellipse cx="25" cy="5" rx="23" ry="3.6" fill="#6f8ba6" opacity=".7"/><ellipse class="saring" cx="25" cy="5" rx="8" ry="2" fill="none" stroke="#cfe3f5" stroke-width="1"/></svg>`,
+  safence: `<svg viewBox="0 0 80 28" aria-hidden="true"><g stroke="#3d2f25" stroke-width="3"><path d="M6,4 V28 M26,4 V28 M46,4 V28 M66,4 V28"/></g><g stroke="#4d3b2e" stroke-width="3"><path d="M0,10 H80 M0,20 H80"/></g></svg>`,
+  satree: (c) => `<svg viewBox="0 0 40 80" aria-hidden="true"><rect x="18" y="52" width="5" height="28" fill="#3a2c22"/><path d="M20,4 Q34,16 33,34 Q32,50 20,56 Q8,50 7,34 Q6,16 20,4Z" fill="${c}"/><path d="M14,24 Q20,18 26,28" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="2"/></svg>`,
+});
+Object.assign(THEME_SCENES, {
+  stormaustin: {
+    layer() {
+      let h = `<i class="saflash"></i>`;
+      for (let i = 0; i < 70; i++) h += `<i class="sarain" style="left:${fxRand(0, 130).toFixed(1)}%;height:${fxRand(40, 90).toFixed(0)}px;opacity:${fxRand(.25, .6).toFixed(2)};animation-duration:${fxRand(.55, 1.1).toFixed(2)}s;animation-delay:${(-fxRand(0, 1.1)).toFixed(2)}s"></i>`;
+      for (let i = 0; i < 7; i++) h += `<i class="sawind" style="top:${fxRand(6, 92).toFixed(0)}%;width:${fxRand(140, 320).toFixed(0)}px;animation-duration:${fxRand(2.2, 4.5).toFixed(1)}s;animation-delay:${(-fxRand(0, 4.5)).toFixed(1)}s"></i>`;
+      const lc = ["#8a6b3a", "#6e7f4a", "#a07a3c", "#5d6e3d"];
+      for (let i = 0; i < 8; i++) h += `<span class="xing" style="top:${fxRand(10, 90).toFixed(0)}%;animation-duration:${fxRand(5, 10).toFixed(1)}s;animation-delay:${(-fxRand(0, 10)).toFixed(1)}s;animation-direction:reverse;--w:${fxRand(14, 22).toFixed(0)};opacity:.8"><span class="saspin" style="animation-duration:${fxRand(.7, 1.5).toFixed(2)}s">${SCN.cfleaf(pick(lc, i))}</span></span>`;
+      return h;
+    },
+    banner() {
+      let b = `<span class="bgrd" style="background:#1d2630;height:9px;border-top:2px solid #3a4a5a"></span>`;
+      b += SBX("xing", SCN.sacloud("#3a4757"), "left:0;top:-6px;--w:240;opacity:.9;animation-duration:55s;animation-direction:reverse") + SBX("xing", SCN.sacloud("#2c3846"), "left:0;top:4px;--w:300;opacity:.85;animation-duration:80s;animation-direction:reverse;animation-delay:-30s") + SBX("xing", SCN.sacloud("#465566"), "left:0;top:-10px;--w:200;opacity:.8;animation-duration:42s;animation-direction:reverse;animation-delay:-12s");
+      b += SBX("sabolt", SCN.sabolt, "left:62%;top:0;--w:12");
+      b += SBX("", SCN.safence, "left:70%;bottom:8px;--w:78;opacity:.85");
+      [[8, 30, "#2f5a44"], [30, 26, "#3a6a50"], [54, 28, "#2b5340"], [88, 26, "#356048"]].forEach(([p, w, c], i) => b += SBX("sabend", SCN.satree(c), `left:${p}%;bottom:8px;--w:${w};animation-duration:${(2 + i * .4).toFixed(1)}s;animation-delay:${(-i * .6).toFixed(1)}s`));
+      b += SBX("", SCN.salamp, "left:19%;bottom:8px;--w:16") + SBX("sasockbx", SCN.sasock, "left:78%;bottom:8px;--w:44");
+      b += SBX("", SCN.sapud, "left:25%;bottom:1px;--w:46") + SBX("", SCN.sapud, "left:47%;bottom:0;--w:38") + SBX("", SCN.sapud, "left:82%;bottom:1px;--w:44");
+      b += SBX("bcross sarolling", `<span class="saspin" style="animation-duration:1.6s">${SCN.saumb("#c0392b")}</span>`, "bottom:6px;--w:24;animation-duration:16s;animation-direction:reverse;animation-delay:-5s");
+      for (let i = 0; i < 26; i++) b += `<i class="sarainb" style="left:${fxRand(0, 110).toFixed(0)}%;animation-duration:${fxRand(.5, .9).toFixed(2)}s;animation-delay:${(-fxRand(0, .9)).toFixed(2)}s"></i>`;
       return b;
     },
   },
@@ -2506,6 +2543,7 @@ function renderTopbar(profile) {
     <div class="nav">${links.map(([href,label,active]) =>
       `<a href="${href}" class="${active?'active':''}">${label}</a>`).join("")}</div>
     <div class="userbox">
+      <button type="button" id="notifBell" class="notif-bell" aria-label="Notifications" title="Notifications" aria-haspopup="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span id="notifBadge" class="notif-badge" style="display:none"></span></button>
       <button type="button" id="animToggle" class="anim-toggle" title="Stop or start the seasonal animations"></button>
       ${themePickerHtml(profile)}
       <select id="colorModeSelect" class="mode-select" aria-label="Display mode">${modeOptions}</select>
@@ -2517,6 +2555,7 @@ function renderTopbar(profile) {
   if (ownThemeSel) ownThemeSel.addEventListener("change", (e) => setOwnTheme(e.target.value));
   document.getElementById("animToggle").addEventListener("click", toggleAnimations);
   applyAnimPref();
+  initNotifications();
 
   // A thin decorative strip right under the topbar — cartoon pumpkins/
   // spiders for the Halloween theme, a tree/reindeer/snow for
@@ -2685,3 +2724,81 @@ async function callEdgeFunction(name, payload) {
   }, { passive: true });
   new MutationObserver(() => { if (!active()) reset(); }).observe(root, { attributes: true, attributeFilter: ["data-anim", "data-theme"] });
 })();
+
+
+/* ---------------- notifications (bell in the top bar) ---------------- */
+let NOTIFS = [], _notifTimer = null;
+function timeAgo(iso) {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s / 60) + " min ago";
+  if (s < 86400) return Math.floor(s / 3600) + " h ago";
+  if (s < 172800) return "yesterday";
+  return fmtDate(String(iso).slice(0, 10));
+}
+async function loadNotifications() {
+  try {
+    const { data, error } = await sb.from("notifications").select("*").order("created_at", { ascending: false }).limit(30);
+    if (error) return;
+    NOTIFS = data || [];
+    paintNotifications();
+  } catch (e) { /* notifications are best-effort */ }
+}
+function paintNotifications() {
+  const unread = NOTIFS.filter(n => !n.read_at).length;
+  const b = document.getElementById("notifBadge");
+  if (b) { b.textContent = unread > 9 ? "9+" : String(unread); b.style.display = unread ? "" : "none"; }
+  const bell = document.getElementById("notifBell");
+  if (bell) bell.setAttribute("aria-label", unread ? `Notifications (${unread} unread)` : "Notifications");
+  const panel = document.getElementById("notifPanel");
+  if (panel && panel.style.display !== "none") renderNotifPanel();
+}
+function renderNotifPanel() {
+  const panel = document.getElementById("notifPanel");
+  const rows = NOTIFS.map(n => `<button type="button" class="notif-item${n.read_at ? "" : " unread"}" data-id="${n.id}" data-link="${escapeHtml(n.link || "")}">
+      <span class="notif-dot" aria-hidden="true"></span><span class="notif-text"><strong>${escapeHtml(n.title)}</strong><span>${escapeHtml(n.body || "")}</span><em>${escapeHtml(timeAgo(n.created_at))}</em></span></button>`).join("");
+  panel.innerHTML = `<div class="notif-head"><strong>Notifications</strong>
+      <span><button type="button" class="notif-link" data-act="readall">Mark all read</button><button type="button" class="notif-link" data-act="clear">Clear all</button></span></div>
+    <div class="notif-list">${rows || '<div class="notif-empty">You\'re all caught up.</div>'}</div>`;
+}
+function closeNotifPanel() { const p = document.getElementById("notifPanel"); if (p) p.style.display = "none"; }
+function initNotifications() {
+  const bell = document.getElementById("notifBell");
+  if (!bell) return;
+  let panel = document.getElementById("notifPanel");
+  if (!panel) { panel = document.createElement("div"); panel.id = "notifPanel"; panel.className = "notif-panel"; panel.style.display = "none"; document.body.appendChild(panel); }
+  bell.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (panel.style.display !== "none") { closeNotifPanel(); return; }
+    renderNotifPanel(); panel.style.display = "";
+    const r = bell.getBoundingClientRect();
+    const w = panel.offsetWidth || 380;
+    panel.style.top = Math.round(r.bottom + 8) + "px";
+    panel.style.right = "auto";
+    panel.style.left = Math.max(8, Math.min(Math.round(r.left), window.innerWidth - w - 8)) + "px";
+  });
+  panel.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const act = e.target.closest("[data-act]");
+    if (act) {
+      if (act.dataset.act === "readall") { await sb.rpc("mark_notifications_read", { p_ids: null }); NOTIFS.forEach(n => { n.read_at = n.read_at || new Date().toISOString(); }); }
+      else { await sb.rpc("clear_notifications"); NOTIFS = []; }
+      paintNotifications(); return;
+    }
+    const it = e.target.closest(".notif-item");
+    if (!it) return;
+    const n = NOTIFS.find(x => x.id === it.dataset.id);
+    if (n && !n.read_at) { n.read_at = new Date().toISOString(); sb.rpc("mark_notifications_read", { p_ids: [n.id] }); paintNotifications(); }
+    const link = it.dataset.link; closeNotifPanel();
+    if (!link) return;
+    const [pg, hash] = link.split("#");
+    if (pg === window.location.pathname.split("/").pop()) { if (hash) { window.location.hash = hash; if (typeof showTab === "function" && hash === "set") showTab("set"); } }
+    else window.location.href = link;
+  });
+  document.addEventListener("click", closeNotifPanel);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeNotifPanel(); });
+  loadNotifications();
+  if (_notifTimer) clearInterval(_notifTimer);
+  _notifTimer = setInterval(() => { if (!document.hidden) loadNotifications(); }, 60000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) loadNotifications(); });
+}
