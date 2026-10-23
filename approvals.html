@@ -160,7 +160,7 @@ async function load() {
     sb.from("site_settings").select("*"),
     sb.from("capacity_overrides").select("*").gte("override_date", minDate).lte("override_date", maxDate),
     sb.from("restricted_days").select("*").gte("restricted_date", minDate).lte("restricted_date", maxDate),
-    sb.from("leave_requests").select("user_id, leave_date, snapshot_primary_site, snapshot_cross_site")
+    sb.from("leave_requests").select("id, user_id, leave_date, requested_at, status, snapshot_primary_site, snapshot_cross_site")
       .eq("deleted", false).in("status", ["pending", "approved"])
       .gte("leave_date", minDate).lte("leave_date", maxDate),
   ]);
@@ -181,6 +181,7 @@ async function load() {
   // so grouping by date preserves "who applied first" order within
   // each group for free, and the row index doubles as the overall
   // 1st/2nd/3rd submission order for the whole list.
+  data.sort((a, b) => new Date(a.requested_at) - new Date(b.requested_at));
   const byDate = {};
   data.forEach(r => { (byDate[r.leave_date] = byDate[r.leave_date] || []).push(r); });
 
@@ -198,13 +199,20 @@ async function load() {
     const clashCount = byDate[r.leave_date].length;
     r._restrictionFlag = restrictionFlagFor(r, ctx);
     r._stacked = stackedFor(r, ctx);
+    // Same numbering as the calendar: everyone's live (pending + approved) requests for this date at this
+    // site, numbered 1, 2, 3... in the order they were applied for. Nothing shown when it is the only one.
+    const dayGroup = ctx.sameRangeAll.filter(x => x.leave_date === r.leave_date &&
+      (x.snapshot_primary_site === r.snapshot_primary_site || x.snapshot_cross_site === true))
+      .sort((p, q) => new Date(p.requested_at) - new Date(q.requested_at));
+    const dayPos = dayGroup.findIndex(x => x.id === r.id);
+    const dayOrd = dayGroup.length > 1 && dayPos >= 0 ? `<sup class="day-ord" title="${dayPos + 1} of ${dayGroup.length} requests for this day, in the order applied for">${dayPos + 1}</sup>` : "";
     const tr = document.createElement("tr");
     if (clashCount > 1) tr.className = "clash-row";
     tr.innerHTML = `
       <td><span class="badge study">${ordinalLabel(index + 1)}</span></td>
       <td>${fmtDateTime(r.requested_at)}</td>
       <td>${escapeHtml(nameFor(r.user_id))}${r._stacked ? `<br><span class="badge pending" title="This person has another live request for the same date.">Additional request</span>` : ""}</td>
-      <td>${fmtDate(r.leave_date)}${clashCount > 1 ? ` <span class="badge pending">${clashCount}&times;</span>` : ""}
+      <td>${fmtDate(r.leave_date)}${dayOrd}${clashCount > 1 ? ` <span class="badge pending" title="More than one pending request for this date">${clashCount} pending</span>` : ""}
         ${targetProfile && targetProfile.suspended_last_day && r.leave_date > targetProfile.suspended_last_day ? `<br><span class="badge" style="background:#c9ccd1;color:#4b5563;" title="This person's account was suspended with a last working day of ${escapeHtml(fmtDate(targetProfile.suspended_last_day))}.">After last day</span>` : ""}
         ${r._restrictionFlag ? `<br><span class="badge rejected" title="${escapeHtml(restrictionLabel(r._restrictionFlag))}">&#9888; Restricted day</span>` : ""}
       </td>
