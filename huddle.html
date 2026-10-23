@@ -25,7 +25,13 @@
   .site-tag.st_richards{background:var(--teal);}
   .pin-tag{display:inline-block;padding:1px 8px;border-radius:12px;font-size:11px;font-weight:700;background:var(--honey);color:#1f2430;}
   .rt-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 6px;}
-  .rt-bar button{width:auto;margin:0;padding:5px 12px;}
+  .rt-bar button{width:auto;margin:0;padding:5px 12px;min-width:36px;}
+  .rt-sep{width:1px;align-self:stretch;background:var(--border);margin:0 2px;}
+  .rt-colwrap{position:relative;display:inline-block;}
+  .rt-pop{position:absolute;top:calc(100% + 4px);left:0;z-index:30;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:grid;grid-template-columns:repeat(4,30px);gap:6px;}
+  .rt-pop button{width:30px;height:30px;min-width:0;padding:0;border-radius:6px;border:2px solid rgba(0,0,0,.2);cursor:pointer;margin:0;}
+  .rt-pop .rt-none{grid-column:1/-1;width:auto;height:auto;padding:4px 8px;font-size:12px;border:1px solid var(--border);background:var(--surface-alt);color:inherit;}
+  .rt-preview{border:1px dashed var(--border);border-radius:8px;padding:10px;min-height:9em;background:var(--surface-alt);}
   .rt-link{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 6px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface-alt);}
   .rt-link input{flex:1 1 240px;margin:0;}
   .rt-link button{width:auto;margin:0;}
@@ -109,10 +115,19 @@
       <label for="pTitle">Title</label>
       <input type="text" id="pTitle" maxlength="200" required>
       <label for="pBody">Text</label>
-      <div class="rt-bar">
-        <button type="button" class="secondary" id="linkBtn" title="Highlight some text, then click (or press Ctrl+K)">&#128279; Add link</button>
-        <span class="small">Highlight some text, then click <strong>Add link</strong> (or press Ctrl/Cmd+K). A link is saved as <code>[text](address)</code> and shown as just the text.</span>
+      <div class="rt-bar" role="toolbar" aria-label="Text formatting">
+        <button type="button" class="secondary rt-b" data-fmt="b" title="Bold (Ctrl/Cmd+B)" aria-label="Bold"><strong>B</strong></button>
+        <button type="button" class="secondary rt-b" data-fmt="i" title="Italic (Ctrl/Cmd+I)" aria-label="Italic"><em>I</em></button>
+        <button type="button" class="secondary rt-b" data-fmt="u" title="Underline (Ctrl/Cmd+U)" aria-label="Underline"><u>U</u></button>
+        <button type="button" class="secondary rt-b" data-fmt="s" title="Strikethrough" aria-label="Strikethrough"><s>S</s></button>
+        <span class="rt-sep"></span>
+        <span class="rt-colwrap"><button type="button" class="secondary rt-b" id="colorBtn" title="Text colour" aria-label="Text colour" aria-haspopup="true"><span style="border-bottom:3px solid #e5484d;font-weight:700;">A</span> &#9662;</button>
+          <div id="colorPop" class="rt-pop" style="display:none;"></div></span>
+        <button type="button" class="secondary rt-b" id="linkBtn" title="Highlight some text, then click (or press Ctrl/Cmd+K)">&#128279; Link</button>
+        <span class="rt-sep"></span>
+        <button type="button" class="secondary rt-b" id="previewBtn" aria-pressed="false">Preview</button>
       </div>
+      <p class="small" style="margin:0 0 6px;">Highlight some text, then click a button. Formatting is saved as simple tags, e.g. <code>[b]bold[/b]</code> and links as <code>[text](address)</code>; use <strong>Preview</strong> to see the result.</p>
       <div id="linkRow" class="rt-link" style="display:none;">
         <span class="small" id="linkFor"></span>
         <input type="text" id="linkUrl" placeholder="https://example.com" aria-label="Link address" autocomplete="off">
@@ -121,6 +136,7 @@
       </div>
       <div id="linkMsg" class="small" style="color:#b91c1c;"></div>
       <textarea id="pBody" rows="9" maxlength="20000"></textarea>
+      <div id="pPreview" class="post-body rt-preview" style="display:none;"></div>
       <label>Post to</label>
       <div class="site-checks">
         <label><input type="checkbox" id="pWorthing"> Worthing Hospital</label>
@@ -354,16 +370,28 @@ function linkify(escaped) {
   // Input is already HTML-escaped. Only http(s) URLs become links.
   // [highlighted text](https://address) becomes a link showing just the text.
   const keep = [];
-  let out = escaped.replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)<\u0000]+)\)/g, (m, text, url) => {
+  let out = escaped.replace(/\[((?:[^\[\]\n]|\[\/?(?:b|i|u|s)\]|\[color=#[0-9a-fA-F]{6}\]|\[\/color\]){1,300}?)\]\((https?:\/\/[^\s)<\[\]\u0000]+)\)/g, (m, text, url) => {
     keep.push(`<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`);
     return `\u0000${keep.length - 1}\u0000`;
   });
-  out = out.replace(/\bhttps?:\/\/[^\s<\u0000]+/g, (u) => {
+  out = out.replace(/\bhttps?:\/\/[^\s<\[\u0000]+/g, (u) => {
     const trail = (u.match(/[.,;:!?)]+$/) || [""])[0];
     const clean = trail ? u.slice(0, -trail.length) : u;
     return `<a href="${clean}" target="_blank" rel="noopener noreferrer">${clean}</a>${trail}`;
   });
-  return out.replace(/\u0000(\d+)\u0000/g, (m, i) => keep[+i]);
+  out = out.replace(/\u0000(\d+)\u0000/g, (m, i) => keep[+i]);
+  return fmtMarkup(out);
+}
+// [b][i][u][s] and [color=#rrggbb] tags -> real formatting. Input is already HTML-escaped; output tags are fixed.
+function fmtMarkup(h) {
+  const TAG = { b: "strong", i: "em", u: "u", s: "s" };
+  for (let k = 0; k < 5; k++) {
+    const prev = h;
+    h = h.replace(/\[(b|i|u|s)\]([\s\S]*?)\[\/\1\]/g, (m, t, x) => `<${TAG[t]}>${x}</${TAG[t]}>`);
+    h = h.replace(/\[color=(#[0-9a-fA-F]{6})\]([\s\S]*?)\[\/color\]/g, (m, c, x) => `<span style="color:${c}">${x}</span>`);
+    if (h === prev) break;
+  }
+  return h;
 }
 
 function fmtSize(n) {
@@ -608,7 +636,7 @@ async function onEditorSubmit(e) {
     while (e > s && /[ \t]/.test(ta.value[e - 1])) e--;
     const text = ta.value.slice(s, e);
     if (s === e || !text.trim()) { say("Highlight the text you want to turn into a link first."); return; }
-    if (/[\n\[\]]/.test(text)) { say("Highlight text on a single line, without square brackets."); return; }
+    if (/[\n\[\]]/.test(text.replace(/\[\/?(?:b|i|u|s)\]|\[color=#[0-9a-fA-F]{6}\]|\[\/color\]/g, ""))) { say("Highlight text on a single line, without square brackets."); return; }
     sel = { s, e, text };
     document.getElementById("linkFor").textContent = `Link for \u201c${text.length > 40 ? text.slice(0, 40) + "\u2026" : text}\u201d:`;
     urlIn.value = ""; row.style.display = ""; urlIn.focus();
@@ -619,7 +647,7 @@ async function onEditorSubmit(e) {
     let u = urlIn.value.trim();
     if (!u) { say("Type or paste the web address."); return; }
     if (!/^[a-z][a-z0-9+.-]*:/i.test(u)) u = "https://" + u;
-    if (!/^https?:\/\/[^\s()<>"']+$/i.test(u)) { say("Enter a valid web address starting with http:// or https:// (no spaces or brackets)."); return; }
+    if (!/^https?:\/\/[^\s()<>"'\[\]]+$/i.test(u)) { say("Enter a valid web address starting with http:// or https:// (no spaces or brackets)."); return; }
     say("");
     const out = `[${sel.text}](${u})`;
     ta.value = ta.value.slice(0, sel.s) + out + ta.value.slice(sel.e);
@@ -631,6 +659,66 @@ async function onEditorSubmit(e) {
   document.getElementById("linkCancel").addEventListener("click", () => { say(""); close(); });
   urlIn.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); apply(); } else if (e.key === "Escape") { e.stopPropagation(); say(""); close(); } });
   ta.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); open(); } });
+})();
+
+/* ---- Bold / italic / underline / strikethrough / colour / preview ---- */
+(function () {
+  const ta = document.getElementById("pBody"), prev = document.getElementById("pPreview"), pop = document.getElementById("colorPop");
+  const COLORS = [["#e5484d", "Red"], ["#f08c00", "Orange"], ["#2e9e5b", "Green"], ["#3b82f6", "Blue"], ["#8b5cf6", "Purple"], ["#0d9488", "Teal"], ["#e0409a", "Pink"], ["#6b7280", "Grey"]];
+  pop.innerHTML = COLORS.map(([c, n]) => `<button type="button" data-c="${c}" style="background:${c}" title="${n}" aria-label="${n}"></button>`).join("") + '<button type="button" class="rt-none" data-c="">Remove colour</button>';
+  const say = (t) => { const m = document.getElementById("linkMsg"); if (m) m.textContent = t || ""; };
+  function sel() {
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    if (s === e) { say("Highlight some text first."); return null; }
+    say(""); return { s, e };
+  }
+  function wrap(open, close, reColour) {
+    const r = sel(); if (!r) return;
+    let { s, e } = r; const v = ta.value;
+    const sel0 = v.slice(s, e);
+    if (reColour) {   // replace / remove an existing colour wrapper around the selection
+      const m1 = /\[color=#[0-9a-fA-F]{6}\]$/.exec(v.slice(0, s)), m2 = v.slice(e).startsWith("[/color]");
+      if (m1 && m2) { s -= m1[0].length; ta.value = v.slice(0, s) + sel0 + v.slice(e + 8); e = s + sel0.length; if (!open) { ta.setSelectionRange(s, e); ta.focus(); return; } return wrapAt(open, close, s, e); }
+      if (!open) { say("That text has no colour to remove."); return; }
+    } else if (v.slice(0, s).endsWith(open) && v.slice(e).startsWith(close)) {          // toggle off
+      ta.value = v.slice(0, s - open.length) + sel0 + v.slice(e + close.length);
+      ta.setSelectionRange(s - open.length, s - open.length + sel0.length); ta.focus(); return;
+    } else if (sel0.startsWith(open) && sel0.endsWith(close) && sel0.length >= open.length + close.length) {
+      const inner = sel0.slice(open.length, sel0.length - close.length);
+      ta.value = v.slice(0, s) + inner + v.slice(e); ta.setSelectionRange(s, s + inner.length); ta.focus(); return;
+    }
+    wrapAt(open, close, s, e);
+  }
+  function wrapAt(open, close, s, e) {
+    const v = ta.value;
+    ta.value = v.slice(0, s) + open + v.slice(s, e) + close + v.slice(e);
+    ta.setSelectionRange(s + open.length, e + open.length); ta.focus();
+  }
+  document.querySelectorAll("[data-fmt]").forEach(b => b.addEventListener("click", () => { const k = b.dataset.fmt; wrap(`[${k}]`, `[/${k}]`); }));
+  document.getElementById("colorBtn").addEventListener("click", (e) => { e.stopPropagation(); pop.style.display = pop.style.display === "none" ? "grid" : "none"; });
+  pop.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-c]"); if (!b) return; e.stopPropagation();
+    pop.style.display = "none";
+    const c = b.dataset.c;
+    wrap(c ? `[color=${c}]` : "", c ? "[/color]" : "", true);
+  });
+  document.addEventListener("click", () => { pop.style.display = "none"; });
+  ta.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const k = e.key.toLowerCase();
+    if (k === "b" || k === "i" || k === "u") { e.preventDefault(); wrap(`[${k}]`, `[/${k}]`); }
+  });
+  const pb = document.getElementById("previewBtn");
+  pb.addEventListener("click", () => {
+    const on = prev.style.display === "none";
+    if (on) { prev.innerHTML = linkify(escapeHtml(ta.value)) || '<span class="small">Nothing to preview yet.</span>'; }
+    prev.style.display = on ? "" : "none"; ta.style.display = on ? "none" : "";
+    pb.textContent = on ? "Back to editing" : "Preview"; pb.setAttribute("aria-pressed", String(on));
+    document.querySelectorAll(".rt-bar [data-fmt], #colorBtn, #linkBtn").forEach(b => { b.disabled = on; });
+  });
+  // always start a fresh editor in edit mode
+  const ov = document.getElementById("editorOverlay");
+  new MutationObserver(() => { if (ov.style.display !== "none" && prev.style.display !== "none") pb.click(); }).observe(ov, { attributes: true, attributeFilter: ["style"] });
 })();
 </script>
 </body>
