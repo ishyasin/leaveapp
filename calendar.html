@@ -691,13 +691,13 @@ function renderSiteGrid(site) {
           // distinctly for the approver rather than letting it blend in.
           const stacked = REQUESTS.some(x =>
             x.id !== r.id && x.user_id === r.user_id && x.leave_date === r.leave_date && x.status !== "rejected");
-          // Several entries for the same person on the same day (e.g. Annual Leave part day + TOIL part day):
-          // number them 1, 2, 3 in the order they were applied for.
-          const sameDay = REQUESTS.filter(x => x.user_id === r.user_id && x.leave_date === r.leave_date && x.status !== "rejected");
+          // Everyone's entries for this date at this site are numbered 1, 2, 3... in the order they were
+          // applied for (earliest application = 1). Nothing is shown when there is only one entry that day.
+          const sameDay = REQUESTS.filter(x => x.leave_date === r.leave_date && x.status !== "rejected" && requestInSite(x, site));
           const ordIdx = r.status === "rejected" ? -1 : sameDay.findIndex(x => x.id === r.id);
           const ordSup = sameDay.length > 1 && ordIdx >= 0 ? `<sup class="day-ord">${ordIdx + 1}</sup>` : "";
           const hasNote = NOTED_IDS.has(r.id);
-          const tooltip = tileTooltip(r, p, stacked) + (ordSup ? `\n(${ordIdx + 1} of ${sameDay.length} entries for this person on this day, in the order applied for)` : "") + (hasNote ? "\n* Approver note added (click to read)" : "");
+          const tooltip = tileTooltip(r, p, stacked) + (ordSup ? `\n(${ordIdx + 1} of ${sameDay.length} requests for this day, in the order applied for)` : "") + (hasNote ? "\n* Approver note added (click to read)" : "");
           // Colour goes on the cell itself (not a nested span) so the
           // fill is guaranteed by the table cell's own background rather
           // than a percentage-height flex child, which some browsers
