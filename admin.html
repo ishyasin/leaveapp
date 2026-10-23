@@ -446,6 +446,21 @@
       </form>
     </div>
 
+    <div class="card" id="trustLogoCard" style="display:none;">
+      <h2>Trust logo (login page)</h2>
+      <p class="small">Developer only. Upload an <strong>SVG</strong> (up to 512&nbsp;KB) and it appears in the centre of the left side of the sign-in page. Replacing it swaps it straight away; removing it hides the space again. Browsers may keep the old one for up to a minute.</p>
+      <div id="trustLogoMsg"></div>
+      <div id="trustLogoPreviewWrap" style="margin:12px 0;padding:18px;border:1px dashed var(--border);border-radius:10px;background:var(--surface-alt);min-height:90px;display:flex;align-items:center;justify-content:center;">
+        <img id="trustLogoPreview" alt="Current Trust logo" style="max-width:320px;max-height:160px;display:none;">
+        <span id="trustLogoNone" class="small">No logo uploaded yet.</span>
+      </div>
+      <input type="file" id="trustLogoFile" accept=".svg,image/svg+xml">
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="primary" id="trustLogoUploadBtn" onclick="uploadTrustLogo()">Upload logo</button>
+        <button type="button" class="secondary" id="trustLogoRemoveBtn" onclick="removeTrustLogo()" style="display:none;">Remove logo</button>
+      </div>
+    </div>
+
     <div class="card" id="themeAvailCard" style="display:none;">
       <h2>Themes people can choose</h2>
       <p class="small">Developer only. <strong>Ticked</strong> themes appear in everyone's own theme picker (top bar). <strong>Unticked</strong> themes are Developer-controlled: only you can assign them, from Users &rarr; Edit theme or &ldquo;Apply a theme&rdquo; above. The Default theme is always available. People keep whatever theme they already have even if you untick it later.</p>
@@ -1514,10 +1529,64 @@ async function saveThemeAvail() {
   finally { btn.disabled = false; }
 }
 
+/* ---------- Trust logo (login page) ---------- */
+const TRUST_LOGO_PATH = "trust-logo.svg";
+function trustLogoUrl() { return `${SUPABASE_URL}/storage/v1/object/public/branding/${TRUST_LOGO_PATH}`; }
+
+function loadTrustLogo() {
+  const img = document.getElementById("trustLogoPreview");
+  img.onload = () => {
+    img.style.display = "";
+    document.getElementById("trustLogoNone").style.display = "none";
+    document.getElementById("trustLogoRemoveBtn").style.display = "";
+  };
+  img.onerror = () => {
+    img.style.display = "none";
+    document.getElementById("trustLogoNone").style.display = "";
+    document.getElementById("trustLogoRemoveBtn").style.display = "none";
+  };
+  img.src = trustLogoUrl() + "?t=" + Date.now();
+}
+
+async function uploadTrustLogo() {
+  const msg = document.getElementById("trustLogoMsg");
+  msg.innerHTML = "";
+  const f = document.getElementById("trustLogoFile").files[0];
+  if (!f) { showMsg(msg, "Choose an SVG file first.", "error"); return; }
+  if (!/\.svg$/i.test(f.name) && f.type !== "image/svg+xml") { showMsg(msg, "That isn't an SVG file.", "error"); return; }
+  if (f.size > 524288) { showMsg(msg, "That file is over 512 KB. Please use a smaller SVG.", "error"); return; }
+  const text = await f.text();
+  if (!/<svg[\s>]/i.test(text)) { showMsg(msg, "That doesn't look like a valid SVG.", "error"); return; }
+  // Belt and braces: the page shows it through <img> (scripts never run), but refuse active content anyway.
+  if (/<script|<foreignObject|\son[a-z]+\s*=|javascript:/i.test(text)) {
+    showMsg(msg, "That SVG contains scripts or active content, so it can't be used. Export a plain SVG.", "error"); return;
+  }
+  const btn = document.getElementById("trustLogoUploadBtn");
+  btn.disabled = true; btn.textContent = "Uploading…";
+  const { error } = await sb.storage.from("branding").upload(TRUST_LOGO_PATH, new Blob([text], { type: "image/svg+xml" }),
+    { upsert: true, contentType: "image/svg+xml", cacheControl: "60" });
+  btn.disabled = false; btn.textContent = "Upload logo";
+  if (error) { showMsg(msg, "Upload failed: " + error.message, "error"); return; }
+  document.getElementById("trustLogoFile").value = "";
+  showMsg(msg, "Logo uploaded. It now shows on the sign-in page.", "success");
+  loadTrustLogo();
+}
+
+async function removeTrustLogo() {
+  if (!confirm("Remove the Trust logo from the sign-in page?")) return;
+  const msg = document.getElementById("trustLogoMsg");
+  const { error } = await sb.storage.from("branding").remove([TRUST_LOGO_PATH]);
+  if (error) { showMsg(msg, "Couldn't remove it: " + error.message, "error"); return; }
+  showMsg(msg, "Logo removed.", "success");
+  loadTrustLogo();
+}
+
 function setupBulkThemeTab() {
   renderMonthThemes();
   if (isDeveloper(PROFILE)) {
     document.getElementById("themeAvailCard").style.display = "";
+    document.getElementById("trustLogoCard").style.display = "";
+    loadTrustLogo();
     document.getElementById("bulkThemeLockWrap").style.display = "";
     renderThemeAvail();
   }

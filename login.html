@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data: https://*.supabase.co; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
 <title>Sign in — Pharmacy Portal</title>
 <script>
 // Applies the last-known colour theme/mode (cached by applyTheme()/
@@ -103,39 +103,94 @@
     .tri,.orb,.particle,.light-beam{animation:none;}
   }
 
-  /* ---- Login card ---- */
-  .login-wrap{position:relative;z-index:5;width:100%;max-width:380px;opacity:0;animation:edgFadeUp .6s .3s ease both;}
-  .brand-mark{text-align:center;margin-bottom:22px;}
-  .brand-mark .name{font-size:24px;font-weight:800;color:var(--heading-color);letter-spacing:0.01em;}
-  .brand-mark .sub{font-size:12px;font-weight:600;color:var(--text-muted);letter-spacing:0.06em;text-transform:uppercase;margin-top:4px;}
+  /* ---- Split layout: brand panel (left) + sign-in panel (right) ---- */
+  .split{display:flex;flex:1;min-height:0;}
+  .split .hero-band{padding:56px;align-items:flex-start;justify-content:space-between;}
+  .brand-side{position:relative;z-index:5;display:flex;flex-direction:column;justify-content:space-between;height:100%;width:100%;opacity:0;animation:edgFadeUp .6s .2s ease both;}
+  .brand-side .name{font-size:34px;font-weight:800;color:var(--heading-color);letter-spacing:.01em;}
+  .brand-side .sub{margin-top:4px;font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);}
+  .brand-side .tagline{font-size:40px;line-height:1.1;font-weight:800;color:var(--heading-color);max-width:400px;margin-bottom:60px;}
 
-  .login-card{
-    background:rgba(255,255,255,.9);
-    backdrop-filter:blur(6px);
-    border:1px solid rgba(26,39,68,.08);
-    border-radius:14px;
-    border-top:4px solid var(--teal);
-    box-shadow:0 20px 50px rgba(26,39,68,.14);
-    padding:30px 28px 26px;
-  }
-  :root[data-color-mode="dark"] .login-card,
-  :root[data-color-mode="inverted"] .login-card{
-    background:var(--surface);backdrop-filter:none;box-shadow:none;
-  }
+  .brand-side .name .tm{font-size:14px;font-weight:700;vertical-align:super;margin-left:2px;}
+  /* Live status: green light, checked against the backend; turns amber if it can't be reached */
+  .live{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:4px 12px 4px 10px;border-radius:999px;background:rgba(46,160,67,.12);border:1px solid rgba(46,160,67,.35);font-size:12.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#1b6b2f;}
+  .live i{width:9px;height:9px;border-radius:50%;background:#2ea043;box-shadow:0 0 0 0 rgba(46,160,67,.6);animation:livePulse 2s ease-out infinite;}
+  .live.down{background:rgba(180,83,9,.12);border-color:rgba(180,83,9,.4);color:#8a4a07;}
+  .live.down i{background:#d97706;animation:none;}
+  @keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(46,160,67,.55);}70%{box-shadow:0 0 0 8px rgba(46,160,67,0);}100%{box-shadow:0 0 0 0 rgba(46,160,67,0);}}
+  @media (prefers-reduced-motion:reduce){.live i{animation:none;}}
+  :root[data-color-mode="dark"] .live,:root[data-color-mode="inverted"] .live{color:#7ee787;}
+  :root[data-color-mode="dark"] .live.down,:root[data-color-mode="inverted"] .live.down{color:#fbbf24;}
 
-  .login-card .logo-row h2{color:var(--heading-color);}
-  .login-card button.primary{background:var(--navy);}
-  .login-card button.primary:hover{background:var(--teal);}
+  /* Trust logo (SVG uploaded by the Developer in Admin → Appearance), centred in the left panel */
+  .trust-logo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;display:flex;align-items:center;justify-content:center;width:min(320px,60%);opacity:0;animation:logoIn .6s .4s ease both;}
+  @keyframes logoIn{from{opacity:0;}to{opacity:1;}}
+  .trust-logo[hidden]{display:none;}
+  .trust-logo img{max-width:100%;max-height:200px;display:block;}
+  :root[data-color-mode="dark"] .trust-logo,:root[data-color-mode="inverted"] .trust-logo{background:#fff;padding:18px 22px;border-radius:12px;}
+
+  .form-panel{flex:0 0 480px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;padding:48px;box-sizing:border-box;position:relative;z-index:5;}
+  .login-wrap{width:100%;max-width:340px;opacity:0;animation:edgFadeUp .6s .3s ease both;}
+  .login-wrap h1{margin:0;font-size:30px;font-weight:800;color:#fff;}
+  .login-wrap .lead{margin:6px 0 22px;font-size:15px;color:#c7d0e4;}
+  .form-panel label{color:#fff;font-weight:700;}
+  .form-panel input{background:rgba(255,255,255,.07);border:1.5px solid #4a5d88;color:#fff;}
+  .form-panel input:focus{border-color:#5fd4de;outline:none;box-shadow:0 0 0 3px rgba(95,212,222,.3);}
+  .form-panel button.primary{background:#2ec4d1;color:#06202a;font-weight:800;}
+  .form-panel button.primary:hover{background:#5fd4de;}
+  .form-panel p.small{color:#c7d0e4;}
+  .form-panel a{color:#5fd4de;font-weight:700;}
+  .form-panel a:hover{color:#fff;}
+
+  /* ED&G lockup sits on the dark panel, so it uses the light variant */
+  .edg-brand .mark{color:#fff;}
+  .edg-brand .mark .amp{color:#5fd4de;}
+  .edg-brand .name{color:#e8edf7;}
+  .edg-brand .rule span:nth-child(1){background:#7fd3da;}
+
+  :root[data-color-mode="dark"] .form-panel,
+  :root[data-color-mode="inverted"] .form-panel{background:var(--surface);color:var(--text);border-left:1px solid var(--border);}
+  :root[data-color-mode="dark"] .login-wrap h1,
+  :root[data-color-mode="inverted"] .login-wrap h1,
+  :root[data-color-mode="dark"] .form-panel label,
+  :root[data-color-mode="inverted"] .form-panel label{color:var(--heading-color);}
+  :root[data-color-mode="dark"] .login-wrap .lead,
+  :root[data-color-mode="inverted"] .login-wrap .lead,
+  :root[data-color-mode="dark"] .form-panel p.small,
+  :root[data-color-mode="inverted"] .form-panel p.small{color:var(--text-muted);}
+  :root[data-color-mode="dark"] .form-panel input,
+  :root[data-color-mode="inverted"] .form-panel input{background:var(--surface-alt);border-color:var(--border);color:var(--text);}
+  :root[data-color-mode="dark"] .form-panel button.primary,
+  :root[data-color-mode="inverted"] .form-panel button.primary{background:var(--teal);color:#fff;}
+  :root[data-color-mode="dark"] .form-panel a,
+  :root[data-color-mode="inverted"] .form-panel a{color:var(--teal);}
+  :root[data-color-mode="dark"] .edg-brand .mark,
+  :root[data-color-mode="inverted"] .edg-brand .mark,
+  :root[data-color-mode="dark"] .edg-brand .name,
+  :root[data-color-mode="inverted"] .edg-brand .name{color:var(--heading-color);}
+
+  /* Narrow screens: panels stack (brand strip on top, form below), tagline dropped */
+  @media (max-width:860px){
+    body{overflow:auto;}
+    .split{flex-direction:column;}
+    .split .hero-band{flex:0 0 auto;padding:28px 24px;}
+    .brand-side .tagline{display:none;}
+    .trust-logo{position:static;transform:none;margin:14px 0 0;width:auto;}
+    .trust-logo img{max-height:64px;}
+    .form-panel{flex:1 0 auto;padding:36px 20px;}
+    .edg-brand{position:static;margin:0;padding:20px 24px;background:var(--surface);}
+    .edg-brand .mark{color:#1a2744;}
+    .edg-brand .mark .amp{color:#12a0ad;}
+    .edg-brand .name{color:#1a2744;}
+    .edg-brand .rule span:nth-child(1){background:#1a2744;}
+    :root[data-color-mode="dark"] .edg-brand .rule span:nth-child(1),
+    :root[data-color-mode="inverted"] .edg-brand .rule span:nth-child(1){background:var(--heading-color);}
+  }
 </style>
 </head>
 <body>
 
-<a class="edg-brand" href="https://home.edandg.com/" target="_blank" rel="noopener noreferrer" aria-label="ED&amp;G — visit home.edandg.com">
-  <div class="mark">ED<span class="amp">&amp;</span>G<span class="tm">&trade;</span></div>
-  <div class="name">Evolve Digital &amp; Governance</div>
-  <div class="rule"><span></span><span></span><span></span></div>
-</a>
-
+<div class="split">
 <div class="hero-band">
   <div class="tri tri-a"></div>
   <div class="tri tri-b"></div>
@@ -165,32 +220,47 @@
   <div class="particle" style="width:5px;height:5px;background:rgba(18,160,173,0.5);bottom:5%;left:91%;animation:floatUp3 11s linear infinite,bobble 6s ease-in-out infinite;animation-delay:-1s,-3.5s"></div>
   <div class="particle" style="width:3px;height:3px;background:rgba(95,182,224,0.5);bottom:5%;left:4%;animation:floatUp1 19s linear infinite,bobble 5s ease-in-out infinite;animation-delay:-5s,-2s"></div>
 
-  <div class="login-wrap">
-    <div class="brand-mark">
-      <div class="name">Pharmacy Portal</div>
+  <div class="brand-side">
+    <div>
+      <div class="name">Pharmacy Portal<span class="tm">&trade;</span></div>
       <div class="sub">by ED&amp;G&trade;</div>
+      <div class="live" id="liveBadge" role="status" aria-live="polite"><i aria-hidden="true"></i><span id="liveText">Live</span></div>
     </div>
-
-    <div class="login-card">
-      <div id="msg"></div>
-      <form id="loginForm">
-        <label>User ID</label>
-        <input type="text" id="userId" autocomplete="username" required>
-        <label>Password</label>
-        <input type="password" id="password" autocomplete="current-password" required>
-        <div style="margin-top:18px;">
-          <button type="submit" class="primary" style="width:100%;" id="submitBtn">Sign in</button>
-        </div>
-      </form>
-      <p class="small center" style="margin-top:14px;">
-        Forgotten your password? Ask a Clinical Team Lead or Developer to reset it from Admin &rarr; Users.
-      </p>
-      <p class="small center" style="margin-top:10px;">
-        <a href="https://home.edandg.com/" target="_blank" rel="noopener noreferrer">Learn more</a>
-      </p>
-    </div>
+    <div class="trust-logo" id="trustLogoWrap" hidden><img id="trustLogo" alt="Trust logo"></div>
+    <div class="tagline">Your team, your rota, your week.</div>
   </div>
 </div>
+
+<div class="form-panel">
+  <div class="login-wrap">
+    <h1>Sign in</h1>
+    <p class="lead">Welcome back</p>
+    <div id="msg"></div>
+    <form id="loginForm">
+      <label>User ID</label>
+      <input type="text" id="userId" autocomplete="username" required>
+      <label>Password</label>
+      <input type="password" id="password" autocomplete="current-password" required>
+      <div style="margin-top:18px;">
+        <button type="submit" class="primary" style="width:100%;" id="submitBtn">Sign in</button>
+      </div>
+    </form>
+    <p class="small center" style="margin-top:14px;">
+      Forgotten your password? Ask a Clinical Team Lead or Developer to reset it from Admin &rarr; Users.
+    </p>
+    <p class="small center" style="margin-top:10px;">
+      <a href="https://home.edandg.com/" target="_blank" rel="noopener noreferrer">Learn more</a>
+    </p>
+  </div>
+</div>
+</div>
+
+<a class="edg-brand" href="https://home.edandg.com/" target="_blank" rel="noopener noreferrer" aria-label="ED&amp;G — visit home.edandg.com">
+  <div class="mark">ED<span class="amp">&amp;</span>G<span class="tm">&trade;</span></div>
+  <div class="name">Evolve Digital &amp; Governance</div>
+  <div class="rule"><span></span><span></span><span></span></div>
+</a>
+
 <script src="shared.js"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
@@ -238,6 +308,21 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     btn.disabled = false; btn.textContent = "Sign in";
   }
 });
+
+// Live indicator: reflects whether the backend actually answers.
+(async () => {
+  const ok = await backendReachable();
+  const badge = document.getElementById("liveBadge");
+  if (!ok) { badge.classList.add("down"); document.getElementById("liveText").textContent = "Unavailable"; }
+})();
+
+// Trust logo: public SVG in the "branding" bucket; stays hidden until it actually loads.
+(() => {
+  const img = document.getElementById("trustLogo");
+  img.onload = () => { document.getElementById("trustLogoWrap").hidden = false; };
+  img.onerror = () => { document.getElementById("trustLogoWrap").hidden = true; };
+  img.src = `${SUPABASE_URL}/storage/v1/object/public/branding/trust-logo.svg`;
+})();
 
 (async () => {
   const session = await getSession();
