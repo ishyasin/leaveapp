@@ -110,7 +110,7 @@
 
 :root[data-theme="emergency"]{--navy:#24405e; --navy-light:#34587f; --teal:#2e8a5a; --teal-light:#5fb386; --honey:#ffd100; --honey-dark:#d9b000;}
 :root[data-theme="surgical"]{--navy:#0d6b6a; --navy-light:#1a8f8b; --teal:#2b9fd0; --teal-light:#5bbfe8; --honey:#bdeee4; --honey-dark:#8fd9ca;}
-:root[data-theme="intensive"]{--navy:#0b1f3a; --navy-light:#13315c; --teal:#12b886; --teal-light:#38d9a9; --honey:#ffd43b; --honey-dark:#e0b020;}
+:root[data-theme="intensive"]{--navy:#0a3fa8; --navy-light:#1f62d6; --teal:#0092e0; --teal-light:#3cc8ff; --honey:#ffc400; --honey-dark:#e09a00;}
 :root[data-theme="elderly"]{--navy:#6b4f7a; --navy-light:#876497; --teal:#c97b84; --teal-light:#dd9aa1; --honey:#e8c872; --honey-dark:#c9a64a;}
 :root[data-theme="paeds"]{--navy:#1769c2; --navy-light:#2a86e0; --teal:#ff7043; --teal-light:#ff9a76; --honey:#ffd23f; --honey-dark:#e0b520;}
 
@@ -271,7 +271,7 @@
 :root[data-theme="standrew"] .theme-banner{background:linear-gradient(#0a5cb8,#4a9be0);}
 :root[data-theme="emergency"] .theme-banner{background:linear-gradient(#22394f,#34516e);}
 :root[data-theme="surgical"] .theme-banner{background:linear-gradient(#0f7f7d,#35b9ad 80%,#5fd3c6);}
-:root[data-theme="intensive"] .theme-banner{background:linear-gradient(#050d1a,#0c2038);}
+:root[data-theme="intensive"] .theme-banner{background:linear-gradient(#0050d8,#0a8cf0 60%,#2ec5ff);border-bottom:3px solid #ffc400;}
 :root[data-theme="elderly"] .theme-banner{background:linear-gradient(#f7ecf3,#e6d8ee);}
 :root[data-theme="paeds"] .theme-banner{background:linear-gradient(#8fd3ff,#d8f1ff);}
 :root[data-theme="cardiology"] .theme-banner{background:linear-gradient(#7d0f26,#c2284a 75%,#d9486a);}
@@ -282,7 +282,6 @@
 .theme-banner .bbreath{transform-origin:50% 100%;animation:fxBreath 5s ease-in-out infinite;}
 @keyframes fxBreath{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
 
-:root[data-theme="intensive"]:not([data-color-mode="inverted"]){--grey-bg:#08111f; --surface:#0f1d33; --surface-alt:#15284a; --surface-subtle:#122240; --text:#e4edf8; --text-muted:#93a8c4; --border:#26416b; --heading-color:#5de8b6;}
 /* ---- specialty-theme sprites ---- */
 .theme-banner .bblink{animation:fxBlinkA 1.8s steps(2,end) infinite;filter:drop-shadow(0 0 6px currentColor);}
 .theme-banner .bblink.b2{animation-name:fxBlinkB;}

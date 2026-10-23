@@ -108,7 +108,7 @@ const THEMES = {
   standrew:  "St Andrew's Day (Scotland)",
   emergency: "EF / AAU",
   surgical:  "Surgical Care",
-  intensive: "Intensive Care",
+  intensive: "Critical Care",
   elderly:   "Elderly Medicine",
   paeds:     "Paediatrics",
   cardiology:  "Cardiology",
@@ -635,6 +635,12 @@ function scnBunting(cols) {
 }
 const scnFall = (cls, svg, w, i, dur, sway) => `<i class="${cls}" style="left:${fxRand(0, 98).toFixed(1)}%;width:${w}px;animation-duration:${fxRand(dur[0], dur[1]).toFixed(1)}s,${fxRand(3, 5).toFixed(1)}s;animation-delay:${(-fxRand(0, dur[1])).toFixed(1)}s,${(-fxRand(0, 5)).toFixed(1)}s;--sway:${fxRand(sway[0], sway[1]).toFixed(0)}px;opacity:.85">${svg}</i>`;
 
+/* Critical Care sprites (prefixed "cc"). */
+Object.assign(SCN, {
+  ccvent: `<svg viewBox="0 0 60 48" aria-hidden="true"><rect x="2" y="4" width="40" height="38" rx="5" fill="#ffffff" stroke="#0a4fb8" stroke-width="2"/><rect x="7" y="9" width="30" height="16" rx="2" fill="#06224d"/><path d="M9,18 L14,18 L16,12 L19,22 L22,16 L26,16 L29,13 L33,18 L36,18" fill="none" stroke="#7dff5a" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="33" r="3.2" fill="#ff3d71"/><circle cx="22" cy="33" r="3.2" fill="#ffc400"/><circle cx="32" cy="33" r="3.2" fill="#00c26e"/><rect x="42" y="14" width="16" height="22" rx="4" fill="#bdeaff" stroke="#0a4fb8" stroke-width="1.6"/><path d="M45,18 H55 M45,25 H55 M45,32 H55" stroke="#0a84ff" stroke-width="1.6"/></svg>`,
+  ccpump: `<svg viewBox="0 0 36 44" aria-hidden="true"><rect x="3" y="14" width="30" height="28" rx="4" fill="#ffffff" stroke="#e0245e" stroke-width="2"/><rect x="7" y="18" width="22" height="10" rx="2" fill="#06224d"/><text x="18" y="26" text-anchor="middle" font-size="8" font-family="monospace" fill="#ffee33">2.5</text><circle cx="11" cy="35" r="2.4" fill="#0a84ff"/><circle cx="18" cy="35" r="2.4" fill="#ffc400"/><circle cx="25" cy="35" r="2.4" fill="#00c26e"/><rect x="8" y="4" width="20" height="8" rx="2" fill="#e8f7ff" stroke="#0a4fb8" stroke-width="1.4"/><rect x="10" y="6" width="9" height="4" fill="#ff7a00"/><path d="M28,8 H34" stroke="#0a4fb8" stroke-width="1.6"/></svg>`,
+});
+
 Object.assign(THEME_SCENES, {
   stdavid: {
     layer() {
@@ -767,16 +773,20 @@ Object.assign(THEME_SCENES, {
     },
   },
   intensive: {
+    // Critical Care: bright, colourful monitors, ventilator, syringe pump and drip (sprite names prefixed "cc").
     layer() {
-      let h = ""; const t = ["72", "98%", "120/80", "36.8", "16", "SpO2", "HR 68", "BP", "EtCO2 4.8", "MAP 84"], c = ["#39e08d", "#7fd0ff", "#ffd43b", "#ff7b7b"];
-      for (let i = 0; i < 18; i++) h += `<i class="rise" style="--dx:${fxRand(-30, 30).toFixed(0)}px;left:${fxRand(2, 96).toFixed(1)}%;font-size:${fxRand(11, 20).toFixed(0)}px;color:${pick(c, i)};opacity:.28;font-family:ui-monospace,Menlo,monospace;font-weight:600;animation-duration:${fxRand(70, 130).toFixed(0)}s;animation-delay:${(-fxRand(0, 130)).toFixed(0)}s;text-shadow:0 0 8px currentColor">${pick(t, i)}</i>`;
+      let h = ""; const t = ["72", "98%", "120/80", "36.8", "16", "SpO2", "HR 68", "BP", "EtCO2 4.8", "MAP 84", "FiO2 40%", "PEEP 5"], c = ["#00a86b", "#0a84ff", "#ff7a00", "#e0245e", "#8b3dff"];
+      for (let i = 0; i < 20; i++) h += `<i class="rise" style="--dx:${fxRand(-30, 30).toFixed(0)}px;left:${fxRand(2, 96).toFixed(1)}%;font-size:${fxRand(12, 22).toFixed(0)}px;color:${pick(c, i)};opacity:.3;font-family:ui-monospace,Menlo,monospace;font-weight:700;animation-duration:${fxRand(60, 110).toFixed(0)}s;animation-delay:${(-fxRand(0, 110)).toFixed(0)}s;text-shadow:none">${pick(t, i)}</i>`;
+      for (let i = 0; i < 8; i++) h += `<i class="rise" style="--dx:${fxRand(-40, 40).toFixed(0)}px;left:${fxRand(2, 96).toFixed(1)}%;width:${fxRand(14, 24).toFixed(0)}px;opacity:.35;animation-duration:${fxRand(50, 90).toFixed(0)}s;animation-delay:${(-fxRand(0, 90)).toFixed(0)}s">${SCN.heart(pick(["#ff3d71", "#ff7a00", "#0a84ff"], i))}</i>`;
       return h;
     },
     banner() {
-      let b = scnEcg("#39e08d", .95, "wvA", "height:18px;bottom:36px;animation-duration:15s");
-      b += scnEcg("#7fd0ff", .9, "wvB", "height:16px;bottom:19px;animation-duration:22s;animation-direction:normal", "pleth");
-      b += scnEcg("#ffd43b", .85, "wvA", "height:14px;bottom:3px;animation-duration:32s", "wave");
-      b += scnNum("HR 72", "#39e08d", "3%", 4, 12) + scnNum("SpO2 98%", "#7fd0ff", "13%", 4, 11) + scnNum("120/80", "#ffd43b", "26%", 4, 11);
+      let b = scnEcg("#7dff5a", 1, "wvA", "height:18px;bottom:36px;animation-duration:15s");
+      b += scnEcg("#ffee33", .95, "wvB", "height:16px;bottom:19px;animation-duration:22s;animation-direction:normal", "pleth");
+      b += scnEcg("#ff7ad1", .95, "wvA", "height:14px;bottom:3px;animation-duration:32s", "wave");
+      b += scnNum("HR 72", "#7dff5a", "3%", 4, 12) + scnNum("SpO2 98%", "#ffffff", "13%", 4, 11) + scnNum("120/80", "#ffee33", "26%", 4, 11);
+      b += SBX("", SCN.ccvent, "left:40%;bottom:4px;--w:56") + SBX("", SCN.ccpump, "left:56%;bottom:4px;--w:36");
+      b += SBX("bbob", SCN.heart("#ff3d71"), "left:68%;top:6px;--w:20;animation-duration:1.2s");
       b += `<span class="bpulse" style="left:92%;top:8px"></span>`;
       b += SBX("", SCN.dropBag, "left:84%;top:2px;--w:20");
       b += `<span class="bdrip" style="left:calc(84% + 9px);top:34px"></span>`;
