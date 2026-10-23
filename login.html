@@ -123,10 +123,10 @@
   :root[data-color-mode="dark"] .live.down,:root[data-color-mode="inverted"] .live.down{color:#fbbf24;}
 
   /* Trust logo (SVG uploaded by the Developer in Admin → Appearance), centred in the left panel */
-  .trust-logo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;display:flex;align-items:center;justify-content:center;width:min(320px,60%);opacity:0;animation:logoIn .6s .4s ease both;}
+  .trust-logo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;display:flex;align-items:center;justify-content:center;width:min(500px,80%);opacity:0;animation:logoIn .6s .4s ease both;}
   @keyframes logoIn{from{opacity:0;}to{opacity:1;}}
   .trust-logo[hidden]{display:none;}
-  .trust-logo img{max-width:100%;max-height:200px;display:block;}
+  .trust-logo img{max-width:100%;max-height:320px;display:block;}
   :root[data-color-mode="dark"] .trust-logo,:root[data-color-mode="inverted"] .trust-logo{background:#fff;padding:18px 22px;border-radius:12px;}
 
   .form-panel{flex:0 0 480px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;padding:48px;box-sizing:border-box;position:relative;z-index:5;}
