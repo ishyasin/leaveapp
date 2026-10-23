@@ -734,7 +734,7 @@ body.ro-padmin td.daynum[data-day]{cursor:default;}
 .notif-text em{font-style:normal;font-size:11.5px;opacity:.6;}
 .notif-empty{padding:22px;text-align:center;opacity:.7;font-size:13px;}
 
-/* Storm Austin: windy and rainy */
+/* Storm Austen: windy and rainy */
 :root[data-theme="stormaustin"] .theme-banner{background:linear-gradient(#141b24,#2c3a4a 60%,#3f5266);border-bottom:3px solid #5f8fb4;overflow:hidden;}
 :root[data-theme="stormaustin"]:not([data-color-mode="inverted"]){--grey-bg:#12181f; --surface:#1c2631; --surface-alt:#243140; --surface-subtle:#202c39; --text:#e4ebf2; --text-muted:#98a9ba; --border:#34465a; --heading-color:#9cc3e0;}
 .theme-fx .sarain{position:absolute;top:-100px;width:1.5px;background:linear-gradient(rgba(190,215,240,0),rgba(190,215,240,.9));animation:saRain linear infinite;will-change:transform;}

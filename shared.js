@@ -106,7 +106,7 @@ const THEMES = {
   stgeorge:  "St George's Day (England)",
   stpatrick: "St Patrick's Day (Ireland)",
   standrew:  "St Andrew's Day (Scotland)",
-  emergency: "EF / ACU",
+  emergency: "EF / AAU",
   surgical:  "Surgical Care",
   intensive: "Intensive Care",
   elderly:   "Elderly Medicine",
@@ -1814,7 +1814,7 @@ Object.assign(THEME_SCENES, {
   },
 });
 
-/* Storm Austin: windy, rainy storm (sprite names prefixed "sa"). Wind blows right-to-left. */
+/* Storm Austen: windy, rainy storm (sprite names prefixed "sa"). Wind blows right-to-left. */
 Object.assign(SCN, {
   sacloud: (c) => `<svg viewBox="0 0 120 40" aria-hidden="true"><path d="M8,34 Q0,34 2,26 Q4,18 14,19 Q16,8 30,9 Q38,0 52,6 Q62,0 74,8 Q90,4 94,16 Q108,14 112,24 Q118,34 106,34Z" fill="${c}"/></svg>`,
   sabolt: `<svg viewBox="0 0 24 60" aria-hidden="true"><path d="M15,0 L4,26 H11 L6,60 L21,22 H13 L19,0Z" fill="#fff6c2" stroke="#ffe066" stroke-width="1.2" stroke-linejoin="round"/></svg>`,

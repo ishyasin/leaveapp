@@ -24,6 +24,12 @@
   .site-tag{display:inline-block;padding:1px 8px;border-radius:12px;font-size:11px;font-weight:600;background:var(--navy);color:#fff;}
   .site-tag.st_richards{background:var(--teal);}
   .pin-tag{display:inline-block;padding:1px 8px;border-radius:12px;font-size:11px;font-weight:700;background:var(--honey);color:#1f2430;}
+  .rt-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 6px;}
+  .rt-bar button{width:auto;margin:0;padding:5px 12px;}
+  .rt-link{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 6px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface-alt);}
+  .rt-link input{flex:1 1 240px;margin:0;}
+  .rt-link button{width:auto;margin:0;}
+  .post-body a,.comment .txt a{text-decoration:underline;}
   .post-body{white-space:pre-wrap;word-wrap:break-word;font-size:14px;line-height:1.55;}
   .post-body.clamped{max-height:9.5em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 70%,transparent);mask-image:linear-gradient(#000 70%,transparent);}
   .post-files{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
@@ -103,6 +109,17 @@
       <label for="pTitle">Title</label>
       <input type="text" id="pTitle" maxlength="200" required>
       <label for="pBody">Text</label>
+      <div class="rt-bar">
+        <button type="button" class="secondary" id="linkBtn" title="Highlight some text, then click (or press Ctrl+K)">&#128279; Add link</button>
+        <span class="small">Highlight some text, then click <strong>Add link</strong> (or press Ctrl/Cmd+K). A link is saved as <code>[text](address)</code> and shown as just the text.</span>
+      </div>
+      <div id="linkRow" class="rt-link" style="display:none;">
+        <span class="small" id="linkFor"></span>
+        <input type="text" id="linkUrl" placeholder="https://example.com" aria-label="Link address" autocomplete="off">
+        <button type="button" class="primary" id="linkOk">Apply</button>
+        <button type="button" class="secondary" id="linkCancel">Cancel</button>
+      </div>
+      <div id="linkMsg" class="small" style="color:#b91c1c;"></div>
       <textarea id="pBody" rows="9" maxlength="20000"></textarea>
       <label>Post to</label>
       <div class="site-checks">
@@ -335,11 +352,18 @@ function render() {
 
 function linkify(escaped) {
   // Input is already HTML-escaped. Only http(s) URLs become links.
-  return escaped.replace(/\bhttps?:\/\/[^\s<]+/g, (u) => {
+  // [highlighted text](https://address) becomes a link showing just the text.
+  const keep = [];
+  let out = escaped.replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)<\u0000]+)\)/g, (m, text, url) => {
+    keep.push(`<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`);
+    return `\u0000${keep.length - 1}\u0000`;
+  });
+  out = out.replace(/\bhttps?:\/\/[^\s<\u0000]+/g, (u) => {
     const trail = (u.match(/[.,;:!?)]+$/) || [""])[0];
     const clean = trail ? u.slice(0, -trail.length) : u;
     return `<a href="${clean}" target="_blank" rel="noopener noreferrer">${clean}</a>${trail}`;
   });
+  return out.replace(/\u0000(\d+)\u0000/g, (m, i) => keep[+i]);
 }
 
 function fmtSize(n) {
@@ -571,6 +595,43 @@ async function onEditorSubmit(e) {
     btn.disabled = false; btn.textContent = label;
   }
 }
+
+/* ---- Add a hyperlink to highlighted text in the post editor ---- */
+(function () {
+  const ta = document.getElementById("pBody"), row = document.getElementById("linkRow"), urlIn = document.getElementById("linkUrl"), msgEl = document.getElementById("linkMsg");
+  let sel = null;
+  const say = (t) => { msgEl.textContent = t || ""; };
+  function open() {
+    say("");
+    let s = ta.selectionStart, e = ta.selectionEnd;
+    while (s < e && /\s/.test(ta.value[s]) && ta.value[s] !== "\n") s++;      // ignore spaces picked up at the ends
+    while (e > s && /[ \t]/.test(ta.value[e - 1])) e--;
+    const text = ta.value.slice(s, e);
+    if (s === e || !text.trim()) { say("Highlight the text you want to turn into a link first."); return; }
+    if (/[\n\[\]]/.test(text)) { say("Highlight text on a single line, without square brackets."); return; }
+    sel = { s, e, text };
+    document.getElementById("linkFor").textContent = `Link for \u201c${text.length > 40 ? text.slice(0, 40) + "\u2026" : text}\u201d:`;
+    urlIn.value = ""; row.style.display = ""; urlIn.focus();
+  }
+  function close() { row.style.display = "none"; sel = null; ta.focus(); }
+  function apply() {
+    if (!sel) return;
+    let u = urlIn.value.trim();
+    if (!u) { say("Type or paste the web address."); return; }
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(u)) u = "https://" + u;
+    if (!/^https?:\/\/[^\s()<>"']+$/i.test(u)) { say("Enter a valid web address starting with http:// or https:// (no spaces or brackets)."); return; }
+    say("");
+    const out = `[${sel.text}](${u})`;
+    ta.value = ta.value.slice(0, sel.s) + out + ta.value.slice(sel.e);
+    ta.setSelectionRange(sel.s, sel.s + out.length);
+    row.style.display = "none"; sel = null; ta.focus();
+  }
+  document.getElementById("linkBtn").addEventListener("click", open);
+  document.getElementById("linkOk").addEventListener("click", apply);
+  document.getElementById("linkCancel").addEventListener("click", () => { say(""); close(); });
+  urlIn.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); apply(); } else if (e.key === "Escape") { e.stopPropagation(); say(""); close(); } });
+  ta.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); open(); } });
+})();
 </script>
 </body>
 </html>
