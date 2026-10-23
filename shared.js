@@ -2633,6 +2633,87 @@ function fmtTime(t) {
 }
 // e.g. [{"start":"08:00","end":"10:00"},{"start":"16:00","end":"18:00"}]
 // -> "08:00–10:00, 16:00–18:00"
+
+/* =====================================================================
+   Change a leave request's type from a drop-down (and pick part-day times).
+   mode "full"     -> Clinical Team Lead+ : may also change the date (edit_leave)
+   mode "approver" -> any approver of a PENDING request: type + times only (change_leave_type)
+   ===================================================================== */
+const LEAVE_TYPE_CHOICES = [
+  ["full_day", "Annual Leave (Full Day)"], ["annual_part_day", "Annual Leave (Part Day)"],
+  ["toil_full_day", "TOIL (Full Day)"], ["toil_part_day", "TOIL (Part Day)"],
+  ["study_full", "Study Leave (Full Day)"], ["study_part", "Study Leave (Part Day)"],
+];
+function leaveTypeChoiceOf(r) {
+  if (r.leave_type === "study_leave") return (r.study_ranges && r.study_ranges.length) ? "study_part" : "study_full";
+  return r.leave_type;
+}
+let _ltPicker = null, _ltReq = null, _ltOpts = null;
+function openLeaveTypeModal(r, opts) {
+  opts = opts || {}; _ltReq = r; _ltOpts = opts;
+  let ov = document.getElementById("ltOverlay");
+  if (!ov) {
+    ov = document.createElement("div"); ov.className = "overlay"; ov.id = "ltOverlay"; ov.style.display = "none";
+    ov.innerHTML = `<div class="modal modal-wide" style="max-height:92vh;overflow-y:auto;">
+      <h3 id="ltTitle">Change leave type</h3><p class="small" id="ltSub"></p><div id="ltMsg"></div>
+      <label for="ltDate" id="ltDateLbl">Date</label><input type="date" id="ltDate">
+      <label for="ltType">Leave type</label><select id="ltType"></select>
+      <div id="ltRangesWrap" style="display:none;margin-top:10px;"><label>Times (part day)</label><div id="ltPicker"></div></div>
+      <label for="ltNote" style="margin-top:10px;">Note for the audit trail (optional)</label><input type="text" id="ltNote" maxlength="300">
+      <div class="modal-actions"><button type="button" class="secondary" id="ltCancel">Cancel</button><button type="button" class="primary" id="ltSave">Save</button></div></div>`;
+    document.body.appendChild(ov);
+    document.getElementById("ltCancel").addEventListener("click", () => { ov.style.display = "none"; });
+    document.getElementById("ltType").addEventListener("change", ltTypeChanged);
+    document.getElementById("ltSave").addEventListener("click", ltSave);
+  }
+  document.getElementById("ltMsg").innerHTML = "";
+  document.getElementById("ltTitle").textContent = opts.mode === "full" ? "Edit leave" : "Change leave type";
+  document.getElementById("ltSub").textContent = `${opts.who || ""}${opts.who ? " — " : ""}${fmtDate(r.leave_date)}. Choose the correct type; for a part day, mark the times on the clock.`;
+  const dateEl = document.getElementById("ltDate");
+  dateEl.value = r.leave_date;
+  const full = opts.mode === "full";
+  dateEl.style.display = full ? "" : "none"; document.getElementById("ltDateLbl").style.display = full ? "" : "none";
+  document.getElementById("ltNote").value = "";
+  const sel = document.getElementById("ltType");
+  sel.innerHTML = LEAVE_TYPE_CHOICES.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+  sel.value = leaveTypeChoiceOf(r);
+  if (sel.value !== leaveTypeChoiceOf(r)) sel.selectedIndex = 0;
+  _ltPicker = null; document.getElementById("ltPicker").innerHTML = "";
+  ltTypeChanged();
+  ov.style.display = "flex";
+}
+function _ltInitialRanges() {
+  const r = _ltReq; return r.toil_ranges || r.annual_leave_ranges || r.study_ranges || [];
+}
+function ltTypeChanged() {
+  const v = document.getElementById("ltType").value, part = ["annual_part_day", "toil_part_day", "study_part"].includes(v);
+  document.getElementById("ltRangesWrap").style.display = part ? "" : "none";
+  if (part && !_ltPicker) _ltPicker = createTimeRangePicker(document.getElementById("ltPicker"), _ltInitialRanges());
+}
+async function ltSave() {
+  const msg = document.getElementById("ltMsg"), btn = document.getElementById("ltSave"), v = document.getElementById("ltType").value;
+  const part = ["annual_part_day", "toil_part_day", "study_part"].includes(v);
+  const ranges = part && _ltPicker ? _ltPicker.getRanges() : [];
+  if (part && !ranges.length) { showMsg(msg, "Please mark at least one time range on the clock for a part day.", "error"); return; }
+  const type = v === "study_full" || v === "study_part" ? "study_leave" : v;
+  const args = {
+    p_leave_id: _ltReq.id, p_new_type: type, p_note: document.getElementById("ltNote").value.trim() || null,
+    p_new_toil_ranges: type === "toil_part_day" ? ranges : null,
+    p_new_study_ranges: v === "study_part" ? ranges : null,
+    p_new_annual_ranges: type === "annual_part_day" ? ranges : null,
+  };
+  let fn = "change_leave_type";
+  if (_ltOpts.mode === "full") { fn = "edit_leave"; args.p_new_date = document.getElementById("ltDate").value; if (!args.p_new_date) { showMsg(msg, "Please choose a date.", "error"); return; } }
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const { error } = await sb.rpc(fn, args);
+    if (error) throw error;
+    document.getElementById("ltOverlay").style.display = "none";
+    if (_ltOpts.onDone) await _ltOpts.onDone();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+  finally { btn.disabled = false; btn.textContent = "Save"; }
+}
+
 function formatToilRanges(ranges) {
   if (!ranges || !ranges.length) return "";
   return ranges.map(r => `${r.start}\u2013${r.end}`).join(", ");

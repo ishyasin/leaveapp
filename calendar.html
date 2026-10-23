@@ -691,13 +691,18 @@ function renderSiteGrid(site) {
           // distinctly for the approver rather than letting it blend in.
           const stacked = REQUESTS.some(x =>
             x.id !== r.id && x.user_id === r.user_id && x.leave_date === r.leave_date && x.status !== "rejected");
+          // Several entries for the same person on the same day (e.g. Annual Leave part day + TOIL part day):
+          // number them 1, 2, 3 in the order they were applied for.
+          const sameDay = REQUESTS.filter(x => x.user_id === r.user_id && x.leave_date === r.leave_date && x.status !== "rejected");
+          const ordIdx = r.status === "rejected" ? -1 : sameDay.findIndex(x => x.id === r.id);
+          const ordSup = sameDay.length > 1 && ordIdx >= 0 ? `<sup class="day-ord">${ordIdx + 1}</sup>` : "";
           const hasNote = NOTED_IDS.has(r.id);
-          const tooltip = tileTooltip(r, p, stacked) + (hasNote ? "\n* Approver note added (click to read)" : "");
+          const tooltip = tileTooltip(r, p, stacked) + (ordSup ? `\n(${ordIdx + 1} of ${sameDay.length} entries for this person on this day, in the order applied for)` : "") + (hasNote ? "\n* Approver note added (click to read)" : "");
           // Colour goes on the cell itself (not a nested span) so the
           // fill is guaranteed by the table cell's own background rather
           // than a percentage-height flex child, which some browsers
           // fail to size correctly inside a table row.
-          rows += `<td class="${cls} tile ${statusClass}${pendingModifier}${BULK_SELECTED.has(r.id) ? " bulk-selected" : ""}${stacked ? " stacked-request" : ""}" style="${bg.style}" title="${escapeHtml(tooltip)}" onclick="handleTileClick(event, '${r.id}')">${escapeHtml(initials)}${hasNote ? "*" : ""}${suffix}</td>`;
+          rows += `<td class="${cls} tile ${statusClass}${pendingModifier}${BULK_SELECTED.has(r.id) ? " bulk-selected" : ""}${stacked ? " stacked-request" : ""}" style="${bg.style}" title="${escapeHtml(tooltip)}" onclick="handleTileClick(event, '${r.id}')">${escapeHtml(initials)}${ordSup}${hasNote ? "*" : ""}${suffix}</td>`;
         } else {
           rows += `<td class="${cls}" style="${bg.style}"></td>`;
         }
@@ -1218,6 +1223,10 @@ async function openDetail(id) {
   if (canAmendRanges) {
     actions.innerHTML += `<button class="secondary" onclick="doAmendToilRanges('${r.id}')">Amend times</button>`;
   }
+  // An approver can switch a still-pending request to the right type from a drop-down (e.g. Full Day TOIL -> Part Day TOIL).
+  if (canProcess && !canSuperAdmin && r.status === "pending" && r.leave_type !== "full_day_split") {
+    actions.innerHTML += `<button class="secondary" onclick="doChangeType('${r.id}')">Change type / times</button>`;
+  }
   if (canSuperAdmin) {
     actions.innerHTML += `<button class="secondary" onclick="doEdit('${r.id}')">Edit</button>`;
     if (r.status !== "pending") {
@@ -1512,56 +1521,15 @@ async function saveAmendToilRanges() {
   }
 }
 
-async function doEdit(id) {
-  const r = REQUESTS.find(x => x.id === id);
-  const newDate = await uiPrompt("New date:", r.leave_date, { type: "date", required: true, title: "Edit leave" });
-  if (!newDate) return;
-  const newType = await uiPrompt(
-    "New leave type (full_day / toil_full_day / toil_part_day / study_leave):",
-    r.leave_type, { required: true, title: "Edit leave" }
-  );
-  if (!newType) return;
-  let newToilRanges = null;
-  if (newType === "toil_part_day") {
-    const text = await uiPrompt(
-      "Time ranges, comma-separated (e.g. 08:00-10:00, 16:00-18:00):",
-      formatToilRanges(r.toil_ranges).replace(/\u2013/g, "-"),
-      { required: true, title: "Edit leave" }
-    );
-    if (!text) return;
-    newToilRanges = parseToilRangesText(text);
-    if (!newToilRanges) {
-      await uiAlert("Couldn't parse those time ranges — please use the format 08:00-10:00, 16:00-18:00.");
-      return;
-    }
-  }
-  let newStudyRanges = null;
-  if (newType === "study_leave") {
-    const text = await uiPrompt(
-      "Time ranges for a PART DAY, comma-separated (e.g. 08:00-10:00) — leave blank for a full day:",
-      formatToilRanges(r.study_ranges).replace(/\u2013/g, "-"),
-      { title: "Edit leave" }
-    );
-    if (text === null) return;
-    if (text.trim()) {
-      newStudyRanges = parseToilRangesText(text);
-      if (!newStudyRanges) {
-        await uiAlert("Couldn't parse those time ranges — please use the format 08:00-10:00, 16:00-18:00.");
-        return;
-      }
-    }
-  }
-  const note = await uiPrompt("Note for the audit trail (optional):", "", { title: "Edit leave" });
-  if (note === null) return;
-  const msg = document.getElementById("detMsg");
-  try {
-    const { error } = await sb.rpc("edit_leave", {
-      p_leave_id: id, p_new_date: newDate, p_new_type: newType, p_note: note || null,
-      p_new_toil_ranges: newToilRanges, p_new_study_ranges: newStudyRanges,
-    });
-    if (error) throw error;
-    closeDetailModal(); await refreshCalendar();
-  } catch (err) { showMsg(msg, err.message, "error"); }
+function doEdit(id) {
+  const r = REQUESTS.find(x => x.id === id); if (!r) return;
+  const p = profileById(r.user_id);
+  openLeaveTypeModal(r, { mode: "full", who: p ? p.full_name : "", onDone: async () => { closeDetailModal(); await refreshCalendar(); } });
+}
+function doChangeType(id) {
+  const r = REQUESTS.find(x => x.id === id); if (!r) return;
+  const p = profileById(r.user_id);
+  openLeaveTypeModal(r, { mode: "approver", who: p ? p.full_name : "", onDone: async () => { closeDetailModal(); await refreshCalendar(); } });
 }
 async function doDelete(id) {
   const note = await uiPrompt(

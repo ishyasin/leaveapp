@@ -215,7 +215,8 @@ async function load() {
           ? '<span class="small">Awaiting another approver</span>'
           : `<button class="primary" onclick="approve('${r.id}')">Approve</button>
              <button class="danger" onclick="reject('${r.id}')">Reject</button>
-             ${r.leave_type === "full_day" ? `<button class="secondary" onclick="doSplitLeave('${r.id}')">Split: AL + TOIL</button>` : ""}`}
+             ${r.leave_type === "full_day" ? `<button class="secondary" onclick="doSplitLeave('${r.id}')">Split: AL + TOIL</button>` : ""}
+             ${r.leave_type !== "full_day_split" && !isPharmacyAdmin(PROFILE) ? `<button class="secondary" onclick="doChangeType('${r.id}')">Change type / times</button>` : ""}`}
       </td>`;
     tbody.appendChild(tr);
   });
@@ -278,6 +279,11 @@ async function reject(id) {
     if (error) throw error;
     await load();
   } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+function doChangeType(id) {
+  const r = PENDING.find(x => x.id === id); if (!r) return;
+  openLeaveTypeModal(r, { mode: isSuperuserPlus(PROFILE) ? "full" : "approver", who: nameFor(r.user_id), onDone: load });
 }
 
 /* ---------------- Split Full Day: Annual Leave + TOIL modal ---------------- */

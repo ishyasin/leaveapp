@@ -758,3 +758,5 @@ body.ro-padmin td.daynum[data-day]{cursor:default;}
 :root[data-theme="stormaustin"][data-anim="off"] .theme-banner .bx.sabend{animation:none;transform:rotate(-9deg);}
 :root[data-theme="stormaustin"][data-anim="off"] .theme-banner .sarainb,:root[data-theme="stormaustin"][data-anim="off"] .theme-banner .bx.sabolt{display:none;}
 :root[data-theme="stormaustin"] .theme-banner .bx.xing{animation-name:fxRun;animation-timing-function:linear;animation-iteration-count:infinite;}
+
+.cal-grid td.tile sup.day-ord{font-size:.72em;font-weight:800;margin-left:1px;vertical-align:super;line-height:0;}
