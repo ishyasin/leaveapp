@@ -91,6 +91,8 @@
 :root[data-theme="aprilfools"]{--navy:#5a1f9a; --navy-light:#8a3fd1; --teal:#ff4d8d; --teal-light:#ff9ac0; --honey:#ffd23f; --honey-dark:#e0a800;}
 :root[data-theme="wordproc"]{--navy:#2a4d8f; --navy-light:#3b67b8; --teal:#2a6ac8; --teal-light:#7fb0ee; --honey:#f0b429; --honey-dark:#c48f10;}
 :root[data-theme="stormaustin"]{--navy:#2a3a4d; --navy-light:#40566e; --teal:#5f8fb4; --teal-light:#9cc3e0; --honey:#e8c15a; --honey-dark:#c49b2e;}
+:root[data-theme="aurora"]{--navy:#0b2433; --navy-light:#14485a; --teal:#1a8f76; --teal-light:#7fe8c8; --honey:#9be37a; --honey-dark:#5fb04a;}
+:root[data-theme="retropharm"]{--navy:#4a2f1b; --navy-light:#6b4528; --teal:#8a5a2b; --teal-light:#d2a86a; --honey:#c9962e; --honey-dark:#9c7420;}
 :root[data-theme="calmforest"]{--navy:#2f4a3a; --navy-light:#4a6b58; --teal:#6b8f71; --teal-light:#a9c7a8; --honey:#c9b27a; --honey-dark:#a08a52;}
 :root[data-theme="win98"]{--navy:#000080; --navy-light:#1084d0; --teal:#008080; --teal-light:#1084d0; --honey:#ffffe1; --honey-dark:#808080;}
 
@@ -177,6 +179,8 @@
 :root[data-theme="wordproc"] .theme-banner,
 :root[data-theme="calmforest"] .theme-banner,
 :root[data-theme="stormaustin"] .theme-banner,
+:root[data-theme="aurora"] .theme-banner,
+:root[data-theme="retropharm"] .theme-banner,
 :root[data-theme="respiratory"] .theme-banner{display:block;}
 :root[data-theme="halloween"] .theme-banner{background:linear-gradient(#150f1c,#2a1f33);}
 :root[data-theme="christmas"] .theme-banner{background:linear-gradient(#5a0f19,#7a1621);}
@@ -760,3 +764,31 @@ body.ro-padmin td.daynum[data-day]{cursor:default;}
 :root[data-theme="stormaustin"] .theme-banner .bx.xing{animation-name:fxRun;animation-timing-function:linear;animation-iteration-count:infinite;}
 
 .cal-grid td.tile sup.day-ord{font-size:.72em;font-weight:800;margin-left:1px;vertical-align:super;line-height:0;}
+
+/* ---------- Northern Lights ---------- */
+:root[data-theme="aurora"] .theme-banner{background:linear-gradient(#030d15,#0a2433 70%,#0e3a47);border-bottom:3px solid #2fe6b0;overflow:hidden;}
+:root[data-theme="aurora"]:not([data-color-mode="inverted"]){--grey-bg:#07151e; --surface:#0f2330; --surface-alt:#14303f; --surface-subtle:#112a38; --text:#e3f4ee; --text-muted:#93b8b0; --border:#1f4555; --heading-color:#7fe8c8;}
+.theme-fx .auribbon{position:absolute;top:-8%;width:60%;height:62vh;filter:blur(46px);opacity:.2;mix-blend-mode:screen;transform-origin:50% 0;animation:auSway ease-in-out infinite alternate;will-change:transform,opacity;}
+@keyframes auSway{0%{transform:translateX(-8%) skewX(-12deg) scaleY(.85);opacity:.12}50%{opacity:.26}100%{transform:translateX(14%) skewX(10deg) scaleY(1.1);opacity:.16}}
+.austar{position:absolute;border-radius:50%;background:#e9fff7;opacity:.3;animation:auTwinkle ease-in-out infinite;}
+.theme-fx .austar{opacity:.25;}
+@keyframes auTwinkle{0%,100%{opacity:.1}50%{opacity:.85}}
+.theme-banner .aubglow{position:absolute;inset:0;background:radial-gradient(60% 120% at 50% 0%,rgba(47,230,176,.22),rgba(0,0,0,0) 70%);}
+.theme-banner .aubrib{position:absolute;top:-30%;width:55%;height:120%;filter:blur(14px);opacity:.5;background:linear-gradient(180deg,rgba(0,0,0,0),#2fe6b0 40%,#3fd0e6 65%,rgba(0,0,0,0));mix-blend-mode:screen;animation:auBSway ease-in-out infinite alternate;}
+@keyframes auBSway{from{transform:translateX(-6%) skewX(-14deg);opacity:.3}to{transform:translateX(18%) skewX(12deg);opacity:.6}}
+.theme-banner .aumt{position:absolute;left:0;right:0;bottom:0;height:24px;line-height:0;}
+.theme-banner .aumt svg{width:100%;height:100%;display:block;}
+:root[data-theme="aurora"][data-anim="off"] .auribbon,:root[data-theme="aurora"][data-anim="off"] .aubrib,:root[data-theme="aurora"][data-anim="off"] .austar{animation:none;}
+@media (prefers-reduced-motion:reduce){:root[data-theme="aurora"] .auribbon,:root[data-theme="aurora"] .aubrib,:root[data-theme="aurora"] .austar{animation:none;}}
+
+/* ---------- Retro Pharmacy ---------- */
+:root[data-theme="retropharm"] .theme-banner{background:linear-gradient(#e9d7ae,#d8bf8a 70%,#c4a46a);border-bottom:3px solid #6b4528;overflow:hidden;}
+:root[data-theme="retropharm"]:not([data-color-mode="inverted"]){--grey-bg:#f1e6cf; --surface:#fbf5e6; --surface-alt:#f1e4c8; --surface-subtle:#f6ecd5; --text:#3a2916; --text-muted:#6d5a40; --border:#d6c19a; --heading-color:#5a3a1d;}
+.theme-banner .rpwall{position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(120,80,30,.07) 0 2px,rgba(0,0,0,0) 2px 26px);}
+.theme-fx .rpdust{position:absolute;bottom:-10px;border-radius:50%;background:rgba(150,105,50,.35);animation:rpDust linear infinite;}
+@keyframes rpDust{from{transform:translate(0,0);opacity:0}10%{opacity:.7}to{transform:translate(40px,-105vh);opacity:0}}
+.theme-banner .rpmortarbx{z-index:1;}
+.theme-banner .rppestlebx{z-index:2;transform-origin:50% 100%;animation:rpGrind 2.4s ease-in-out infinite;}
+@keyframes rpGrind{0%,100%{transform:rotate(-14deg)}50%{transform:rotate(12deg)}}
+:root[data-theme="retropharm"][data-anim="off"] .rppestlebx,:root[data-theme="retropharm"][data-anim="off"] .rpdust{animation:none;}
+@media (prefers-reduced-motion:reduce){:root[data-theme="retropharm"] .rppestlebx,:root[data-theme="retropharm"] .rpdust{animation:none;}}

@@ -144,6 +144,8 @@ const THEMES = {
   wordproc: "Word Processor",
   calmforest: "Calm Forest",
   stormaustin: "Storm Austen",
+  aurora: "Northern Lights",
+  retropharm: "Retro Pharmacy",
 };
 const COLOR_MODES = {
   light:    "Light",
@@ -1855,6 +1857,54 @@ Object.assign(THEME_SCENES, {
       b += SBX("", SCN.sapud, "left:25%;bottom:1px;--w:46") + SBX("", SCN.sapud, "left:47%;bottom:0;--w:38") + SBX("", SCN.sapud, "left:82%;bottom:1px;--w:44");
       b += SBX("bcross sarolling", `<span class="saspin" style="animation-duration:1.6s">${SCN.saumb("#c0392b")}</span>`, "bottom:6px;--w:24;animation-duration:16s;animation-direction:reverse;animation-delay:-5s");
       for (let i = 0; i < 26; i++) b += `<i class="sarainb" style="left:${fxRand(0, 110).toFixed(0)}%;animation-duration:${fxRand(.5, .9).toFixed(2)}s;animation-delay:${(-fxRand(0, .9)).toFixed(2)}s"></i>`;
+      return b;
+    },
+  },
+});
+
+Object.assign(SCN, {
+  aupine: (c) => `<svg viewBox="0 0 20 40" aria-hidden="true"><path d="M10,0 L16,13 H13 L18,24 H14 L20,36 H11 V40 H9 V36 H0 L6,24 H2 L7,13 H4Z" fill="${c}"/></svg>`,
+  rpbottle: (c, h) => `<svg viewBox="0 0 20 ${h || 40}" aria-hidden="true"><rect x="7.5" y="0" width="5" height="4" rx="1" fill="#e9d9b5"/><path d="M7,4 H13 V9 Q19,12 19,18 V${(h || 40) - 2} Q19,${h || 40} 17,${h || 40} H3 Q1,${h || 40} 1,${(h || 40) - 2} V18 Q1,12 7,9Z" fill="${c}"/><path d="M4,16 V${(h || 40) - 5}" stroke="rgba(255,235,190,.45)" stroke-width="1.6" stroke-linecap="round"/><rect x="4" y="${(h || 40) * .5}" width="12" height="${(h || 40) * .3}" rx="1" fill="#f1e6c8"/><path d="M6,${(h || 40) * .6} H14 M6,${(h || 40) * .7} H12" stroke="#7a5a30" stroke-width="1"/></svg>`,
+  rpjar: (c) => `<svg viewBox="0 0 26 30" aria-hidden="true"><rect x="3" y="0" width="20" height="5" rx="1.5" fill="#d8c293"/><path d="M4,5 H22 Q25,7 25,11 V26 Q25,30 21,30 H5 Q1,30 1,26 V11 Q1,7 4,5Z" fill="${c}"/><path d="M5,9 V25" stroke="rgba(255,235,190,.4)" stroke-width="1.8" stroke-linecap="round"/><rect x="6" y="12" width="14" height="10" rx="1" fill="#f1e6c8"/><path d="M8,16 H18 M8,19 H15" stroke="#7a5a30" stroke-width="1"/></svg>`,
+  rpmortar: `<svg viewBox="0 0 48 34" aria-hidden="true"><path d="M4,12 H44 L40,28 Q39,32 34,32 H14 Q9,32 8,28Z" fill="#cdb98f"/><path d="M4,12 H44 V15 H4Z" fill="#b69f72"/><path d="M12,32 H36 V34 H12Z" fill="#a38c5f"/><path d="M12,16 L14,27" stroke="rgba(255,255,255,.4)" stroke-width="2" stroke-linecap="round"/></svg>`,
+  rppestle: `<svg viewBox="0 0 12 34" aria-hidden="true"><path d="M3,0 Q6,-2 9,0 Q10,6 8,26 Q8,32 6,34 Q4,32 4,26 Q2,6 3,0Z" fill="#bda57a"/><path d="M5,3 Q4.6,14 5.4,26" stroke="rgba(255,255,255,.4)" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg>`,
+  rpscales: `<svg viewBox="0 0 44 34" aria-hidden="true"><g stroke="#6b4a24" stroke-width="2" stroke-linecap="round" fill="none"><path d="M22,32 V6 M12,32 H32 M4,8 H40"/><path d="M4,8 L1,20 H11Z M40,8 L37,20 H47Z" stroke-width="1.4"/></g><circle cx="22" cy="5" r="2.5" fill="#c9962e"/></svg>`,
+});
+
+Object.assign(THEME_SCENES, {
+  aurora: {
+    layer() {
+      let h = "";
+      const cols = [["#2fe6b0", "#31c3d8"], ["#6dffa8", "#2fe6b0"], ["#3fd0e6", "#8a6dff"], ["#7dffc2", "#3fd0e6"]];
+      cols.forEach(([a, b], i) => h += `<i class="auribbon" style="left:${(-10 + i * 24)}%;background:linear-gradient(180deg,rgba(0,0,0,0),${a} 38%,${b} 62%,rgba(0,0,0,0));animation-duration:${(15 + i * 5)}s;animation-delay:${(-i * 4.3).toFixed(1)}s"></i>`);
+      for (let i = 0; i < 38; i++) h += `<i class="austar" style="left:${fxRand(0, 100).toFixed(1)}%;top:${fxRand(0, 70).toFixed(1)}%;width:${fxRand(1, 2.4).toFixed(1)}px;height:${fxRand(1, 2.4).toFixed(1)}px;animation-duration:${fxRand(2.5, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s"></i>`;
+      return h;
+    },
+    banner() {
+      let b = `<span class="aubglow"></span>`;
+      for (let i = 0; i < 3; i++) b += `<i class="aubrib" style="left:${-10 + i * 36}%;animation-duration:${14 + i * 5}s;animation-delay:${-i * 4}s"></i>`;
+      for (let i = 0; i < 16; i++) b += `<i class="austar" style="left:${fxRand(0, 100).toFixed(1)}%;top:${fxRand(2, 55).toFixed(0)}%;width:1.6px;height:1.6px;animation-duration:${fxRand(2.5, 6).toFixed(1)}s;animation-delay:${(-fxRand(0, 6)).toFixed(1)}s"></i>`;
+      b += `<span class="aumt"><svg viewBox="0 0 400 24" preserveAspectRatio="none" aria-hidden="true"><path d="M0,24 V16 L30,6 L52,14 L86,2 L120,15 L150,8 L190,18 L228,4 L262,14 L300,6 L340,16 L372,8 L400,14 V24Z" fill="#0a1c27"/><path d="M0,24 V20 L40,13 L70,19 L110,11 L160,20 L210,12 L260,20 L310,12 L360,20 L400,15 V24Z" fill="#06121a"/></svg></span>`;
+      [[4, 14, 20], [9, 12, 16], [27, 15, 22], [47, 12, 17], [66, 15, 21], [72, 11, 15], [91, 14, 19]].forEach(([p, w, hh]) => b += SBX("", SCN.aupine("#04100f"), `left:${p}%;bottom:0;--w:${w}`));
+      return b;
+    },
+  },
+  retropharm: {
+    layer() {
+      let h = "";
+      for (let i = 0; i < 26; i++) h += `<i class="rpdust" style="left:${fxRand(0, 100).toFixed(1)}%;width:${fxRand(2, 4.5).toFixed(1)}px;height:${fxRand(2, 4.5).toFixed(1)}px;animation-duration:${fxRand(14, 28).toFixed(0)}s;animation-delay:${(-fxRand(0, 28)).toFixed(0)}s"></i>`;
+      return h;
+    },
+    banner() {
+      let b = `<span class="rpwall"></span><span class="bgrd" style="height:9px;background:linear-gradient(#8a6034,#5a3a1d);border-top:2px solid #b98d54"></span>`;
+      const amber = "#8a4f16", brown = "#6a3a12", dark = "#4a2a0e", green = "#4d5a28";
+      const items = [
+        [3, SCN.rpbottle(amber, 40), 14], [8, SCN.rpbottle(brown, 30), 13], [13, SCN.rpjar(amber), 18], [20, SCN.rpbottle(dark, 44), 14],
+        [58, SCN.rpbottle(amber, 36), 13], [63, SCN.rpjar(brown), 17], [69, SCN.rpbottle(green, 40), 14], [75, SCN.rpbottle(brown, 46), 15],
+        [82, SCN.rpscales, 30], [90, SCN.rpbottle(amber, 32), 13], [95, SCN.rpbottle(dark, 40), 14]
+      ];
+      items.forEach(([p, svg, w]) => b += SBX("", svg, `left:${p}%;bottom:9px;--w:${w}`));
+      b += SBX("rpmortarbx", SCN.rpmortar, "left:36%;bottom:9px;--w:46") + SBX("rppestlebx", SCN.rppestle, "left:calc(36% + 17px);bottom:30px;--w:11");
       return b;
     },
   },

@@ -123,10 +123,10 @@
   :root[data-color-mode="dark"] .live.down,:root[data-color-mode="inverted"] .live.down{color:#fbbf24;}
 
   /* Trust logo (SVG uploaded by the Developer in Admin → Appearance), centred in the left panel */
-  .trust-logo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;display:flex;align-items:center;justify-content:center;width:min(500px,80%);opacity:0;animation:logoIn .6s .4s ease both;}
+  .trust-logo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;display:flex;align-items:center;justify-content:center;width:min(432px,80%);opacity:0;animation:logoIn .6s .4s ease both;}
   @keyframes logoIn{from{opacity:0;}to{opacity:1;}}
   .trust-logo[hidden]{display:none;}
-  .trust-logo img{max-width:100%;max-height:320px;display:block;}
+  .trust-logo img{max-width:100%;max-height:270px;display:block;}
   :root[data-color-mode="dark"] .trust-logo,:root[data-color-mode="inverted"] .trust-logo{background:#fff;padding:18px 22px;border-radius:12px;}
 
   .form-panel{flex:0 0 480px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;padding:48px;box-sizing:border-box;position:relative;z-index:5;}
@@ -289,6 +289,10 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
       body: JSON.stringify({ user_id: userId, password }),
     });
     const result = await res.json();
+    if (res.status === 429 || result.locked) {
+      startLock(Number(result.retry_after) || 300);
+      return;
+    }
     if (!res.ok || !result.access_token) {
       throw new Error(result.error || "Sign in failed.");
     }
@@ -299,15 +303,35 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     });
     if (error) throw error;
 
+    badRuns = 0;
     window.location.href = "portal.html";
   } catch (err) {
     // A network failure or a gateway error page (not JSON) is an outage, not a wrong password.
     if (err instanceof TypeError || err instanceof SyntaxError || isOutageError(err)) { showOutage(); return; }
     showMsg(msg, "Sign in failed — check your User ID and password.", "error");
+    // small, growing pause after the third miss in a row (the server enforces the real limit)
+    badRuns++;
+    if (badRuns >= 3) { startLock(Math.min(2 ** (badRuns - 2), 30), true); }
   } finally {
-    btn.disabled = false; btn.textContent = "Sign in";
+    if (!lockTimer) { btn.disabled = false; btn.textContent = "Sign in"; }
   }
 });
+
+// Lock-out / cooldown: disables the button with a visible countdown.
+let badRuns = 0, lockTimer = null;
+function startLock(seconds, soft) {
+  const btn = document.getElementById("submitBtn"), msg = document.getElementById("msg");
+  clearInterval(lockTimer);
+  const end = Date.now() + seconds * 1000;
+  if (!soft) showMsg(msg, "Too many sign-in attempts. Please wait before trying again.", "error");
+  const tick = () => {
+    const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+    if (left <= 0) { clearInterval(lockTimer); lockTimer = null; btn.disabled = false; btn.textContent = "Sign in"; return; }
+    btn.disabled = true;
+    btn.textContent = left >= 60 ? `Try again in ${Math.ceil(left / 60)} min` : `Try again in ${left}s`;
+  };
+  btn.disabled = true; lockTimer = setInterval(tick, 500); tick();
+}
 
 // Live indicator: reflects whether the backend actually answers.
 (async () => {
