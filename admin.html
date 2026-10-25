@@ -977,9 +977,10 @@ function renderUsersTable() {
     const siteText = p.cross_site
       ? "Cross site"
       : SITE_LABEL[p.primary_site] || p.primary_site;
-    const statusTag = p.deleted_by_developer
+    const statusTag = (p.deleted_by_developer
       ? ' <span class="small">(deleted)</span>'
-      : p.hidden_by_superuser ? ' <span class="small">(hidden)</span>' : "";
+      : p.hidden_by_superuser ? ' <span class="small">(hidden)</span>' : "")
+      + (!p.email_hash && p.active && !p.deleted_by_developer ? ' <span class="small" title="No email address linked, so they cannot use Forgotten password. Use Set email.">(no email)</span>' : "");
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(p.full_name)}${statusTag}</td>
@@ -1000,6 +1001,7 @@ function renderUsersTable() {
           : `<button class="secondary" onclick="toggleActive('${p.id}', true)">Unsuspend</button>
              <button class="secondary" onclick="openSuspendModal('${p.id}')">Edit leaving details</button>`) : ""}
         ${canResetPw ? `<button class="secondary" onclick="resetPw('${p.id}')">Reset password</button>` : ""}
+        ${canResetPw ? `<button class="secondary" onclick="setUserEmail('${p.id}')">${p.email_hash ? "Change email" : "Set email"}</button>` : ""}
         ${canEditSite ? `<button class="secondary" onclick="openSiteModal('${p.id}')">Edit site</button>` : ""}
         ${canEditRole ? `<button class="secondary" onclick="openRoleModal('${p.id}')">Edit role</button>` : ""}
         ${canEditName ? `<button class="secondary" data-editname-btn>Edit name</button>` : ""}
@@ -1339,6 +1341,21 @@ async function resetPw(id) {
     if (!(email || "").trim()) showMsg(msg, "Password reset. The user will be asked to set their own on next sign-in.", "ok");
     else if (res.invite_sent) showMsg(msg, `Password reset and the login details were emailed to ${email.trim()}.`, "ok");
     else showMsg(msg, `Password reset, but the email could not be sent (${res.invite_error || "unknown error"}). Share the temporary password yourself.`, "error");
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
+
+async function setUserEmail(id) {
+  const who = PROFILES.find(x => x.id === id);
+  const msg = document.getElementById("usersMsg");
+  const val = await uiPrompt(`Email address for ${who ? who.full_name : "this user"} (used only for "Forgotten your password?"). The address is not stored, only a one-way fingerprint of it, so it can be replaced but not shown again. Leave blank to remove it:`, "", { title: who && who.email_hash ? "Change email" : "Set email" });
+  if (val === null || val === undefined) return;
+  const email = val.trim();
+  if (!email && !(who && who.email_hash)) return;
+  if (!email && !await uiConfirm("Remove this user's email? They will no longer be able to use Forgotten password.")) return;
+  try {
+    await callEdgeFunction("admin-set-user-email", { target_user_id: id, email });
+    showMsg(msg, email ? "Email address linked. They can now use Forgotten password." : "Email address removed.", "ok");
+    await loadUsers();
   } catch (err) { showMsg(msg, err.message, "error"); }
 }
 

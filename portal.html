@@ -105,6 +105,9 @@
   /* the bubble sits on whichever side has room, depending on where he pops up */
   .graeme-bot.on-right .bubble{right:auto;left:68%;transform-origin:0 100%;}
   .graeme-bot.on-below .bubble{bottom:auto;top:88%;}
+  .tour-btn{display:inline-flex;align-items:center;gap:6px;margin-left:10px;padding:5px 14px 5px 11px;border-radius:999px;border:1.5px solid var(--teal);background:var(--surface);color:var(--teal);font:inherit;font-size:13px;font-weight:700;line-height:1.2;cursor:pointer;vertical-align:middle;transition:background .15s,color .15s,transform .15s,box-shadow .15s;}
+  .tour-btn:hover{background:var(--teal);color:#fff;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.18);}
+  .tour-btn:focus-visible{outline:3px solid var(--honey);outline-offset:2px;}
   .tour-flash{animation:tourFlash .7s ease-in-out 4;position:relative;z-index:5;}
   @keyframes tourFlash{0%,100%{box-shadow:0 0 0 0 rgba(255,200,40,0);filter:none}50%{box-shadow:0 0 0 5px rgba(255,200,40,.95),0 0 26px 6px rgba(255,200,40,.6);filter:brightness(1.08)}}
   .tour-bar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:950;display:none;align-items:center;gap:10px;background:var(--surface);color:var(--text);border:2px solid var(--teal);border-radius:999px;padding:8px 10px 8px 16px;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:13px;font-weight:700;}
@@ -165,7 +168,7 @@
 <div class="wrap">
   <div class="portal-hero">
     <h1 id="welcome">Pharmacy Portal</h1>
-    <p class="small">Choose where to go. <button type="button" class="secondary" id="tourBtn" style="margin-left:8px;padding:4px 12px;font-size:13px;">Tutorial</button></p>
+    <p class="small">Choose where to go. <button type="button" class="tour-btn" id="tourBtn" title="Take a quick tour with GRAEMe"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M9.6 9.3a2.6 2.6 0 0 1 4.9 1.2c0 1.7-2.5 2.2-2.5 3.8M12 17.4h.01"/></svg>Tutorial</button></p>
   </div>
   <div class="hb-wrap" id="bannerArea" aria-live="polite"></div>
   <div class="banner-manage" id="bannerManage" style="display:none;"><button type="button" class="secondary" onclick="openBannerManager()">Manage banners</button></div>
@@ -403,7 +406,7 @@
   bar.innerHTML = '<span id="tourCount"></span><button type="button" id="tourNext">Next</button><button type="button" class="secondary" id="tourSkip">Skip</button>';
   document.body.appendChild(bar);
   const count = bar.querySelector("#tourCount"), nextB = bar.querySelector("#tourNext"), skipB = bar.querySelector("#tourSkip");
-  let steps = [], idx = -1, raf = null, blink = null, auto = null, cur = [0, 0], tgt = [0, 0], flashEl = null, botW = 170, arrived = false;
+  let steps = [], idx = -1, raf = null, blink = null, auto = null, cur = [0, 0], tgt = [0, 0], flashEl = null, botW = 200, arrived = false;
 
   const rectOf = (el) => el.getBoundingClientRect();
   function targetPos(s) {
@@ -463,7 +466,7 @@
     steps = STEPS.map(s => { let el = document.querySelector(s.sel); if ((!el || el.offsetParent === null) && s.alt) el = document.querySelector(s.alt); return { ...s, el }; }).filter(s => s.el && s.el.offsetParent !== null);
     if (!steps.length) return;
     window.__tour = true;
-    botW = Math.min(170, window.innerWidth * 0.45); bot.style.width = botW + "px";
+    botW = Math.min(200, window.innerWidth * 0.5); bot.style.width = botW + "px";
     const hr = home && home.offsetParent !== null ? rectOf(home) : null;
     cur = hr ? [hr.left + hr.width / 2, hr.top + hr.height / 2] : [window.innerWidth / 2, window.innerHeight / 2];
     if (hr && (hr.bottom < 0 || hr.top > window.innerHeight)) cur = [window.innerWidth - botW, window.innerHeight - botW];
