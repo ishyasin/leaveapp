@@ -141,7 +141,7 @@
       <p class="small" id="usersCount" style="margin:0 0 10px;"></p>
       <div id="usersMsg"></div>
       <table>
-        <thead><tr><th>Name</th><th>Initials</th><th>User ID</th><th>Role</th><th>Site</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Initials</th><th>User ID</th><th>Email</th><th>Role</th><th>Site</th><th>Status</th><th></th></tr></thead>
         <tbody id="usersRows"></tbody>
       </table>
       <p id="usersEmpty" class="small" style="display:none;">No users match that search.</p>
@@ -980,7 +980,7 @@ function renderUsersTable() {
     const statusTag = (p.deleted_by_developer
       ? ' <span class="small">(deleted)</span>'
       : p.hidden_by_superuser ? ' <span class="small">(hidden)</span>' : "")
-      + (!p.email_hash && p.active && !p.deleted_by_developer ? ' <span class="small" title="No email address linked, so they cannot use Forgotten password. Use Set email.">(no email)</span>' : "");
+      ;
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(p.full_name)}${statusTag}</td>
@@ -992,6 +992,7 @@ function renderUsersTable() {
              <button type="button" class="eye-toggle" title="Show User ID" aria-label="Show User ID" aria-pressed="false" onclick="toggleUserIdVisibility(this)">${EYE_ICON}</button>`
         }
       </td>
+      <td class="small" style="white-space:nowrap;" title="Only a masked version is kept. The full address is never stored.">${p.email_hash ? escapeHtml(p.email_masked || "linked") : '<span style="opacity:.6;">none</span>'}</td>
       <td>${ROLE_LABEL[p.role]}</td>
       <td>${escapeHtml(siteText)}</td>
       <td>${p.active ? '<span class="badge approved">active</span>' : '<span class="badge rejected">suspended</span>' + suspendedInfo(p)}</td>
@@ -1011,23 +1012,49 @@ function renderUsersTable() {
         ${canDelete ? `<button class="danger" data-delete-btn>Delete account</button>` : ""}
         ${!canToggleActive && !canHide && !canResetPw && !canEditSite && !canEditRole && !canDelete && !canEditName && !canEditTheme && !canEditOnCall ? '<span class="small">locked</span>' : ""}
       </td>`;
+    // Only Name / Initials / User ID / Email / Role / Site / Status show in the list. The action
+    // buttons live in a second row that opens when the person is clicked.
+    const actTd = tr.lastElementChild;
+    const det = document.createElement("tr");
+    det.className = "user-actions-row";
+    det.hidden = !OPEN_USERS.has(p.id);
+    const dtd = document.createElement("td");
+    dtd.colSpan = 8;
+    dtd.innerHTML = `<div class="user-actions">${actTd.innerHTML}</div>`;
+    det.appendChild(dtd);
+    actTd.className = "user-chev";
+    actTd.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
+    tr.className = "user-row" + (OPEN_USERS.has(p.id) ? " open" : "");
+    tr.tabIndex = 0;
+    tr.setAttribute("aria-expanded", String(OPEN_USERS.has(p.id)));
+    tr.title = "Click for options";
+    const toggleRow = () => {
+      const open = det.hidden;
+      det.hidden = !open;
+      if (open) OPEN_USERS.add(p.id); else OPEN_USERS.delete(p.id);
+      tr.classList.toggle("open", open);
+      tr.setAttribute("aria-expanded", String(open));
+    };
+    tr.addEventListener("click", (e) => { if (e.target.closest("button,a,input,select")) return; toggleRow(); });
+    tr.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target === tr) { e.preventDefault(); toggleRow(); } });
     if (canEditName) {
       // p.full_name never touches an HTML/JS string here — same
       // reasoning as the Delete button below: passed as a real JS
       // closure value, not interpolated into markup, so a name
       // containing a quote can't break out of an inline onclick.
-      tr.querySelector("[data-editname-btn]").addEventListener("click", () => editDisplayName(p.id, p.full_name));
+      det.querySelector("[data-editname-btn]").addEventListener("click", () => editDisplayName(p.id, p.full_name));
     }
     if (canDelete) {
       // p.full_name never touches an HTML/JS string here — passed as a
       // real JS value via closure, not interpolated into markup, so a
       // maliciously-crafted name (e.g. containing a quote that would
       // break out of an inline onclick="...") can't execute anything.
-      tr.querySelector("[data-delete-btn]").addEventListener("click", () => deleteUser(p.id, p.full_name));
+      det.querySelector("[data-delete-btn]").addEventListener("click", () => deleteUser(p.id, p.full_name));
     }
-    tbody.appendChild(tr);
+    tbody.append(tr, det);
   });
 }
+const OPEN_USERS = new Set();
 
 // Plain outline-style icons (no emoji) for the show/hide User ID toggle.
 const EYE_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;

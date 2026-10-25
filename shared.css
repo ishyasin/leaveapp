@@ -792,3 +792,15 @@ body.ro-padmin td.daynum[data-day]{cursor:default;}
 @keyframes rpGrind{0%,100%{transform:rotate(-14deg)}50%{transform:rotate(12deg)}}
 :root[data-theme="retropharm"][data-anim="off"] .rppestlebx,:root[data-theme="retropharm"][data-anim="off"] .rpdust{animation:none;}
 @media (prefers-reduced-motion:reduce){:root[data-theme="retropharm"] .rppestlebx,:root[data-theme="retropharm"] .rpdust{animation:none;}}
+
+/* Admin > Users: compact list, options open on click */
+tr.user-row{cursor:pointer;}
+tr.user-row:hover td{background:var(--surface-alt);}
+tr.user-row:focus-visible{outline:2px solid var(--teal);outline-offset:-2px;}
+td.user-chev{width:34px;text-align:center;color:var(--text-muted);}
+td.user-chev svg{transition:transform .15s;vertical-align:middle;}
+tr.user-row.open td.user-chev svg{transform:rotate(180deg);}
+tr.user-row.open td{background:var(--surface-alt);}
+tr.user-actions-row[hidden]{display:none;}
+tr.user-actions-row td{padding:10px 12px 14px;background:var(--surface-subtle);border-bottom:2px solid var(--border);}
+.user-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
