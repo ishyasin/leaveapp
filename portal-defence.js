@@ -213,10 +213,15 @@ function drawGraeme(){
     const canAim=k==='idle1';
     if(canAim)ctx.rotate(aimA);if(fireFlash>0)ctx.translate(-Math.min(1,fireFlash*12)*4,0);
     ctx.scale(GS,GS);ctx.drawImage(im,-PIV[0],-PIV[1]);
-    if(rapid>0&&k==='idle1'){const ox=-PIV[0],oy=-PIV[1];ctx.fillStyle='#02060b';ctx.beginPath();ctx.ellipse(ox+132,oy+123,29,14,0,0,7);ctx.fill();
-      ctx.shadowColor='#ff2a2a';ctx.shadowBlur=14;ctx.fillStyle='#ff3b3b';
-      ctx.beginPath();ctx.ellipse(ox+122,oy+122,8,10,0,0,7);ctx.fill();ctx.beginPath();ctx.ellipse(ox+152,oy+124,5.5,10,0,0,7);ctx.fill();
-      ctx.shadowBlur=0;ctx.fillStyle='#ffd0d0';ctx.beginPath();ctx.ellipse(ox+121,oy+119,3,4,0,0,7);ctx.fill();ctx.beginPath();ctx.ellipse(ox+151,oy+121,2,4,0,0,7);ctx.fill()}
+    const firing=fireFlash>0||(down&&state==='play'&&fireT>0);
+    if(k==='idle1'&&(rapid>0||firing)){const ox=-PIV[0],oy=-PIV[1];ctx.fillStyle='#02060b';ctx.beginPath();ctx.ellipse(ox+132,oy+123,30,16,0,0,7);ctx.fill();
+      ctx.lineJoin='round';ctx.lineCap='round';
+      if(rapid>0){ctx.shadowColor='#ff2a2a';ctx.shadowBlur=14;ctx.fillStyle='#ff3030';ctx.strokeStyle='#ff3030';ctx.lineWidth=3;
+        ctx.beginPath();ctx.moveTo(ox+112,oy+112);ctx.lineTo(ox+133,oy+122);ctx.lineTo(ox+132,oy+134);ctx.lineTo(ox+114,oy+132);ctx.closePath();ctx.fill();ctx.stroke();
+        ctx.beginPath();ctx.moveTo(ox+160,oy+114);ctx.lineTo(ox+146,oy+121);ctx.lineTo(ox+146,oy+134);ctx.lineTo(ox+159,oy+133);ctx.closePath();ctx.fill();ctx.stroke();ctx.shadowBlur=0}
+      else{ctx.shadowColor='#26e6ff';ctx.shadowBlur=10;ctx.strokeStyle='#5ff3ff';ctx.lineWidth=5;
+        ctx.beginPath();ctx.moveTo(ox+113,oy+111);ctx.lineTo(ox+130,oy+122);ctx.lineTo(ox+113,oy+133);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(ox+158,oy+113);ctx.lineTo(ox+147,oy+123);ctx.lineTo(ox+158,oy+134);ctx.stroke();ctx.shadowBlur=0}}
     ctx.restore();
   }
   if(fireFlash>0){const m=gunPos(aimA),pw=rapid>0,gr=ctx.createRadialGradient(m.x,m.y,1,m.x,m.y,26);
