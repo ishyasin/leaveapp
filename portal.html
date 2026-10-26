@@ -695,5 +695,53 @@ async function saveBanner(e) {
   finally { btn.disabled = false; }
 }
 </script>
+<script>
+// Hidden easter egg. Does nothing at all unless the Developer has switched it on (Admin -> Easter Egg).
+// When it is on, typing the secret code on this page and pressing Enter asks the server to check it
+// (the code itself is never in this file). If it is right, the game file is fetched and opened.
+(() => {
+  let on = false, buf = "", timer = null, busy = false;
+  (async () => {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) return;
+      const { data, error } = await sb.rpc("easter_egg_state");
+      on = !error && data === true;
+    } catch (e) { on = false; }
+  })();
+  function loadGame() {
+    return new Promise((resolve, reject) => {
+      if (window.PortalDefence) return resolve();
+      const s = document.createElement("script");
+      s.src = "portal-defence.js";
+      s.onload = () => resolve(); s.onerror = () => reject(new Error("load failed"));
+      document.head.appendChild(s);
+    });
+  }
+  async function tryCode(code) {
+    if (busy) return; busy = true;
+    try {
+      const { data, error } = await sb.rpc("easter_egg_check", { p_code: code });
+      if (!error && data === true) { await loadGame(); window.PortalDefence.open(); }
+    } catch (e) { /* silent */ }
+    finally { busy = false; }
+  }
+  window.addEventListener("keydown", e => {
+    if (!on || window.__pdOpen) return;
+    if (e.target !== document.body && e.target !== document.documentElement) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Enter") {
+      const code = buf; buf = "";
+      if (code.length >= 4) { e.preventDefault(); tryCode(code); }
+      return;
+    }
+    if (e.key === "Backspace") { buf = buf.slice(0, -1); return; }
+    if (e.key.length === 1) {
+      buf = (buf + e.key).slice(-40);
+      clearTimeout(timer); timer = setTimeout(() => { buf = ""; }, 6000);
+    }
+  });
+})();
+</script>
 </body>
 </html>
