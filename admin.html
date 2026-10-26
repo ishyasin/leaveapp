@@ -33,6 +33,7 @@
     <button id="tabBtn-reset" onclick="showTab('reset')" style="display:none;">Reset Data</button>
     <button id="tabBtn-appearance" onclick="showTab('appearance')" style="display:none;">Appearance</button>
     <button id="tabBtn-egg" onclick="showTab('egg')" style="display:none;">Easter Egg</button>
+    <button id="tabBtn-privacy" onclick="showTab('privacy')" style="display:none;">Privacy Notice</button>
   </div>
 
   <!-- USERS -->
@@ -289,6 +290,22 @@
       </form>
     </div>
     <div class="card">
+      <h2>Backup password</h2>
+      <p class="small">The backup workbook is <strong>encrypted</strong>: it can only be opened in Excel with this password. <strong>If no password is set, the backup is not sent.</strong> The password can't be read back by anyone, including the Developer. If it's forgotten, set a new one. A new password applies to the <em>next</em> backup; files already sent keep the password they were sent with.</p>
+      <div id="bkpwMsg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="bkpwStatus">loading…</span></p>
+      <form id="bkpwForm" autocomplete="off" style="display:none;">
+        <label for="bkpw1">New backup password</label>
+        <input type="password" id="bkpw1" autocomplete="new-password" minlength="12" maxlength="128" placeholder="At least 12 characters">
+        <label for="bkpw2">Type it again</label>
+        <input type="password" id="bkpw2" autocomplete="new-password" minlength="12" maxlength="128">
+        <label class="small" style="display:flex;gap:6px;align-items:center;margin-top:6px;"><input type="checkbox" id="bkpwShow" style="width:auto;"> Show what I type</label>
+        <p class="small" style="margin:6px 0 0;">Share it with the people who need to open the backup by a different route from the email (in person or by phone). Keep a note of old passwords while old backups are still kept.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="bkpwSaveBtn">Save password</button></div>
+      </form>
+      <p class="small" id="bkpwDevOnly" style="display:none;">Only the Developer can set or change the backup password.</p>
+    </div>
+    <div class="card">
       <h2>Send time</h2>
       <div id="backupScheduleMsg"></div>
       <div id="backupScheduleNotSetUp" style="display:none;">
@@ -439,6 +456,34 @@
         <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess. Saving a code does not change whether the egg is on or off.</p>
         <div style="margin-top:14px;"><button type="submit" class="primary" id="eggSaveBtn">Save new code</button></div>
       </form>
+    </div>
+  </div>
+
+  <!-- PRIVACY NOTICE (Developer) -->
+  <div id="tab-privacy" style="display:none;">
+    <div class="card">
+      <h2>Privacy notice</h2>
+      <p class="small">Developer only. Write the notice below, then <strong>Publish to all users</strong>. Every active user sees it full-screen the next time they open any page and must click <strong>I agree</strong>. New people see it the first time they sign in. Publishing again (after an edit) asks everyone to agree again. Nothing is shown to anyone until you publish.</p>
+      <div id="pnMsg"></div>
+      <p style="margin:6px 0 12px;"><strong>Published:</strong> <span id="pnStatus">loading…</span></p>
+      <label for="pnTitle">Title</label>
+      <input type="text" id="pnTitle" maxlength="150">
+      <label for="pnBody" style="margin-top:10px;">Notice text</label>
+      <textarea id="pnBody" rows="22" style="width:100%;font-family:inherit;"></textarea>
+      <p class="small" style="margin:4px 0 0;">Formatting: start a line with <code>## </code> for a heading and <code>- </code> for a bullet. A blank line starts a new paragraph. Text in [square brackets] is a placeholder: replace it before publishing.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+        <button type="button" class="secondary" id="pnPreviewBtn">Preview</button>
+        <button type="button" class="secondary" id="pnSaveBtn">Save draft</button>
+        <button type="button" class="primary" id="pnPublishBtn">Publish to all users</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Who has agreed</h2>
+      <p class="small" id="pnCounts"></p>
+      <table>
+        <thead><tr><th>Name</th><th>Initials</th><th>Agreed</th></tr></thead>
+        <tbody id="pnPeople"><tr><td colspan="3" class="small">Nothing published yet.</td></tr></tbody>
+      </table>
     </div>
   </div>
 
@@ -669,6 +714,8 @@ let PROFILES = [];
     document.getElementById("tabBtn-reset").style.display = "";
     document.getElementById("tabBtn-egg").style.display = "";
     setupEggTab();
+    document.getElementById("tabBtn-privacy").style.display = "";
+    setupPrivacyTab();
   }
   // Appearance (apply a theme to everyone / by month): Clinical Team Lead and Developer.
   document.getElementById("tabBtn-appearance").style.display = "";
@@ -687,13 +734,14 @@ let PROFILES = [];
   await loadCapacityOverrides();
   await loadOncallSettings();
   await loadBackupSettings();
+  setupBackupPassword();
   await loadBackupSchedule();
   await loadLeave();
   setupImportForm();
 })();
 
 function showTab(name) {
-  ["users","holidays","restricted","capacity","oncall","backup","leave","import","reset","appearance","egg"].forEach(t => {
+  ["users","holidays","restricted","capacity","oncall","backup","leave","import","reset","appearance","egg","privacy"].forEach(t => {
     document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
     document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);
   });
@@ -2096,6 +2144,92 @@ async function eggCall(enabled, code, okText) {
 function eggSwitch(on) {
   if (on && !EGG_SET) return showMsg(document.getElementById("eggMsg"), "Set a code first, then switch the easter egg on.", "error");
   eggCall(on, null, on ? "Easter egg is ON. People can open it by typing the code on the home page." : "Easter egg is OFF.");
+}
+
+/* ---------------- backup password (Developer sets; Clinical Team Lead+ sees status) ---------------- */
+function setupBackupPassword() {
+  const dev = isDeveloper(PROFILE);
+  document.getElementById("bkpwForm").style.display = dev ? "" : "none";
+  document.getElementById("bkpwDevOnly").style.display = dev ? "none" : "";
+  document.getElementById("bkpwShow").addEventListener("change", e => {
+    document.getElementById("bkpw1").type = e.target.checked ? "text" : "password";
+    document.getElementById("bkpw2").type = e.target.checked ? "text" : "password";
+  });
+  document.getElementById("bkpwForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const msg = document.getElementById("bkpwMsg"), a = document.getElementById("bkpw1").value, b = document.getElementById("bkpw2").value;
+    if (a !== b) return showMsg(msg, "The two passwords do not match.", "error");
+    if (a.length < 12) return showMsg(msg, "The password needs at least 12 characters.", "error");
+    if (!await uiConfirm("Set this as the backup password? Backups sent from now on will need it to open. Backups already sent keep their old password.", "Change backup password")) return;
+    const btn = document.getElementById("bkpwSaveBtn"); btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      const { data, error } = await sb.rpc("developer_set_backup_password", { p_password: a });
+      if (error) throw error;
+      renderBackupPassword(data);
+      document.getElementById("bkpw1").value = ""; document.getElementById("bkpw2").value = "";
+      showMsg(msg, "Backup password saved. The next backup will use it.", "ok");
+    } catch (err) { showMsg(msg, err.message, "error"); }
+    finally { btn.disabled = false; btn.textContent = "Save password"; }
+  });
+  loadBackupPassword();
+}
+function renderBackupPassword(st) {
+  const el = document.getElementById("bkpwStatus");
+  if (st && st.is_set) {
+    el.innerHTML = '<strong style="color:#2e7d32;">Password set</strong> <span class="small">(' + (st.set_at ? "last changed " + escapeHtml(new Date(st.set_at).toLocaleString("en-GB")) : "") + (st.set_by_name ? " by " + escapeHtml(st.set_by_name) : "") + ")</span>";
+  } else {
+    el.innerHTML = '<strong style="color:#c62828;">No password set. Backups are NOT being sent until a Developer sets one.</strong>';
+  }
+}
+async function loadBackupPassword() {
+  try {
+    const { data, error } = await sb.rpc("get_backup_password_status");
+    if (error) throw error;
+    renderBackupPassword(data);
+  } catch (err) { document.getElementById("bkpwStatus").textContent = "unknown (has schema.sql been re-run?)"; }
+}
+
+/* ---------------- privacy notice (Developer) ---------------- */
+function setupPrivacyTab() {
+  document.getElementById("pnSaveBtn").addEventListener("click", async () => {
+    const msg = document.getElementById("pnMsg");
+    const { error } = await sb.rpc("developer_save_privacy_draft", { p_title: document.getElementById("pnTitle").value, p_body: document.getElementById("pnBody").value });
+    if (error) showMsg(msg, error.message, "error"); else showMsg(msg, "Draft saved. Nobody sees it until you publish.", "ok");
+  });
+  document.getElementById("pnPreviewBtn").addEventListener("click", () =>
+    showPrivacyNoticeModal({ title: document.getElementById("pnTitle").value, body: document.getElementById("pnBody").value }, { preview: true }));
+  document.getElementById("pnPublishBtn").addEventListener("click", async () => {
+    const msg = document.getElementById("pnMsg");
+    const body = document.getElementById("pnBody").value;
+    if (/\[[^\]]+\]/.test(body) && !await uiConfirm("The text still contains [square bracket] placeholders. Publish anyway?", "Placeholders left in")) return;
+    if (!await uiConfirm("Publish this notice? Every active user will have to click I agree the next time they open the app, including people who agreed to an earlier version.", "Publish to all users")) return;
+    try {
+      const { data, error } = await sb.rpc("developer_publish_privacy_notice", { p_title: document.getElementById("pnTitle").value, p_body: body });
+      if (error) throw error;
+      renderPrivacy(data); showMsg(msg, "Published as version " + data.latest.version + ". Everyone will be asked to agree.", "ok");
+    } catch (err) { showMsg(msg, err.message, "error"); }
+  });
+  loadPrivacy();
+}
+function renderPrivacy(d) {
+  const l = d.latest;
+  document.getElementById("pnStatus").innerHTML = l
+    ? "version " + l.version + " on " + escapeHtml(new Date(l.published_at).toLocaleString("en-GB")) + (l.published_by_name ? " by " + escapeHtml(l.published_by_name) : "")
+    : "nothing yet. Users are not shown any notice.";
+  document.getElementById("pnCounts").textContent = l ? d.agreed + " of " + d.active_users + " active users have agreed to version " + l.version + "." : "";
+  document.getElementById("pnPeople").innerHTML = (d.people && d.people.length)
+    ? d.people.map(p => `<tr><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.initials || "")}</td><td>${p.agreed_at ? escapeHtml(new Date(p.agreed_at).toLocaleString("en-GB")) : '<span style="color:#c62828;">Not yet</span>'}</td></tr>`).join("")
+    : '<tr><td colspan="3" class="small">Nothing published yet.</td></tr>';
+}
+async function loadPrivacy() {
+  const msg = document.getElementById("pnMsg");
+  try {
+    const { data, error } = await sb.rpc("developer_get_privacy_notice");
+    if (error) throw error;
+    document.getElementById("pnTitle").value = data.draft.title;
+    document.getElementById("pnBody").value = data.draft.body;
+    renderPrivacy(data);
+  } catch (err) { showMsg(msg, "Could not load the privacy notice (has schema.sql been re-run?): " + err.message, "error"); }
 }
 
 async function loadBackupSettings() {

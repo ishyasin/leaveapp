@@ -2517,6 +2517,7 @@ async function requireAuth(allowedRoles) {
   }
   renderTopbar(profile);
   if (isPharmacyAdmin(profile)) applyPharmacyAdminMode();
+  checkPrivacyNotice();
   return profile;
 }
 
@@ -2559,6 +2560,80 @@ function canProcessLeaveForRole(actorProfile, targetProfile) {
 }
 
 /* ---------------- topbar ---------------- */
+/* ---------------- privacy notice (Developer publishes; everyone must agree) ---------------- */
+// Turns the notice text into safe HTML: "## " heading, "- " bullet, blank line = new paragraph.
+function renderNoticeHtml(text) {
+  const out = []; let list = [], para = [];
+  const flushList = () => { if (list.length) { out.push("<ul>" + list.map(t => "<li>" + t + "</li>").join("") + "</ul>"); list = []; } };
+  const flushPara = () => { if (para.length) { out.push("<p>" + para.join("<br>") + "</p>"); para = []; } };
+  String(text || "").replace(/\r/g, "").split("\n").forEach(raw => {
+    const line = raw.trim();
+    if (!line) { flushList(); flushPara(); return; }
+    if (line.startsWith("## ")) { flushList(); flushPara(); out.push("<h4>" + escapeHtml(line.slice(3)) + "</h4>"); return; }
+    if (line.startsWith("- ")) { flushPara(); list.push(escapeHtml(line.slice(2))); return; }
+    flushList(); para.push(escapeHtml(line));
+  });
+  flushList(); flushPara();
+  return out.join("");
+}
+/** Full-screen notice. opts.required -> must click "I agree" (no way to dismiss);
+ *  opts.preview / otherwise -> a Close button. Resolves when dismissed/agreed. */
+function showPrivacyNoticeModal(notice, opts) {
+  opts = opts || {};
+  return new Promise((resolve) => {
+    const old = document.getElementById("pnOverlay"); if (old) old.remove();
+    const ov = document.createElement("div");
+    ov.id = "pnOverlay"; ov.className = "overlay"; ov.style.display = "flex"; ov.style.zIndex = "99980";
+    ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true"); ov.setAttribute("aria-labelledby", "pnTitleH");
+    ov.innerHTML = `<div class="modal modal-wide" style="max-width:720px;max-height:92vh;display:flex;flex-direction:column;">
+      <h3 id="pnTitleH" style="margin-bottom:4px;">${escapeHtml(notice.title || "Privacy notice")}</h3>
+      ${opts.required ? '<p class="small" style="margin:0 0 8px;">Please read this notice and click <strong>I agree</strong> to continue.</p>' : (opts.preview ? '<p class="small" style="margin:0 0 8px;"><strong>Preview.</strong> This is how people will see it.</p>' : "")}
+      <div id="pnBodyBox" style="overflow-y:auto;flex:1;min-height:120px;border:1px solid var(--border,#ccc);border-radius:8px;padding:4px 14px;">${renderNoticeHtml(notice.body)}</div>
+      <div id="pnErr"></div>
+      <div class="modal-actions">
+        ${opts.required ? '<button class="secondary" id="pnSignOut">Sign out</button><button class="primary" id="pnAgree">I agree</button>' : '<button class="primary" id="pnClose">Close</button>'}
+      </div></div>`;
+    document.body.appendChild(ov);
+    const done = () => { ov.remove(); resolve(); };
+    if (opts.required) {
+      document.getElementById("pnSignOut").onclick = () => signOut();
+      document.getElementById("pnAgree").onclick = async () => {
+        const btn = document.getElementById("pnAgree"); btn.disabled = true; btn.textContent = "Saving…";
+        try {
+          const { error } = await sb.rpc("privacy_notice_accept", { p_version: notice.version });
+          if (error) throw error;
+          done();
+        } catch (e) {
+          btn.disabled = false; btn.textContent = "I agree";
+          document.getElementById("pnErr").innerHTML = `<div class="msg error">${escapeHtml(e.message || "Could not save. Please try again.")}</div>`;
+        }
+      };
+      document.getElementById("pnAgree").focus();
+    } else {
+      document.getElementById("pnClose").onclick = done;
+      document.getElementById("pnClose").focus();
+    }
+  });
+}
+// Called once per page load after sign-in. Never blocks the page loading and
+// never traps anyone if the notice can't be fetched (e.g. schema not yet updated).
+async function checkPrivacyNotice() {
+  try {
+    if (window.__pnChecking) return; window.__pnChecking = true;
+    const { data, error } = await sb.rpc("privacy_notice_status");
+    if (error || !data || !data.has_notice || !data.needs_ack) return;
+    await showPrivacyNoticeModal(data, { required: true });
+  } catch (e) { /* ignore */ } finally { window.__pnChecking = false; }
+}
+async function viewPrivacyNotice() {
+  try {
+    const { data, error } = await sb.rpc("privacy_notice_status");
+    if (error) throw error;
+    if (!data || !data.has_notice) return uiAlert("No privacy notice has been published yet.", "Privacy notice");
+    await showPrivacyNoticeModal(data, {});
+  } catch (e) { uiAlert("Could not load the privacy notice.", "Privacy notice"); }
+}
+
 function renderTopbar(profile) {
   const el = document.getElementById("topbar");
   if (!el) return;
@@ -2608,8 +2683,10 @@ function renderTopbar(profile) {
       ${themePickerHtml(profile)}
       <select id="colorModeSelect" class="mode-select" aria-label="Display mode">${modeOptions}</select>
       <span>${escapeHtml(profile.full_name)} (${escapeHtml(profile.initials)}) &middot; ${ROLE_LABEL[profile.role]}</span>
+      <button type="button" id="privacyBtn" title="Privacy notice">Privacy</button>
       <button onclick="signOut()">Sign out</button>
     </div>`;
+  document.getElementById("privacyBtn").addEventListener("click", viewPrivacyNotice);
   document.getElementById("colorModeSelect").addEventListener("change", (e) => setOwnColorMode(e.target.value));
   const ownThemeSel = document.getElementById("themeSelectOwn");
   if (ownThemeSel) ownThemeSel.addEventListener("change", (e) => setOwnTheme(e.target.value));
