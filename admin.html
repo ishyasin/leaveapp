@@ -474,6 +474,8 @@
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
         <button type="button" class="secondary" id="pnPreviewBtn">Preview</button>
         <button type="button" class="secondary" id="pnSaveBtn">Save draft</button>
+        <label for="pnTarget" class="small" style="margin:0;">Publish to</label>
+        <select id="pnTarget"><option value="">All users</option></select>
         <button type="button" class="primary" id="pnPublishBtn">Publish to all users</button>
       </div>
     </div>
@@ -481,8 +483,8 @@
       <h2>Who has agreed</h2>
       <p class="small" id="pnCounts"></p>
       <table>
-        <thead><tr><th>Name</th><th>Initials</th><th>Agreed</th></tr></thead>
-        <tbody id="pnPeople"><tr><td colspan="3" class="small">Nothing published yet.</td></tr></tbody>
+        <thead><tr><th>Name</th><th>Initials</th><th>Notice version</th><th>Agreed</th></tr></thead>
+        <tbody id="pnPeople"><tr><td colspan="4" class="small">Nothing published yet.</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -627,6 +629,9 @@
       <input type="date" id="suspendLastDay" required>
       <label for="suspendTime">Leaving time on that day <span class="small">(optional)</span></label>
       <input type="time" id="suspendTime">
+      <label for="suspendDelDate">Due for deletion on</label>
+      <input type="date" id="suspendDelDate" required>
+      <p class="small">Set automatically to 12 months after the last working day. You can choose an earlier date, never a later one.</p>
       <label for="suspendNote">Note <span class="small">(optional)</span></label>
       <textarea id="suspendNote" rows="3" maxlength="500" placeholder="e.g. Moving to another Trust, leaving 17:00"></textarea>
       <div class="modal-actions">
@@ -1172,7 +1177,7 @@ async function toggleHidden(id, makeHidden) {
 
 async function deleteUser(id, fullName) {
   const msg = document.getElementById("usersMsg");
-  if (!await uiConfirm(`Permanently delete ${fullName}'s access? They will never be able to log in again. Their leave history is kept for records — this is not reversible from the app.`)) return;
+  if (!await uiConfirm(`Permanently delete ${fullName}'s account? They will never be able to log in again. Their name, initials and other personal details are removed and their leave will show only as N/A (visible to admins only). This is not reversible.`)) return;
   try {
     const { error } = await sb.rpc("delete_user_account", { p_user_id: id });
     if (error) throw error;
@@ -1376,7 +1381,15 @@ function suspendedInfo(p) {
   if (!p.suspended_last_day) return "";
   const t = p.suspended_leave_time ? ` at ${p.suspended_leave_time.slice(0, 5)}` : "";
   const note = p.suspended_note ? ` title="${escapeHtml(p.suspended_note)}"` : "";
-  return `<div class="small"${note}>Last day ${escapeHtml(fmtLastDay(p.suspended_last_day))}${t}${p.suspended_note ? " \u00b7 note" : ""}</div>`;
+  const del = p.deletion_due_date
+    ? `<div class="small"${p.deletion_due_date < new Date().toISOString().slice(0, 10) ? ' style="color:var(--danger,#b00020);font-weight:600"' : ""}>Due for deletion on ${escapeHtml(fmtLastDay(p.deletion_due_date))}${p.deletion_due_date < new Date().toISOString().slice(0, 10) ? " (overdue)" : ""}</div>` : "";
+  return `<div class="small"${note}>Last day ${escapeHtml(fmtLastDay(p.suspended_last_day))}${t}${p.suspended_note ? " \u00b7 note" : ""}</div>${del}`;
+}
+function addMonthsIso(iso, n) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1 + n, d));
+  if (dt.getUTCDate() !== d) dt.setUTCDate(0); // 29 Feb etc: use month end
+  return dt.toISOString().slice(0, 10);
 }
 let SUSPEND_USER_ID = null;
 function openSuspendModal(id) {
@@ -1391,8 +1404,12 @@ function openSuspendModal(id) {
   document.getElementById("suspendLastDay").value = p.suspended_last_day || "";
   document.getElementById("suspendTime").value = p.suspended_leave_time ? p.suspended_leave_time.slice(0, 5) : "";
   document.getElementById("suspendNote").value = p.suspended_note || "";
+  document.getElementById("suspendDelDate").value = p.deletion_due_date || (p.suspended_last_day ? addMonthsIso(p.suspended_last_day, 12) : "");
   document.getElementById("suspendOverlay").style.display = "flex";
 }
+document.getElementById("suspendLastDay").addEventListener("change", (e) => {
+  if (e.target.value) document.getElementById("suspendDelDate").value = addMonthsIso(e.target.value, 12);
+});
 function closeSuspendModal() { document.getElementById("suspendOverlay").style.display = "none"; }
 document.getElementById("suspendForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -1401,6 +1418,9 @@ document.getElementById("suspendForm").addEventListener("submit", async (e) => {
   const p = PROFILES.find(x => x.id === SUSPEND_USER_ID);
   const lastDay = document.getElementById("suspendLastDay").value;
   if (!lastDay) { showMsg(msg, "Pick their last working day.", "error"); return; }
+  const delDate = document.getElementById("suspendDelDate").value;
+  if (!delDate) { showMsg(msg, "Choose the due-for-deletion date.", "error"); return; }
+  if (delDate > addMonthsIso(lastDay, 12)) { showMsg(msg, "The deletion date cannot be more than 12 months after the last working day.", "error"); return; }
   if (p && p.active && !await uiConfirm(`Suspend ${p.full_name}? They will be signed out straight away. Leave after ${fmtLastDay(lastDay)} will turn grey on the calendar.`)) return;
   const label = btn.textContent;
   btn.disabled = true; btn.textContent = "Saving…";
@@ -1410,6 +1430,7 @@ document.getElementById("suspendForm").addEventListener("submit", async (e) => {
       p_last_day: lastDay,
       p_leave_time: document.getElementById("suspendTime").value || null,
       p_note: document.getElementById("suspendNote").value.trim() || null,
+      p_deletion_date: delDate,
     });
     if (error) throw error;
     closeSuspendModal();
@@ -2202,24 +2223,40 @@ function setupPrivacyTab() {
     const msg = document.getElementById("pnMsg");
     const body = document.getElementById("pnBody").value;
     if (/\[[^\]]+\]/.test(body) && !await uiConfirm("The text still contains [square bracket] placeholders. Publish anyway?", "Placeholders left in")) return;
-    if (!await uiConfirm("Publish this notice? Every active user will have to click I agree the next time they open the app, including people who agreed to an earlier version.", "Publish to all users")) return;
+    const sel = document.getElementById("pnTarget");
+    const target = sel.value || null;
+    const targetName = target ? sel.options[sel.selectedIndex].text : "";
+    if (!await uiConfirm(target
+      ? `Publish this notice to ${targetName} only? They will have to click I agree the next time they open the app. Nobody else is affected.`
+      : "Publish this notice? Every active user will have to click I agree the next time they open the app, including people who agreed to an earlier version.", target ? "Publish to one user" : "Publish to all users")) return;
     try {
-      const { data, error } = await sb.rpc("developer_publish_privacy_notice", { p_title: document.getElementById("pnTitle").value, p_body: body });
+      const { data, error } = await sb.rpc("developer_publish_privacy_notice", { p_title: document.getElementById("pnTitle").value, p_body: body, p_target: target });
       if (error) throw error;
-      renderPrivacy(data); showMsg(msg, "Published as version " + data.latest.version + ". Everyone will be asked to agree.", "ok");
+      renderPrivacy(data); showMsg(msg, target ? "Published to " + targetName + ". They will be asked to agree." : "Published to all users. Everyone will be asked to agree.", "ok");
     } catch (err) { showMsg(msg, err.message, "error"); }
   });
+  document.getElementById("pnTarget").addEventListener("change", updatePnPublishLabel);
   loadPrivacy();
 }
+function updatePnPublishLabel() {
+  const sel = document.getElementById("pnTarget");
+  document.getElementById("pnPublishBtn").textContent = sel.value ? "Publish to " + sel.options[sel.selectedIndex].text : "Publish to all users";
+}
 function renderPrivacy(d) {
+  const sel = document.getElementById("pnTarget");
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">All users</option>' + (d.people || []).slice().sort((x, y) => x.name.localeCompare(y.name))
+    .map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)} (${escapeHtml(p.initials || "")})</option>`).join("");
+  sel.value = keep; if (sel.value !== keep) sel.value = "";
+  updatePnPublishLabel();
   const l = d.latest;
   document.getElementById("pnStatus").innerHTML = l
     ? "version " + l.version + " on " + escapeHtml(new Date(l.published_at).toLocaleString("en-GB")) + (l.published_by_name ? " by " + escapeHtml(l.published_by_name) : "")
     : "nothing yet. Users are not shown any notice.";
-  document.getElementById("pnCounts").textContent = l ? d.agreed + " of " + d.active_users + " active users have agreed to version " + l.version + "." : "";
+  document.getElementById("pnCounts").textContent = l ? d.agreed + " of " + d.active_users + " active users have agreed to the notice they are currently asked to accept (latest for everyone: version " + l.version + ")." : "";
   document.getElementById("pnPeople").innerHTML = (d.people && d.people.length)
-    ? d.people.map(p => `<tr><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.initials || "")}</td><td>${p.agreed_at ? escapeHtml(new Date(p.agreed_at).toLocaleString("en-GB")) : '<span style="color:#c62828;">Not yet</span>'}</td></tr>`).join("")
-    : '<tr><td colspan="3" class="small">Nothing published yet.</td></tr>';
+    ? d.people.map(p => `<tr><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.initials || "")}</td><td>${p.version == null ? "" : p.version}</td><td>${p.agreed_at ? escapeHtml(new Date(p.agreed_at).toLocaleString("en-GB")) : '<span style="color:#c62828;">Not yet</span>'}</td></tr>`).join("")
+    : '<tr><td colspan="4" class="small">Nothing published yet.</td></tr>';
 }
 async function loadPrivacy() {
   const msg = document.getElementById("pnMsg");
