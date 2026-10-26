@@ -198,14 +198,9 @@ function gunPos(th){ // muzzle position in the playfield for a given rifle angle
   return{x:px+vx*c-vy*s,y:py+vx*s+vy*c}
 }
 function graemeFrame(){
-  const pw=rapid>0;
   if(pose==='hurt'&&poseT>0)return 'hurt';
   if(pose==='special'&&poseT>0)return 'special';
-  if(pose==='cheer'&&poseT>0)return 'sq2';
-  if(fireFlash>0||(down&&state==='play'&&fireT>0))return pw?'red2':'sq1';
-  if(pw)return 'red2';
-  if(time%4.2<.16)return 'calm';
-  return Math.floor(time/2.6)%2?'idle2':'idle1';
+  return 'idle1';
 }
 function drawGraeme(){
   const k=graemeFrame(),im=(GIMG[k]&&GIMG[k].complete)?GIMG[k]:GIMG.idle1;
@@ -215,9 +210,14 @@ function drawGraeme(){
   if(im&&im.complete){
     const bob=Math.sin(time*2.4)*3,px=GX+(PIV[0]-FX)*GS,py=GY-30+bob+(PIV[1]-FY)*GS;
     ctx.save();ctx.translate(px,py);
-    const canAim=k==='idle1'||k==='idle2'||k==='calm'||k==='sq1'||k==='sq2'||k==='red1'||k==='red2';
+    const canAim=k==='idle1';
     if(canAim)ctx.rotate(aimA);if(fireFlash>0)ctx.translate(-Math.min(1,fireFlash*12)*4,0);
-    ctx.scale(GS,GS);ctx.drawImage(im,-PIV[0],-PIV[1]);ctx.restore();
+    ctx.scale(GS,GS);ctx.drawImage(im,-PIV[0],-PIV[1]);
+    if(rapid>0&&k==='idle1'){const ox=-PIV[0],oy=-PIV[1];ctx.fillStyle='#02060b';ctx.beginPath();ctx.ellipse(ox+132,oy+123,29,14,0,0,7);ctx.fill();
+      ctx.shadowColor='#ff2a2a';ctx.shadowBlur=14;ctx.fillStyle='#ff3b3b';
+      ctx.beginPath();ctx.ellipse(ox+122,oy+122,8,10,0,0,7);ctx.fill();ctx.beginPath();ctx.ellipse(ox+152,oy+124,5.5,10,0,0,7);ctx.fill();
+      ctx.shadowBlur=0;ctx.fillStyle='#ffd0d0';ctx.beginPath();ctx.ellipse(ox+121,oy+119,3,4,0,0,7);ctx.fill();ctx.beginPath();ctx.ellipse(ox+151,oy+121,2,4,0,0,7);ctx.fill()}
+    ctx.restore();
   }
   if(fireFlash>0){const m=gunPos(aimA),pw=rapid>0,gr=ctx.createRadialGradient(m.x,m.y,1,m.x,m.y,26);
     gr.addColorStop(0,'rgba(255,255,255,.95)');gr.addColorStop(.35,pw?'rgba(255,90,90,.8)':'rgba(120,235,255,.8)');gr.addColorStop(1,'rgba(0,0,0,0)');
