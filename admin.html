@@ -277,6 +277,20 @@
   <!-- DAILY BACKUP -->
   <div id="tab-backup" style="display:none;">
     <div class="card">
+      <h2>Automatic backup</h2>
+      <div id="bkAutoMsg"></div>
+      <p style="margin:6px 0 8px;"><strong>Status:</strong> <span id="bkAutoStatus">loading…</span></p>
+      <p class="small">When automatic backup is switched <strong>off</strong>, nothing is emailed (not the daily run, and not "Send backup now"). Every Clinical Team Lead sees a warning, and a backup must be downloaded by hand using the button below.</p>
+      <div id="bkAutoDev" style="display:none;margin-top:10px;"><button type="button" class="secondary" id="bkAutoBtn">…</button></div>
+      <p class="small" id="bkAutoDevOnly" style="display:none;">Only the Developer can switch automatic backup on or off.</p>
+    </div>
+    <div class="card" id="bkDownloadCard" style="display:none;">
+      <h2>Download backup (manual)</h2>
+      <p class="small">Downloads the same workbook as the daily backup, <strong>encrypted with the backup password</strong> (ask the Developer for it). Save it somewhere secure, such as a protected Trust drive. Do not email it or keep it on a personal device. Each download is recorded in the audit log.</p>
+      <div id="bkDownloadMsg"></div>
+      <button type="button" class="primary" id="bkDownloadBtn" onclick="downloadBackupNow()">Download backup (Excel)</button>
+    </div>
+    <div class="card">
       <h2>Daily backup email</h2>
       <p class="small">A full Excel workbook of <strong>both the leave rota and the on-call rota</strong> — every leave request on record (one calendar-styled tab per month, plus summary tabs: All Approved, All Pending, All Rejected, TOIL, Study Leave, Annual Leave) and the on-call rota (a coloured tab per rota period and site, plus bank holidays, periods, swaps and audit) — is emailed automatically every day at the scheduled time. Set who receives it below; this takes priority over the <code>BACKUP_TO_EMAIL</code> command-line secret if that was set up separately.</p>
       <div id="backupMsg"></div>
@@ -740,9 +754,11 @@ let PROFILES = [];
   await loadOncallSettings();
   await loadBackupSettings();
   setupBackupPassword();
+  setupBackupAuto();
   await loadBackupSchedule();
   await loadLeave();
   setupImportForm();
+  if (location.hash === "#backup") showTab("backup");
 })();
 
 function showTab(name) {
@@ -2165,6 +2181,65 @@ async function eggCall(enabled, code, okText) {
 function eggSwitch(on) {
   if (on && !EGG_SET) return showMsg(document.getElementById("eggMsg"), "Set a code first, then switch the easter egg on.", "error");
   eggCall(on, null, on ? "Easter egg is ON. People can open it by typing the code on the home page." : "Easter egg is OFF.");
+}
+
+/* ---------------- automatic backup on/off + manual download ---------------- */
+let BK_AUTO_ON = true;
+function renderBackupAuto(st) {
+  BK_AUTO_ON = !(st && st.auto_enabled === false);
+  const when = st && st.changed_at ? " (changed " + escapeHtml(new Date(st.changed_at).toLocaleString("en-GB")) + (st.changed_by_name ? " by " + escapeHtml(st.changed_by_name) : "") + ")" : "";
+  document.getElementById("bkAutoStatus").innerHTML = BK_AUTO_ON
+    ? '<strong style="color:#2e7d32;">On</strong> <span class="small">backups are emailed automatically</span>' + when
+    : '<strong style="color:#c62828;">OFF</strong> <span class="small">backups must be downloaded manually</span>' + when;
+  const btn = document.getElementById("bkAutoBtn");
+  btn.textContent = BK_AUTO_ON ? "Switch automatic backup OFF" : "Switch automatic backup ON";
+  btn.className = BK_AUTO_ON ? "danger" : "primary";
+}
+async function loadBackupAuto() {
+  try {
+    const { data, error } = await sb.rpc("get_backup_auto_status");
+    if (error) throw error;
+    renderBackupAuto(data);
+  } catch (err) { document.getElementById("bkAutoStatus").textContent = "unknown (has schema.sql been re-run?)"; }
+}
+function setupBackupAuto() {
+  const dev = isDeveloper(PROFILE);
+  document.getElementById("bkAutoDev").style.display = dev ? "" : "none";
+  document.getElementById("bkAutoDevOnly").style.display = dev ? "none" : "";
+  document.getElementById("bkDownloadCard").style.display = isSuperuserPlus(PROFILE) ? "" : "none";
+  document.getElementById("bkAutoBtn").addEventListener("click", async () => {
+    const msg = document.getElementById("bkAutoMsg");
+    const turnOff = BK_AUTO_ON;
+    if (!await uiConfirm(turnOff
+      ? "Switch automatic backup OFF? Nothing will be emailed until it is switched back on, and every Clinical Team Lead will see a warning that backups must be downloaded manually."
+      : "Switch automatic backup back ON? Backups will be emailed again to the recipients below.", turnOff ? "Switch off automatic backup" : "Switch on automatic backup")) return;
+    try {
+      const { data, error } = await sb.rpc("developer_set_backup_auto", { p_enabled: !turnOff });
+      if (error) throw error;
+      renderBackupAuto(data);
+      showMsg(msg, turnOff ? "Automatic backup is now OFF. Clinical Team Leads will see the warning." : "Automatic backup is now ON.", "ok");
+    } catch (err) { showMsg(msg, err.message, "error"); }
+  });
+  loadBackupAuto();
+}
+async function downloadBackupNow() {
+  const msg = document.getElementById("bkDownloadMsg");
+  const btn = document.getElementById("bkDownloadBtn");
+  btn.disabled = true; btn.textContent = "Preparing…";
+  try {
+    const r = await callEdgeFunction("send-leave-backup", { mode: "download" });
+    const bin = atob(r.content_base64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = r.filename || "pharmacy-portal-backup.xlsx";
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    showMsg(msg, "Downloaded " + (r.filename || "the backup") + ". It is encrypted: you need the backup password to open it.", "ok");
+  } catch (err) { showMsg(msg, err.message, "error"); }
+  finally { btn.disabled = false; btn.textContent = "Download backup (Excel)"; }
 }
 
 /* ---------------- backup password (Developer sets; Clinical Team Lead+ sees status) ---------------- */

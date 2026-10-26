@@ -804,3 +804,5 @@ tr.user-row.open td{background:var(--surface-alt);}
 tr.user-actions-row[hidden]{display:none;}
 tr.user-actions-row td{padding:10px 12px 14px;background:var(--surface-subtle);border-bottom:2px solid var(--border);}
 .user-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+
+.cal-grid td.tile.deleted-user{background:#e5e7eb !important;color:#6b7280;font-style:italic;cursor:default;}

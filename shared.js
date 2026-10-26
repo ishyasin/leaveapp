@@ -14,7 +14,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Pharmacy Admin is a read-only role. The database refuses every write for it; this guard
 // additionally stops the browser even trying (friendlier message) except for harmless reads and
 // the person's own colour/theme preference.
-const RO_ADMIN_RPC_OK = new Set(["get_profile_directory", "get_oncall_people", "get_oncall_pending_swaps", "get_oncall_audit", "get_name_directory", "get_backup_schedule", "search_huddle_posts", "set_own_theme", "set_own_color_mode", "add_personal_task", "update_personal_task", "toggle_personal_task", "delete_personal_task", "carry_over_personal_tasks", "toggle_assigned_task", "get_assigned_tasks", "mark_notifications_read", "clear_notifications"]);
+const RO_ADMIN_RPC_OK = new Set(["get_profile_directory", "get_oncall_people", "get_oncall_pending_swaps", "get_oncall_audit", "get_name_directory", "get_backup_schedule", "get_backup_auto_status", "search_huddle_posts", "set_own_theme", "set_own_color_mode", "add_personal_task", "update_personal_task", "toggle_personal_task", "delete_personal_task", "carry_over_personal_tasks", "toggle_assigned_task", "get_assigned_tasks", "mark_notifications_read", "clear_notifications"]);
 const RO_ADMIN_MSG = "Pharmacy Admin accounts are read-only: you can view everything but cannot make changes.";
 (function () {
   const rpc0 = sb.rpc.bind(sb);
@@ -2518,6 +2518,7 @@ async function requireAuth(allowedRoles) {
   renderTopbar(profile);
   if (isPharmacyAdmin(profile)) applyPharmacyAdminMode();
   checkPrivacyNotice();
+  checkBackupOffBanner(profile);
   return profile;
 }
 
@@ -2617,6 +2618,22 @@ function showPrivacyNoticeModal(notice, opts) {
 }
 // Called once per page load after sign-in. Never blocks the page loading and
 // never traps anyone if the notice can't be fetched (e.g. schema not yet updated).
+// Clinical Team Leads / Developers / Pharmacy Admins: warn when automatic backup is switched off.
+async function checkBackupOffBanner(profile) {
+  try {
+    if (!profile || !["superuser", "developer", "pharmacy_admin"].includes(profile.role)) return;
+    const { data, error } = await sb.rpc("get_backup_auto_status");
+    if (error || !data || data.auto_enabled !== false) return;
+    if (document.getElementById("backupOffBanner")) return;
+    const bar = document.createElement("div");
+    bar.id = "backupOffBanner"; bar.setAttribute("role", "alert");
+    bar.style.cssText = "background:#fdecea;color:#7f1d1d;border-bottom:2px solid #c62828;padding:8px 16px;font-size:14px;text-align:center;";
+    const canDownload = profile.role !== "pharmacy_admin";
+    bar.innerHTML = "<strong>Automatic backup is switched off.</strong> Backups are no longer emailed" + (canDownload ? ", so a backup must be downloaded manually. <a href=\"admin.html#backup\" style=\"color:inherit;font-weight:700;\">Download backup</a>" : ". Ask a Clinical Team Lead to download one manually.");
+    const top = document.getElementById("topbar");
+    if (top && top.parentNode) top.parentNode.insertBefore(bar, top.nextSibling); else document.body.prepend(bar);
+  } catch (e) { /* ignore */ }
+}
 async function checkPrivacyNotice() {
   try {
     if (window.__pnChecking) return; window.__pnChecking = true;
