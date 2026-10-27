@@ -717,24 +717,25 @@ async function saveBanner(e) {
 }
 </script>
 <script>
-// Hidden easter egg. Does nothing at all unless the Developer has switched it on (Admin -> Easter Egg).
-// When it is on, typing the secret code on this page and pressing Enter asks the server to check it
-// (the code itself is never in this file). If it is right, the game file is fetched and opened.
+// Hidden easter eggs. Nothing happens at all unless the Developer has switched at least one on (Admin -> Easter Egg 1 / 2).
+// When one is on, typing a secret code on this page and pressing Enter asks the server which game (if any) that code opens
+// (the codes themselves are never in this file). If it is right, that game's file is fetched and opened.
 (() => {
   let on = false, buf = "", timer = null, busy = false;
+  const GAMES = { 1: { file: "portal-defence.js", global: "PortalDefence" }, 2: { file: "tile-defence.js", global: "TileDefence" } };
   (async () => {
     try {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) return;
-      const { data, error } = await sb.rpc("easter_egg_state");
-      on = !error && data === true;
+      const { data, error } = await sb.rpc("easter_egg_states");
+      on = !error && !!data && (data["1"] === true || data["2"] === true);
     } catch (e) { on = false; }
   })();
-  function loadGame() {
+  function loadGame(g) {
     return new Promise((resolve, reject) => {
-      if (window.PortalDefence) return resolve();
+      if (window[g.global]) return resolve();
       const s = document.createElement("script");
-      s.src = "portal-defence.js";
+      s.src = g.file;
       s.onload = () => resolve(); s.onerror = () => reject(new Error("load failed"));
       document.head.appendChild(s);
     });
@@ -742,8 +743,9 @@ async function saveBanner(e) {
   async function tryCode(code) {
     if (busy) return; busy = true;
     try {
-      const { data, error } = await sb.rpc("easter_egg_check", { p_code: code });
-      if (!error && data === true) { await loadGame(); window.PortalDefence.open(); }
+      const { data, error } = await sb.rpc("easter_egg_which", { p_code: code });
+      const g = !error && GAMES[data];
+      if (g) { await loadGame(g); window[g.global].open(); }
     } catch (e) { /* silent */ }
     finally { busy = false; }
   }
