@@ -831,3 +831,11 @@ tr.user-actions-row td{padding:10px 12px 14px;background:var(--surface-subtle);b
   .pagenav{position:static;}
   .page-menu{left:16px;}
 }
+
+/* ---------- Default and GD&G banners: plain navy band with a soft accent glow ---------- */
+:root:not([data-theme]) .theme-banner,
+:root[data-theme="default"] .theme-banner,
+:root[data-theme="magenta"] .theme-banner{
+  display:block;height:34px;border-bottom:3px solid var(--honey);
+  background:linear-gradient(100deg,var(--navy) 0%,var(--navy) 55%,var(--teal) 160%);
+}
