@@ -204,7 +204,7 @@ function update(dt){
   {const o=gunPos(0),aa=Math.atan2(my-o.y,mx-o.x);aimA+=(Math.max(-.75,Math.min(.55,aa))-aimA)*Math.min(1,dt*14)}
   if(live&&down&&fireT<=0){
     const m=gunPos(aimA),a=Math.atan2(my-m.y,mx-m.x),pw=rapid>0;
-    bolts.push({x:m.x,y:m.y,vx:Math.cos(a)*(pw?1100:900),vy:Math.sin(a)*(pw?1100:900),life:1.2,red:pw,dmg:pw?2:1,hit:[]});
+    bolts.push({x:m.x,y:m.y,vx:Math.cos(a)*(pw?1100:900),vy:Math.sin(a)*(pw?1100:900),life:Math.hypot(W,H)/(pw?1100:900)+.3,red:pw,dmg:pw?2:1,hit:[]});
     fireT=pw?.08:.17;shotN++;fireFlash=.07;sfxPew();
   }
   // waves
