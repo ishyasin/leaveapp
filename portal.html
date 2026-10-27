@@ -20,7 +20,7 @@
   :root[data-color-mode="dark"] .bg-anim .tri,:root[data-color-mode="dark"] .bg-anim .orb,:root[data-color-mode="dark"] .bg-anim .particle,:root[data-color-mode="dark"] .bg-anim .light-beam,
   :root[data-color-mode="inverted"] .bg-anim .tri,:root[data-color-mode="inverted"] .bg-anim .orb,:root[data-color-mode="inverted"] .bg-anim .particle,:root[data-color-mode="inverted"] .bg-anim .light-beam{display:none;}
   @media (prefers-reduced-motion:reduce){.tri,.orb,.particle,.light-beam{animation:none;}}
-  .topbar,.wrap{position:relative;z-index:1;}
+  .topbar{position:relative;z-index:60;}.wrap{position:relative;z-index:1;}
   @keyframes triRight{
     0%  {transform:translateX(-120vw) scaleY(1)    scaleX(1);   clip-path:polygon(5% 100%,95% 100%,18% 0%);}
     25% {transform:translateX(-60vw)  scaleY(1.3)  scaleX(1.15);clip-path:polygon(3% 100%,92% 100%,32% 0%);}
@@ -463,17 +463,32 @@ window.GRAEME_POSES = {"neutral":{"w":195,"h":260,"src":"data:image/webp;base64,
     { pose: "shrug", sel: '.portal-tile[href="links.html"]', text: "Don\u2019t need to explain this one." },
     { pose: "idea", sel: '.portal-tile[href="oncall.html"]', text: "On-Call Rota: auto-approval of on-call swaps can be switched on and off. Both pharmacists still need to agree to the swap." },
     { pose: "thumbs", sel: '.portal-tile[href="tasks.html"]', text: "My Tasks: set your own daily and weekly tasks. Your rotation supervisor can set agreed tasks for you." },
-    { pose: "present", sel: '#themeSelectOwn', text: "Up here you can pick your own theme.", below: true }
+    { pose: "point", sel: '#menuBtn', text: "Now the Menu button up here. Watch, I\u2019ll click it.", below: true, press: true, top: true },
+    { pose: "present", sel: '#themeSelectOwn', alt: '#userMenu', text: "This is where you pick your own theme, and switch between light and dark.", lazy: true, needMenu: true }
   ];
   const bar = document.createElement("div");
   bar.className = "tour-bar"; bar.setAttribute("role", "group"); bar.setAttribute("aria-label", "Tutorial controls");
   bar.innerHTML = '<span id="tourCount"></span><button type="button" id="tourNext">Next</button><button type="button" class="secondary" id="tourSkip">Skip</button>';
   document.body.appendChild(bar);
+  bar.addEventListener("click", (e) => e.stopPropagation()); // keep the Menu open while stepping
   const count = bar.querySelector("#tourCount"), nextB = bar.querySelector("#tourNext"), skipB = bar.querySelector("#tourSkip");
   let steps = [], idx = -1, raf = null, blink = null, auto = null, cur = [0, 0], tgt = [0, 0], flashEl = null, botW = 200, arrived = false;
 
   const rectOf = (el) => el.getBoundingClientRect();
+  const menuIsOpen = () => { const m = document.getElementById("userMenu"); return !!m && !m.hidden; };
+  function setMenu(open) {
+    const b = document.getElementById("menuBtn");
+    if (b && menuIsOpen() !== open) b.click();
+  }
   function targetPos(s) {
+    if (s.needMenu || (s.press && menuIsOpen() && s.said)) {
+      // Stand beside the dropdown so the bot never covers it (below it on narrow screens).
+      const m = document.getElementById("userMenu"), mr = m ? rectOf(m) : null, cw = document.documentElement.clientWidth;
+      if (mr && mr.width) {
+        if (mr.left > botW + 20) return [mr.left - botW / 2 - 8, mr.top + botW * 0.5];
+        return [Math.min(cw - botW / 2 - 10, Math.max(botW / 2 + 10, mr.left + mr.width / 2)), mr.bottom + botW * 0.45 + 8];
+      }
+    }
     const r = rectOf(s.el), cw = document.documentElement.clientWidth;
     if (s.below) return [Math.min(cw - botW / 2 - 10, Math.max(botW / 2 + 10, r.left + r.width / 2)), r.bottom + botW * 0.45 + 8];
     return [r.left + r.width / 2, r.top + r.height * 0.62];
@@ -489,11 +504,13 @@ window.GRAEME_POSES = {"neutral":{"w":195,"h":260,"src":"data:image/webp;base64,
     bot.style.transform = `translate(${cur[0] - botW / 2}px,${cur[1] - botW * 0.45}px) rotate(${tilt}deg)`;
     bot.classList.toggle("on-right", cur[0] < document.documentElement.clientWidth / 2);
     bot.classList.toggle("on-below", !!s.below || cur[1] < 190);
+    if (s.needMenu && !menuIsOpen()) setMenu(true);
     bot.classList.toggle("say", arrived && !s.ret);
     if (arrived && !s.said && s.ret) { s.said = true; clearTimeout(auto); auto = setTimeout(end, 500); }
     else if (arrived && !s.said) {
       s.said = true; bubble.textContent = s.text;
       if (!s.noFlash) { flashEl = s.el; s.el.classList.add("tour-flash"); }
+      if (s.press) { clearTimeout(s.pt); s.pt = setTimeout(() => { if (idx >= 0 && steps[idx] === s) setMenu(true); }, 1700); }
       clearTimeout(auto); auto = setTimeout(next, 3000 + s.text.length * 70);
     }
     raf = requestAnimationFrame(loop);
@@ -505,6 +522,10 @@ window.GRAEME_POSES = {"neutral":{"w":195,"h":260,"src":"data:image/webp;base64,
     clearTimeout(auto);
     if (flashEl) { flashEl.classList.remove("tour-flash"); flashEl = null; }
     idx = i; const s = steps[i]; s.said = false;
+    if (!s.needMenu && !s.press) setMenu(false);
+    if (s.press) setMenu(false);
+    if (s.needMenu) setMenu(true);
+    if (s.top) window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
     window.graemeSetPose && window.graemeSetPose(s.ret ? "cheer" : (s.pose || "wave"));
     bot.classList.remove("say");
     const real = steps.filter(x => !x.ret).length;
@@ -512,7 +533,7 @@ window.GRAEME_POSES = {"neutral":{"w":195,"h":260,"src":"data:image/webp;base64,
     count.textContent = s.ret ? "" : `${i + 1} of ${real}`;
     nextB.textContent = i >= real - 1 ? "Done" : "Next";
     const r = rectOf(s.el);
-    if (r.top < 70 || r.bottom > window.innerHeight - 70) s.el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+    if (!s.top && !s.lazy && (r.top < 70 || r.bottom > window.innerHeight - 70)) s.el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
   }
   function next() {
     if (steps[idx].ret) { end(); return; }
@@ -522,13 +543,13 @@ window.GRAEME_POSES = {"neutral":{"w":195,"h":260,"src":"data:image/webp;base64,
   function end() {
     clearTimeout(auto); cancelAnimationFrame(raf); clearInterval(blink);
     if (flashEl) { flashEl.classList.remove("tour-flash"); flashEl = null; }
-    idx = -1; bar.classList.remove("on");
+    idx = -1; bar.classList.remove("on"); setMenu(false);
     bot.classList.remove("say"); bot.style.transition = "opacity .6s"; bot.style.opacity = "0";
     setTimeout(() => { bot.classList.remove("go", "on-below", "on-right"); bot.style.transition = ""; bot.setAttribute("aria-hidden", "true"); window.__tour = false; }, 650);
   }
   function begin() {
     if (window.__tour) return;
-    steps = STEPS.map(s => { let el = document.querySelector(s.sel); if ((!el || el.offsetParent === null) && s.alt) el = document.querySelector(s.alt); return { ...s, el }; }).filter(s => s.el && s.el.offsetParent !== null);
+    steps = STEPS.map(s => { let el = document.querySelector(s.sel); if (s.lazy) { el = el || (s.alt && document.querySelector(s.alt)); } else if ((!el || el.offsetParent === null) && s.alt) el = document.querySelector(s.alt); return { ...s, el }; }).filter(s => s.el && (s.lazy || s.el.offsetParent !== null));
     if (!steps.length) return;
     window.__tour = true;
     botW = Math.min(200, window.innerWidth * 0.5); bot.style.width = botW + "px";

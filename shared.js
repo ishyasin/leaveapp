@@ -2688,21 +2688,55 @@ function renderTopbar(profile) {
     .map(([val, label]) => `<option value="${val}"${profile.color_mode === val ? " selected" : ""}>${label}</option>`)
     .join("");
 
+  // One bar, one title: the page you are on is the headline and a menu
+  // lists the rest. Theme, display mode, animations, Privacy and Sign out
+  // sit under the Menu button.
+  const current = links.find(l => l[2]);
+  const pageTitle = current ? current[1] : "Pharmacy Portal";
+  const menuLinks = links.map(([href, label, active]) => {
+    const sep = href === "admin.html" ? "<hr>" : "";
+    const hint = href === "calendar.html" ? `<small>${subLinks.map(x => x[1]).join(", ")}</small>` : "";
+    return `${sep}<a href="${href}" role="menuitem"${active ? ' aria-current="page"' : ""}>${label}${hint}</a>`;
+  }).join("");
+  const themeHtml = themePickerHtml(profile);
   el.innerHTML = `
     <div class="brand">
-      <div>Pharmacy Portal<small><a href="https://home.edandg.com/" target="_blank" rel="noopener noreferrer" class="brand-edg" title="ED&amp;G — home.edandg.com">by ED&amp;G&trade;</a></small></div>
+      Pharmacy Portal<small><a href="https://home.edandg.com/" target="_blank" rel="noopener noreferrer" class="brand-edg" title="ED&amp;G — home.edandg.com">by ED&amp;G&trade;</a></small>
     </div>
-    <div class="nav">${links.map(([href,label,active]) =>
-      `<a href="${href}" class="${active?'active':''}">${label}</a>`).join("")}</div>
+    <div class="pagenav">
+      <button type="button" id="pageSwitch" class="page-switch" aria-haspopup="true" aria-expanded="false" aria-controls="pageMenu">${escapeHtml(pageTitle)}<span class="caret" aria-hidden="true">&#9662;</span></button>
+      <div id="pageMenu" class="page-menu" role="menu" hidden>${menuLinks}</div>
+    </div>
     <div class="userbox">
       <button type="button" id="notifBell" class="notif-bell" aria-label="Notifications" title="Notifications" aria-haspopup="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span id="notifBadge" class="notif-badge" style="display:none"></span></button>
-      <button type="button" id="animToggle" class="anim-toggle" title="Stop or start the seasonal animations"></button>
-      ${themePickerHtml(profile)}
-      <select id="colorModeSelect" class="mode-select" aria-label="Display mode">${modeOptions}</select>
-      <span>${escapeHtml(profile.full_name)} (${escapeHtml(profile.initials)}) &middot; ${ROLE_LABEL[profile.role]}</span>
-      <button type="button" id="privacyBtn" title="Privacy notice">Privacy</button>
-      <button onclick="signOut()">Sign out</button>
+      <span class="who">${escapeHtml(profile.full_name)} (${escapeHtml(profile.initials)})<small>${ROLE_LABEL[profile.role]}</small></span>
+      <button type="button" id="menuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="userMenu">Menu</button>
+      <div id="userMenu" class="user-menu" role="menu" hidden>
+        ${themeHtml ? `<div class="um-row"><label for="themeSelectOwn">Theme</label>${themeHtml}</div>` : ""}
+        <div class="um-row"><label for="colorModeSelect">Display</label><select id="colorModeSelect" class="mode-select" aria-label="Display mode">${modeOptions}</select></div>
+        <button type="button" id="animToggle" class="anim-toggle" title="Stop or start the seasonal animations"></button>
+        <hr>
+        <button type="button" id="privacyBtn" class="um-btn" title="Privacy notice">Privacy notice</button>
+        <button type="button" class="um-btn" onclick="signOut()">Sign out</button>
+      </div>
     </div>`;
+  // Open/close for the two menus: click outside or Escape closes, Escape returns focus.
+  const wireMenu = (btnId, menuId) => {
+    const btn = document.getElementById(btnId), menu = document.getElementById(menuId);
+    const close = (focus) => { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); if (focus) btn.focus(); };
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = menu.hidden;
+      document.querySelectorAll("#topbar .page-menu, #topbar .user-menu").forEach(m => { m.hidden = true; });
+      document.querySelectorAll("#pageSwitch, #menuBtn").forEach(b => b.setAttribute("aria-expanded", "false"));
+      if (open) { menu.hidden = false; btn.setAttribute("aria-expanded", "true"); }
+    });
+    menu.addEventListener("click", (e) => e.stopPropagation());
+    document.addEventListener("click", () => close(false));
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) close(true); });
+  };
+  wireMenu("pageSwitch", "pageMenu");
+  wireMenu("menuBtn", "userMenu");
   document.getElementById("privacyBtn").addEventListener("click", viewPrivacyNotice);
   document.getElementById("colorModeSelect").addEventListener("change", (e) => setOwnColorMode(e.target.value));
   const ownThemeSel = document.getElementById("themeSelectOwn");

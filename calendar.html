@@ -28,6 +28,9 @@
         <button onclick="changeYear(1)">&rarr;</button>
       </div>
       <div class="tabs" id="siteViewTabs" style="margin:0;"></div>
+      <label id="showDeletedWrap" class="small" style="display:none;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="showDeleted" onchange="toggleShowDeleted(this.checked)"> Show deleted users
+      </label>
       <button class="primary" onclick="openRequestModal()">+ Request Leave</button>
     </div>
     <div class="tabs" id="monthTabs"></div>
@@ -218,6 +221,7 @@ let VIEW_YEAR = new Date().getFullYear();
 let VIEW_MONTH = new Date().getMonth(); // 0-indexed
 let HOLIDAYS = {};            // 'YYYY-MM-DD' -> name
 let RESTRICTED = {};          // site -> { 'YYYY-MM-DD' -> {label, color} }
+let ALL_REQUESTS = [];        // everything returned for this month, before the deleted-user filter
 let REQUESTS = [];            // this month's leave_requests
 let NOTED_IDS = new Set();    // leave ids with an approver note (approvers only — RLS returns nothing to anyone else)
 let SITE_THRESHOLD = {};      // site -> capacity threshold
@@ -234,20 +238,15 @@ let BULK_SELECTED = new Set(); // pending leave_request ids, Ctrl+click-selected
   buildMonthTabs();
   document.getElementById("studyOption").style.display = "";
   await refreshCalendar();
-  scrollToToday();
+  scrollToTop();
 })();
 
-// Brings today's column into view on load, since with two stacked site
-// calendars the page can run tall. Only fires when today actually falls
-// within the month currently shown (always true on first load, since
-// VIEW_YEAR/VIEW_MONTH default to the current date).
-function scrollToToday() {
-  const t = new Date();
-  if (t.getFullYear() !== VIEW_YEAR || t.getMonth() !== VIEW_MONTH) return;
-  requestAnimationFrame(() => {
-    const el = document.querySelector(".cal-grid td.today");
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
-  });
+// The page always opens at the top; people scroll down to the calendars
+// themselves. (It used to auto-scroll to today's column.)
+function scrollToTop() {
+  try { history.scrollRestoration = "manual"; } catch (e) {}
+  window.scrollTo(0, 0);
+  requestAnimationFrame(() => window.scrollTo(0, 0));
 }
 
 async function loadProfiles() {
@@ -267,6 +266,18 @@ async function loadProfiles() {
 }
 
 function profileById(id) { return PROFILES.find(p => p.id === id); }
+
+// Deleted users (anonymised by Admin > Delete) are hidden from everyone
+// except Clinical Team Leads, Developers and Pharmacy Admins, who can
+// switch them on. Their tiles show only "N/A" (hover: "Deleted user").
+let SHOW_DELETED = false;
+function canSeeDeleted() { return isSuperuserPlus(PROFILE) || isPharmacyAdmin(PROFILE); }
+function isDeletedUserId(id) { const p = profileById(id); return !!(p && p.deleted_by_developer); }
+function toggleShowDeleted(on) {
+  SHOW_DELETED = !!on;
+  REQUESTS = ALL_REQUESTS.filter(r => SHOW_DELETED || !isDeletedUserId(r.user_id));
+  renderGrid();
+}
 // Site membership for a LEAVE REQUEST uses the snapshot taken when it
 // was created (snapshot_primary_site/snapshot_cross_site), not the
 // person's current profile — so changing someone's site assignment
@@ -427,7 +438,10 @@ async function refreshCalendar() {
     sb.from("month_status").select("*").eq("year", VIEW_YEAR).eq("month", VIEW_MONTH + 1),
   ]);
 
-  REQUESTS = (reqs || []).sort((a, b) => new Date(a.requested_at) - new Date(b.requested_at));
+  ALL_REQUESTS = (reqs || []).sort((a, b) => new Date(a.requested_at) - new Date(b.requested_at));
+  const delWrap = document.getElementById("showDeletedWrap");
+  if (delWrap) delWrap.style.display = canSeeDeleted() ? "inline-flex" : "none";
+  REQUESTS = ALL_REQUESTS.filter(r => (SHOW_DELETED && canSeeDeleted()) || !isDeletedUserId(r.user_id));
   // Approvers only: which approved leave has a note, to mark its tile with *.
   NOTED_IDS = new Set();
   if (isLeadPlus(PROFILE) || isPharmacyAdmin(PROFILE)) {
@@ -472,7 +486,7 @@ function afterLastDay(r) {
 function capacityCountFor(site, iso) {
   const ids = new Set();
   REQUESTS.forEach(r => {
-    if (r.leave_date === iso && (r.status === "pending" || r.status === "approved") && !afterLastDay(r)) {
+    if (r.leave_date === iso && (r.status === "pending" || r.status === "approved") && !afterLastDay(r) && !isDeletedUserId(r.user_id)) {
       if (requestInSite(r, site)) ids.add(r.user_id);
     }
   });
@@ -657,7 +671,8 @@ function renderSiteGrid(site) {
         const r = perDay[d][t];
         if (r) {
           const p = profileById(r.user_id);
-          const initials = p ? p.initials : "?";
+          const isDel = !!(p && p.deleted_by_developer);
+          const initials = isDel ? "N/A" : (p ? p.initials : "?");
           // Narrow tile — just small markers rather than trying to
           // cram the actual times in (the full detail is in the
           // tooltip/detail popup, where there's room for it).
@@ -684,6 +699,7 @@ function renderSiteGrid(site) {
             statusClass = r.status;
           }
           if (afterLastDay(r)) statusClass = "after-last-day";
+          if (isDel) statusClass = "deleted-user";
           const pendingModifier = statusClass === "study" && r.status === "pending" ? " study-pending" : "";
           // An "additional" request — someone already has a live TOIL
           // or study-leave request for this same date (see the relaxed
@@ -697,6 +713,10 @@ function renderSiteGrid(site) {
           const ordIdx = r.status === "rejected" ? -1 : sameDay.findIndex(x => x.id === r.id);
           const ordSup = sameDay.length > 1 && ordIdx >= 0 ? `<sup class="day-ord">${ordIdx + 1}</sup>` : "";
           const hasNote = NOTED_IDS.has(r.id);
+          if (isDel) {
+            rows += `<td class="${cls} tile deleted-user" style="${bg.style}" title="Deleted user">N/A</td>`;
+            continue;
+          }
           const tooltip = tileTooltip(r, p, stacked) + (ordSup ? `\n(${ordIdx + 1} of ${sameDay.length} requests for this day, in the order applied for)` : "") + (hasNote ? "\n* Approver note added (click to read)" : "");
           // Colour goes on the cell itself (not a nested span) so the
           // fill is guaranteed by the table cell's own background rather
@@ -1249,6 +1269,7 @@ function closeDetailModal() { document.getElementById("detOverlay").style.displa
 // once). An ordinary click still opens the detail popup as normal.
 function handleTileClick(e, id) {
   const r = REQUESTS.find(x => x.id === id);
+  if (r && isDeletedUserId(r.user_id)) return;
   const canSelect = r && r.status === "pending" && (isLeadPlus(PROFILE) || r.user_id === PROFILE.id);
   if ((e.ctrlKey || e.metaKey) && canSelect) {
     e.preventDefault();
