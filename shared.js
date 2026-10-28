@@ -14,7 +14,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Pharmacy Admin is a read-only role. The database refuses every write for it; this guard
 // additionally stops the browser even trying (friendlier message) except for harmless reads and
 // the person's own colour/theme preference.
-const RO_ADMIN_RPC_OK = new Set(["get_profile_directory", "get_oncall_people", "get_oncall_pending_swaps", "get_oncall_audit", "get_name_directory", "get_backup_schedule", "get_backup_auto_status", "search_huddle_posts", "set_own_theme", "set_own_color_mode", "add_personal_task", "update_personal_task", "toggle_personal_task", "delete_personal_task", "carry_over_personal_tasks", "toggle_assigned_task", "get_assigned_tasks", "mark_notifications_read", "clear_notifications"]);
+const RO_ADMIN_RPC_OK = new Set(["get_profile_directory", "get_oncall_people", "get_oncall_pending_swaps", "get_oncall_audit", "get_name_directory", "get_backup_schedule", "get_backup_auto_status", "search_huddle_posts", "set_own_theme", "set_own_color_mode", "set_own_show_dashboard", "set_own_dashboard_layout", "add_personal_task", "update_personal_task", "toggle_personal_task", "delete_personal_task", "carry_over_personal_tasks", "toggle_assigned_task", "get_assigned_tasks", "mark_notifications_read", "clear_notifications"]);
 const RO_ADMIN_MSG = "Pharmacy Admin accounts are read-only: you can view everything but cannot make changes.";
 (function () {
   const rpc0 = sb.rpc.bind(sb);

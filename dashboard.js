@@ -85,58 +85,117 @@
   const daysTo = (iso, today) => dayNum(iso) - dayNum(today);
   const spanLabel = (g) => g.length === 1 ? fmt(g[0].leave_date) : `${fmt(g[0].leave_date)} to ${fmt(g[g.length - 1].leave_date)}, ${g.length} days`;
 
-  function tile(cls, href, title, badge, inner) {
-    return `<a class="dash-tile ${cls}" href="${href}"><h3>${title}${badge ? `<em>${badge}</em>` : ""}</h3>${inner}</a>`;
+  // Each tile is described once; the layout (order, size, hidden) is applied afterwards.
+  const SIZES = [4, 8, 12];
+  const LAYOUT_KEY = "lm_dash_layout";
+  let TILES = [], LAYOUT = { order: [], hidden: [], size: {} }, editing = false;
+
+  function tile(id, size, href, title, badge, inner) {
+    TILES.push({ id, size, href, title, badge, inner });
+  }
+  function tileHtml(t, edit) {
+    const sz = LAYOUT.size[t.id] || t.size;
+    const body = `<h3>${t.title}${t.badge ? `<em>${t.badge}</em>` : ""}</h3>${t.inner}`;
+    if (!edit) return `<a class="dash-tile c${sz}" href="${t.href}">${body}</a>`;
+    return `<div class="dash-tile c${sz} editing" data-id="${t.id}"><div class="dash-ctl">
+      <button type="button" data-a="left" aria-label="Move ${esc(t.title)} earlier">&#9664;</button>
+      <button type="button" data-a="right" aria-label="Move ${esc(t.title)} later">&#9654;</button>
+      <button type="button" data-a="size" aria-label="Change width of ${esc(t.title)}">&#8596;</button>
+      <button type="button" data-a="hide" aria-label="Hide ${esc(t.title)}">&times;</button></div>${body}</div>`;
+  }
+  function sortedTiles() {
+    const rank = (id) => { const i = LAYOUT.order.indexOf(id); return i < 0 ? 999 : i; };
+    return TILES.map((t, i) => [t, i]).sort((a, b) => rank(a[0].id) - rank(b[0].id) || a[1] - b[1]).map(x => x[0]);
+  }
+  function normaliseLayout(raw, D) {
+    const L = { order: [], hidden: [], size: {} };
+    if (raw && typeof raw === "object") {
+      if (Array.isArray(raw.order)) L.order = raw.order.filter(x => typeof x === "string");
+      if (Array.isArray(raw.hidden)) L.hidden = raw.hidden.filter(x => typeof x === "string");
+      if (raw.size && typeof raw.size === "object") Object.keys(raw.size).forEach(k => { if (SIZES.includes(raw.size[k])) L.size[k] = raw.size[k]; });
+    } else if (D.canApprove) {
+      L.hidden = ["myleave"];   // approvers see Leave to approve by default; My leave can be added
+    }
+    return L;
+  }
+  function loadLayout(profile, D) {
+    let raw = profile && profile.dashboard_layout;
+    if (!raw) { try { const v = localStorage.getItem(LAYOUT_KEY + ":" + profile.id); if (v) raw = JSON.parse(v); } catch (e) {} }
+    return normaliseLayout(raw, D);
+  }
+  async function saveLayout(profile) {
+    const L = { order: LAYOUT.order, hidden: LAYOUT.hidden, size: LAYOUT.size };
+    profile.dashboard_layout = L;
+    try { localStorage.setItem(LAYOUT_KEY + ":" + profile.id, JSON.stringify(L)); } catch (e) {}
+    try { await sb.rpc("set_own_dashboard_layout", { p_layout: L }); } catch (e) { /* kept on this device if the database function isn't installed yet */ }
+  }
+  function drawGrid() {
+    const grid = $(".dash-grid", ov); if (!grid) return;
+    const shown = sortedTiles().filter(t => !LAYOUT.hidden.includes(t.id));
+    grid.innerHTML = shown.map(t => tileHtml(t, editing)).join("") || '<div class="dash-empty">All widgets are hidden. Use Customise to add some back.</div>';
+    const tray = $("#dashTray", ov);
+    if (tray) {
+      const hid = TILES.filter(t => LAYOUT.hidden.includes(t.id));
+      tray.hidden = !editing;
+      $(".dash-tray-list", tray).innerHTML = hid.length ? hid.map(t => `<button type="button" data-add="${t.id}">+ ${t.title}</button>`).join("") : '<span class="dash-sub">Nothing hidden.</span>';
+    }
+    const cb = $("#dashCust", ov); if (cb) { cb.textContent = editing ? "Done" : "Customise"; cb.setAttribute("aria-pressed", editing ? "true" : "false"); }
+    const rs = $("#dashReset", ov); if (rs) rs.hidden = !editing;
+    $(".dash-card", ov).classList.toggle("is-editing", editing);
+    countUp();
   }
 
   function render(D, profile) {
     const needs = (D.pending ? D.pending.length : 0) + (D.overdue || 0) + (D.week || 0) + (D.setOpen || 0);
-    let tiles = "";
+    TILES = [];
+    LAYOUT = loadLayout(profile, D);
     // Row 1
     if (D.canApprove && D.pending) {
       const top = D.pending.slice(0, 4);
-      tiles += tile("c8", "approvals.html", "Leave to approve", D.pending.length ? `${D.pending.length} waiting` : "", D.pending.length
+      tile("approvals", 8, "approvals.html", "Leave to approve", D.pending.length ? `${D.pending.length} waiting` : "", D.pending.length
         ? top.map(g => `<div class="dash-req"><span class="dash-av">${esc(D.initOf(g[0].user_id))}</span><div><b>${esc(D.nameOf(g[0].user_id))}</b><span class="dash-sub">${esc(spanLabel(g))}</span></div>${g.length > 1 ? '<span class="dash-chip">Multiple dates</span>' : ""}<span class="dash-review">Review</span></div>`).join("") + (D.pending.length > top.length ? `<div class="dash-sub" style="margin-top:6px;">and ${D.pending.length - top.length} more</div>` : "")
         : '<div class="dash-empty">Nothing waiting for approval.</div>');
-    } else if (D.hasLeave && D.myLeave) {
-      tiles += tile("c8", "my-leave.html", "My upcoming leave", "", D.myLeave.length
+    }
+    if (D.hasLeave && D.myLeave) {
+      tile("myleave", 8, "my-leave.html", "My upcoming leave", "", D.myLeave.length
         ? D.myLeave.slice(0, 4).map(x => `<div class="dash-req"><span class="dash-av">${esc(initialsOf(profile.full_name))}</span><div><b>${esc(fmt(x.leave_date))}</b><span class="dash-sub">${esc(LEAVE_TYPE_LABEL[x.leave_type] || x.leave_type)}</span></div><span class="dash-chip ${x.status}">${esc(x.status)}</span></div>`).join("")
         : '<div class="dash-empty">No upcoming leave booked.</div>');
     }
     if (D.tasksOk) {
       const pct = D.dailyTotal ? Math.round(D.dailyDone / D.dailyTotal * 100) : 0;
       const due = (D.overdue || 0) + (D.week || 0);
-      tiles += tile("c4", "tasks.html", "My tasks", due ? `${due} due soon` : "", `<div class="dash-ring" style="--p:${pct}" data-l="${D.dailyTotal ? pct + "%" : "0"}"></div>
+      tile("tasks", 4, "tasks.html", "My tasks", due ? `${due} due soon` : "", `<div class="dash-ring" style="--p:${pct}" data-l="${D.dailyTotal ? pct + "%" : "0"}"></div>
         <div class="dash-sub">Today ${D.dailyDone || 0} of ${D.dailyTotal || 0} done${D.overdue ? ` &middot; <strong class="dash-bad">${D.overdue} overdue</strong>` : ""}${D.setOpen ? ` &middot; ${D.setOpen} set for you` : ""}</div>`);
     }
     // Row 2
-    if (D.shiftOk) {
+    if (D.shiftOk && isOncallPoolMember(profile)) {
       const s = D.nextShift;
-      tiles += tile("c4", "oncall.html", "Next on-call", "", s
+      tile("oncall", 4, "oncall.html", "Next on-call", "", s
         ? `<div class="dash-big" data-n="${Math.max(0, daysTo(s.shift_date, D.today))}">0</div><div class="dash-sub">${daysTo(s.shift_date, D.today) === 0 ? "day. You are on today" : "days until"} ${esc(fmt(s.shift_date))}<br>${esc(SITE_LABEL[s.site] || s.site)}, ${esc(s.duty_type === "on_call" ? "on-call" : "on-site")}</div>`
         : '<div class="dash-empty">No upcoming shifts on the rota.</div>');
     }
     if (D.off) {
       const bySite = (site) => { const seen = new Set(); return D.off.filter(r => r.snapshot_primary_site === site || r.snapshot_cross_site === true).filter(r => !seen.has(r.user_id) && seen.add(r.user_id)); };
       const sites = Object.keys(SITE_LABEL);
-      tiles += tile("c4", "calendar.html", "Off today", "", sites.map(site => {
+      tile("off", 4, "calendar.html", "Off today", "", sites.map(site => {
         const arr = bySite(site);
         return `<div class="dash-off"><div class="dash-sub"><strong>${esc(SITE_LABEL[site])}</strong></div>${arr.length ? `<div class="dash-avs">${arr.map(r => `<span class="dash-av sm" title="${esc(D.nameOf(r.user_id))}">${esc(D.initOf(r.user_id))}</span>`).join("")}</div><div class="dash-sub">${arr.map(r => esc(D.nameOf(r.user_id)) + (r.snapshot_primary_site !== site ? " (cross-site)" : "")).join(", ")}</div>` : '<div class="dash-sub">Nobody</div>'}</div>`;
       }).join(""));
     }
     if (D.huddle) {
-      tiles += tile("c4", "huddle.html", "Huddle", D.huddle.pinned ? "Pinned" : "Latest", `<p class="dash-post">${esc(D.huddle.title)}</p><div class="dash-sub">${D.huddle.created_at ? esc(fmt(String(D.huddle.created_at).slice(0, 10))) : ""}</div>`);
+      tile("huddle", 4, "huddle.html", "Huddle", D.huddle.pinned ? "Pinned" : "Latest", `<p class="dash-post">${esc(D.huddle.title)}</p><div class="dash-sub">${D.huddle.created_at ? esc(fmt(String(D.huddle.created_at).slice(0, 10))) : ""}</div>`);
     }
     if (D.links && D.links.length) {
-      tiles += tile("c12", "links.html", "Quick links", "", `<div class="dash-links">${D.links.map(l => `<span>${esc(l.title)}</span>`).join("")}</div>`);
+      tile("links", 12, "links.html", "Quick links", "", `<div class="dash-links">${D.links.map(l => `<span>${esc(l.title)}</span>`).join("")}</div>`);
     }
     const lead = needs ? `${needs} thing${needs === 1 ? "" : "s"} need${needs === 1 ? "s" : ""} you.` : "You're all caught up.";
     const dateLine = new Date().toLocaleDateString("en-GB", { timeZone: TZ, weekday: "long", day: "numeric", month: "long" });
     return `<div class="dash-head"><div><p class="dash-date">${esc(dateLine)}</p><h2 id="dashTitle">${greeting(profile)} <span>${esc(lead)}</span></h2></div>
         <button type="button" class="dash-x" id="dashClose" aria-label="Close dashboard">&times;</button></div>
-      <div class="dash-grid">${tiles || '<div class="dash-empty">Nothing to show yet.</div>'}</div>
+      <div class="dash-grid"></div>
+      <div class="dash-tray" id="dashTray" hidden><p class="dash-sub">Hidden widgets. Choose one to add it back.</p><div class="dash-tray-list"></div></div>
       <div class="dash-foot"><label class="dash-opt"><input type="checkbox" id="dashAuto"${dashAutoOn(profile) ? " checked" : ""}> Open this dashboard when I sign in</label>
-        <button type="button" class="primary" id="dashDone">Close</button></div>`;
+        <span class="dash-actions"><button type="button" id="dashReset" hidden>Reset layout</button><button type="button" id="dashCust" aria-pressed="false">Customise</button><button type="button" class="primary" id="dashDone">Close</button></span></div>`;
   }
 
   function countUp() {
@@ -159,7 +218,7 @@
     if (lastFocus && lastFocus.focus) { try { lastFocus.focus(); } catch (e) {} }
   }
   function onKey(e) {
-    if (e.key === "Escape") { e.stopPropagation(); close(); return; }
+    if (e.key === "Escape") { e.stopPropagation(); if (editing) { editing = false; drawGrid(); } else close(); return; }
     if (e.key === "Tab" && ov) {
       const f = [...ov.querySelectorAll("a[href],button,input")].filter(x => !x.disabled && x.offsetParent !== null);
       if (!f.length) return;
@@ -181,8 +240,24 @@
     void ov.offsetWidth; ov.classList.add("show");
     document.addEventListener("keydown", onKey, true);
     ov.addEventListener("mousedown", (e) => { if (e.target === ov) close(); });
-    ov.addEventListener("click", (e) => { if (e.target.closest("#dashClose,#dashDone")) close(); });
+    ov.addEventListener("click", (e) => { if (e.target.closest("#dashClose,#dashDone")) { editing = false; close(); } });
     ov.addEventListener("mousemove", (e) => { const t = e.target.closest(".dash-tile"); if (!t) return; const r = t.getBoundingClientRect(); t.style.setProperty("--x", (e.clientX - r.left) + "px"); t.style.setProperty("--y", (e.clientY - r.top) + "px"); });
+    ov.addEventListener("click", (e) => {
+      const g = $(".dash-grid", ov);
+      if (e.target.closest("#dashCust")) { editing = !editing; drawGrid(); return; }
+      if (e.target.closest("#dashReset")) { LAYOUT = normaliseLayout(null, { canApprove: !!TILES.find(t => t.id === "approvals") }); saveLayout(profileRef); drawGrid(); return; }
+      const add = e.target.closest("button[data-add]");
+      if (add) { LAYOUT.hidden = LAYOUT.hidden.filter(x => x !== add.dataset.add); saveLayout(profileRef); drawGrid(); return; }
+      const b = e.target.closest(".dash-ctl button"); if (!b || !g) return;
+      const id = b.closest(".dash-tile").dataset.id, a = b.dataset.a;
+      const ids = sortedTiles().map(t => t.id); LAYOUT.order = ids;
+      const vis = ids.filter(x => !LAYOUT.hidden.includes(x)), vi = vis.indexOf(id);
+      if (a === "hide") LAYOUT.hidden.push(id);
+      else if (a === "size") { const t = TILES.find(x => x.id === id), cur = LAYOUT.size[id] || t.size; LAYOUT.size[id] = SIZES[(SIZES.indexOf(cur) + 1) % SIZES.length]; }
+      else { const j = a === "left" ? vi - 1 : vi + 1; if (j >= 0 && j < vis.length) { const x = ids.indexOf(id), y = ids.indexOf(vis[j]); ids[x] = vis[j]; ids[y] = id; LAYOUT.order = ids; } }
+      saveLayout(profileRef); drawGrid();
+      const nb = ov.querySelector(`.dash-tile[data-id="${id}"] .dash-ctl button[data-a="${a === "hide" ? "left" : a}"]`); if (nb) nb.focus();
+    });
     ov.addEventListener("change", (e) => { if (e.target.id === "dashAuto") setDashAuto(e.target.checked); });
     const closeBtn = $("#dashClose", ov); if (closeBtn) closeBtn.focus();
     const mine = ov;
@@ -191,7 +266,7 @@
     const card = $(".dash-card", ov);
     card.innerHTML = render(D, profile);
     card.classList.add("ready");
-    countUp();
+    editing = false; drawGrid();
     const c2 = $("#dashClose", ov); if (c2 && document.activeElement === document.body) c2.focus();
   };
 })();
