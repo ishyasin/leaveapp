@@ -2693,20 +2693,13 @@ function renderTopbar(profile) {
   // sit under the Menu button.
   const current = links.find(l => l[2]);
   const pageTitle = current ? current[1] : "Pharmacy Portal";
-  const menuLinks = links.map(([href, label, active]) => {
-    const sep = href === "admin.html" ? "<hr>" : "";
-    const hint = href === "calendar.html" ? `<small>${subLinks.map(x => x[1]).join(", ")}</small>` : "";
-    return `${sep}<a href="${href}" role="menuitem"${active ? ' aria-current="page"' : ""}>${label}${hint}</a>`;
-  }).join("");
   const themeHtml = themePickerHtml(profile);
   el.innerHTML = `
+    <button type="button" id="navToggle" class="nav-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sideNav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     <div class="brand">
       Pharmacy Portal<small><a href="https://home.edandg.com/" target="_blank" rel="noopener noreferrer" class="brand-edg" title="ED&amp;G — home.edandg.com">by ED&amp;G&trade;</a></small>
     </div>
-    <div class="pagenav">
-      <button type="button" id="pageSwitch" class="page-switch" aria-haspopup="true" aria-expanded="false" aria-controls="pageMenu">${escapeHtml(pageTitle)}<span class="caret" aria-hidden="true">&#9662;</span></button>
-      <div id="pageMenu" class="page-menu" role="menu" hidden>${menuLinks}</div>
-    </div>
+    <div class="page-title">${escapeHtml(pageTitle)}</div>
     <div class="userbox">
       <button type="button" id="notifBell" class="notif-bell" aria-label="Notifications" title="Notifications" aria-haspopup="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span id="notifBadge" class="notif-badge" style="display:none"></span></button>
       <span class="who">${escapeHtml(profile.full_name)} (${escapeHtml(profile.initials)})<small>${ROLE_LABEL[profile.role]}</small></span>
@@ -2720,23 +2713,20 @@ function renderTopbar(profile) {
         <button type="button" class="um-btn" onclick="signOut()">Sign out</button>
       </div>
     </div>`;
-  // Open/close for the two menus: click outside or Escape closes, Escape returns focus.
-  const wireMenu = (btnId, menuId) => {
-    const btn = document.getElementById(btnId), menu = document.getElementById(menuId);
+  // Account menu: click outside or Escape closes it, Escape returns focus to the button.
+  (() => {
+    const btn = document.getElementById("menuBtn"), menu = document.getElementById("userMenu");
     const close = (focus) => { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); if (focus) btn.focus(); };
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const open = menu.hidden;
-      document.querySelectorAll("#topbar .page-menu, #topbar .user-menu").forEach(m => { m.hidden = true; });
-      document.querySelectorAll("#pageSwitch, #menuBtn").forEach(b => b.setAttribute("aria-expanded", "false"));
-      if (open) { menu.hidden = false; btn.setAttribute("aria-expanded", "true"); }
+      menu.hidden = !open; btn.setAttribute("aria-expanded", String(open));
     });
     menu.addEventListener("click", (e) => e.stopPropagation());
     document.addEventListener("click", () => close(false));
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) close(true); });
-  };
-  wireMenu("pageSwitch", "pageMenu");
-  wireMenu("menuBtn", "userMenu");
+  })();
+  buildSideNav(links, subLinks, page);
   document.getElementById("privacyBtn").addEventListener("click", viewPrivacyNotice);
   document.getElementById("colorModeSelect").addEventListener("change", (e) => setOwnColorMode(e.target.value));
   const ownThemeSel = document.getElementById("themeSelectOwn");
@@ -2767,6 +2757,58 @@ function renderTopbar(profile) {
     (document.getElementById("subnav") || el).insertAdjacentElement("afterend", banner);
   }
   buildThemeFx();
+}
+
+/* ---------------- slide-out navigation (navy column) ----------------
+   Hidden at the left edge of the screen; move the mouse to the edge (or press the menu button, or
+   tab into it) and it slides out over the page. It never pushes the page content around. */
+const NAV_ICONS = {
+  "portal.html": '<path d="M3 11l9-8 9 8M5 10v10h14V10"/>',
+  "calendar.html": '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  "huddle.html": '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  "links.html": '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  "oncall.html": '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  "tasks.html": '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 9l2 2 4-4M8 16h8"/>',
+  "admin.html": '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
+  "audit.html": '<path d="M9 4H5v16h4M16 8l4 4-4 4M20 12H9"/>'
+};
+function buildSideNav(links, subLinks, page) {
+  ["sideNav", "sideEdge", "sideHandle"].forEach(id => { const o = document.getElementById(id); if (o) o.remove(); });
+  const icon = (href) => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICONS[href] || ""}</svg>`;
+  const items = links.map(([href, label, active]) => {
+    const sep = href === "admin.html" ? '<hr>' : "";
+    let html = `${sep}<a href="${href}"${active ? ' aria-current="page"' : ""}>${icon(href)}<span>${label}</span></a>`;
+    if (href === "calendar.html") {
+      html += subLinks.map(([h, l]) => `<a class="sn-sub" href="${h}"${page === h ? ' aria-current="page"' : ""}><span>${l}</span></a>`).join("");
+    }
+    return html;
+  }).join("");
+  const nav = document.createElement("nav");
+  nav.id = "sideNav"; nav.className = "side-nav"; nav.setAttribute("aria-label", "Main navigation");
+  nav.innerHTML = `<div class="sn-brand">Pharmacy Portal<small>by ED&amp;G&trade;</small></div>${items}`;
+  const edge = document.createElement("div"); edge.id = "sideEdge"; edge.className = "side-edge"; edge.setAttribute("aria-hidden", "true");
+  const handle = document.createElement("button"); handle.id = "sideHandle"; handle.type = "button"; handle.className = "side-handle"; handle.tabIndex = -1;
+  handle.setAttribute("aria-hidden", "true");
+  handle.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+  document.body.append(edge, handle, nav);
+  const tog = document.getElementById("navToggle");
+  let openT = null, closeT = null, pinned = false;
+  const setOpen = (v) => { nav.classList.toggle("open", v); handle.classList.toggle("gone", v); tog.setAttribute("aria-expanded", String(v)); };
+  edge.addEventListener("mousemove", () => { if (nav.classList.contains("open") || openT) return; clearTimeout(closeT); closeT = null; openT = setTimeout(() => { openT = null; setOpen(true); }, 90); });
+  edge.addEventListener("mouseleave", () => { clearTimeout(openT); openT = null; });
+  // Close shortly after the pointer leaves the column (tracked on the document so it works even when
+  // the pointer never "entered" the column because it was already resting on the edge).
+  document.addEventListener("mousemove", (e) => {
+    if (pinned || !nav.classList.contains("open")) return;
+    if (e.clientX <= nav.offsetWidth + 8) { clearTimeout(closeT); closeT = null; }
+    else if (!closeT) closeT = setTimeout(() => { closeT = null; setOpen(false); }, 350);
+  });
+  const toggle = (e) => { e.stopPropagation(); pinned = !nav.classList.contains("open"); setOpen(pinned); };
+  tog.addEventListener("click", toggle); handle.addEventListener("click", toggle);
+  document.addEventListener("click", (e) => { if (pinned && !nav.contains(e.target)) { pinned = false; setOpen(false); } });
+  nav.addEventListener("focusin", () => setOpen(true));
+  nav.addEventListener("focusout", (e) => { if (!pinned && !nav.contains(e.relatedTarget)) setOpen(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && nav.classList.contains("open")) { pinned = false; setOpen(false); tog.focus(); } });
 }
 
 /* ---------------- utils ---------------- */
