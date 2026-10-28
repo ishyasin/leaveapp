@@ -134,6 +134,7 @@
   .tour-btn:hover{background:var(--teal);color:#fff;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.18);}
   .tour-btn:focus-visible{outline:3px solid var(--honey);outline-offset:2px;}
   .tour-flash{animation:tourFlash .7s ease-in-out 4;position:relative;z-index:5;}
+  .side-handle.tour-flash,.side-nav.tour-flash{position:fixed;}
   @keyframes tourFlash{0%,100%{box-shadow:0 0 0 0 rgba(255,200,40,0);filter:none}50%{box-shadow:0 0 0 5px rgba(255,200,40,.95),0 0 26px 6px rgba(255,200,40,.6);filter:brightness(1.08)}}
   .tour-bar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:950;display:none;align-items:center;gap:10px;background:var(--surface);color:var(--text);border:2px solid var(--teal);border-radius:999px;padding:8px 10px 8px 16px;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:13px;font-weight:700;}
   .tour-bar.on{display:flex;}
@@ -463,6 +464,9 @@ window.GRAEME_POSES = {"neutral":{"w":195,"h":260,"src":"data:image/webp;base64,
     { pose: "shrug", sel: '.portal-tile[href="links.html"]', text: "Don\u2019t need to explain this one." },
     { pose: "idea", sel: '.portal-tile[href="oncall.html"]', text: "On-Call Rota: auto-approval of on-call swaps can be switched on and off. Both pharmacists still need to agree to the swap." },
     { pose: "thumbs", sel: '.portal-tile[href="tasks.html"]', text: "My Tasks: set your own daily and weekly tasks. Your rotation supervisor can set agreed tasks for you." },
+    { pose: "point", sel: '.home-btn', text: "This is the Home button. From any page, one click brings you back here.", below: true, top: true },
+    { pose: "present", sel: '#sideHandle', text: "This tab on the left edge pops out the navigation. Watch, I\u2019ll open it.", side: true, lazy: true, pressNav: true },
+    { pose: "thumbs", sel: '#sideNav', text: "Every page is in here. Just move your mouse to the left edge to pop it out again.", side: true, lazy: true, needNav: true, noFlash: true },
     { pose: "point", sel: '#menuBtn', text: "Now the Menu button up here. Watch, I\u2019ll click it.", below: true, press: true, top: true },
     { pose: "present", sel: '#themeSelectOwn', alt: '#userMenu', text: "This is where you pick your own theme, and switch between light and dark.", lazy: true, needMenu: true }
   ];
@@ -476,11 +480,21 @@ window.GRAEME_POSES = {"neutral":{"w":195,"h":260,"src":"data:image/webp;base64,
 
   const rectOf = (el) => el.getBoundingClientRect();
   const menuIsOpen = () => { const m = document.getElementById("userMenu"); return !!m && !m.hidden; };
+  const navIsOpen = () => { const n = document.getElementById("sideNav"); return !!n && n.classList.contains("open"); };
+  function setNav(open) {
+    const t = document.getElementById("navToggle");
+    if (t && navIsOpen() !== open) t.click();
+  }
   function setMenu(open) {
     const b = document.getElementById("menuBtn");
     if (b && menuIsOpen() !== open) b.click();
   }
   function targetPos(s) {
+    if (s.side) {
+      // Stand to the right of the tab / navigation column so the bot never covers it.
+      const base = (s.pressNav && navIsOpen()) ? document.getElementById("sideNav") : s.el, r = rectOf(base), cw = document.documentElement.clientWidth, vh = window.innerHeight;
+      return [Math.min(cw - botW / 2 - 10, r.right + botW * 0.55 + 14), Math.max(botW * 0.5, Math.min(vh - botW * 0.5, r.top + Math.min(r.height, 420) / 2))];
+    }
     if (s.needMenu || (s.press && menuIsOpen() && s.said)) {
       // Stand beside the dropdown so the bot never covers it (below it on narrow screens).
       const m = document.getElementById("userMenu"), mr = m ? rectOf(m) : null, cw = document.documentElement.clientWidth;
@@ -505,11 +519,13 @@ window.GRAEME_POSES = {"neutral":{"w":195,"h":260,"src":"data:image/webp;base64,
     bot.classList.toggle("on-right", cur[0] < document.documentElement.clientWidth / 2);
     bot.classList.toggle("on-below", !!s.below || cur[1] < 190);
     if (s.needMenu && !menuIsOpen()) setMenu(true);
+    if (s.needNav && !navIsOpen()) setNav(true);
     bot.classList.toggle("say", arrived && !s.ret);
     if (arrived && !s.said && s.ret) { s.said = true; clearTimeout(auto); auto = setTimeout(end, 500); }
     else if (arrived && !s.said) {
       s.said = true; bubble.textContent = s.text;
       if (!s.noFlash) { flashEl = s.el; s.el.classList.add("tour-flash"); }
+      if (s.pressNav) { clearTimeout(s.pt); s.pt = setTimeout(() => { if (idx >= 0 && steps[idx] === s) setNav(true); }, 1700); }
       if (s.press) { clearTimeout(s.pt); s.pt = setTimeout(() => { if (idx >= 0 && steps[idx] === s) setMenu(true); }, 1700); }
       clearTimeout(auto); auto = setTimeout(next, 3000 + s.text.length * 70);
     }
@@ -525,6 +541,8 @@ window.GRAEME_POSES = {"neutral":{"w":195,"h":260,"src":"data:image/webp;base64,
     if (!s.needMenu && !s.press) setMenu(false);
     if (s.press) setMenu(false);
     if (s.needMenu) setMenu(true);
+    if (!s.needNav) setNav(false);
+    if (s.needNav) setNav(true);
     if (s.top) window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
     window.graemeSetPose && window.graemeSetPose(s.ret ? "cheer" : (s.pose || "wave"));
     bot.classList.remove("say");
@@ -543,7 +561,7 @@ window.GRAEME_POSES = {"neutral":{"w":195,"h":260,"src":"data:image/webp;base64,
   function end() {
     clearTimeout(auto); cancelAnimationFrame(raf); clearInterval(blink);
     if (flashEl) { flashEl.classList.remove("tour-flash"); flashEl = null; }
-    idx = -1; bar.classList.remove("on"); setMenu(false);
+    idx = -1; bar.classList.remove("on"); setMenu(false); setNav(false);
     bot.classList.remove("say"); bot.style.transition = "opacity .6s"; bot.style.opacity = "0";
     setTimeout(() => { bot.classList.remove("go", "on-below", "on-right"); bot.style.transition = ""; bot.setAttribute("aria-hidden", "true"); window.__tour = false; }, 650);
   }
