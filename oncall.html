@@ -311,7 +311,7 @@
 <div class="selbar" id="selBar">
   <strong id="selCount">0 selected</strong>
   <select id="selPerson" aria-label="Person"></select>
-  <input type="text" id="selNote" placeholder="Reason (optional), e.g. sickness" maxlength="200">
+  <input type="text" id="selNote" placeholder="Reason (optional)" maxlength="200">
   <button class="primary" id="selApplyBtn" onclick="applySelection()">Assign</button>
   <button class="primary" id="selSwapBtn" style="display:none;" onclick="requestSwapFromSelection()">Request swap</button>
   <button class="secondary" onclick="clearSelection()">Cancel</button>
@@ -326,8 +326,8 @@
     <form id="cellForm">
       <label>Person</label>
       <select id="cellPerson"></select>
-      <label>Reason / note (optional — e.g. sickness; shown on the rota and in the swap details)</label>
-      <input type="text" id="cellNote" placeholder="e.g. sickness" maxlength="200">
+      <label>Reason / note (optional — shown on the rota and in the swap details)</label>
+      <input type="text" id="cellNote" placeholder="Optional" maxlength="200">
       <div class="modal-actions">
         <button type="button" class="danger" id="cellClearBtn" onclick="clearCell()">Clear</button>
         <button type="button" class="secondary" onclick="closeCellModal()">Cancel</button>
@@ -983,7 +983,7 @@ function updateSelBar() {
   document.getElementById("selApplyBtn").style.display = lead ? "" : "none";
   document.getElementById("selSwapBtn").style.display = isOncallPoolMember(PROFILE) ? "" : "none";
   document.getElementById("selNote").placeholder = lead
-    ? "Reason / message (optional), e.g. sickness"
+    ? "Reason / message (optional)"
     : "Message to your colleague (optional)";
   if (SELECTED.size && lead) {
     const sel = document.getElementById("selPerson");

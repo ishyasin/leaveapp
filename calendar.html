@@ -15,6 +15,12 @@
 </script>
 <link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<style>
+  .off-today{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:2px 0 12px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-alt,rgba(100,116,139,.08));font-size:13px;}
+  .off-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:2px 10px 2px 3px;font-weight:700;}
+  .off-chip i{font-style:normal;display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--teal);color:#fff;font-size:10px;font-weight:800;align-items:center;justify-content:center;}
+  .off-chip small{font-weight:600;opacity:.7;}
+</style>
 </head>
 <body>
 <div class="topbar" id="topbar"></div>
@@ -56,6 +62,7 @@
         <div class="month-status-controls" id="statusControls-worthing"></div>
       </div>
     </div>
+    <div class="off-today" id="offToday-worthing"></div>
     <div id="banners-worthing"></div>
     <table class="cal-grid" id="calGrid-worthing"></table>
   </div>
@@ -68,6 +75,7 @@
         <div class="month-status-controls" id="statusControls-st_richards"></div>
       </div>
     </div>
+    <div class="off-today" id="offToday-st_richards"></div>
     <div id="banners-st_richards"></div>
     <table class="cal-grid" id="calGrid-st_richards"></table>
   </div>
@@ -439,6 +447,7 @@ async function refreshCalendar() {
   ]);
 
   ALL_REQUESTS = (reqs || []).sort((a, b) => new Date(a.requested_at) - new Date(b.requested_at));
+  renderOffToday();
   const delWrap = document.getElementById("showDeletedWrap");
   if (delWrap) delWrap.style.display = canSeeDeleted() ? "inline-flex" : "none";
   REQUESTS = ALL_REQUESTS.filter(r => (SHOW_DELETED && canSeeDeleted()) || !isDeletedUserId(r.user_id));
@@ -505,6 +514,28 @@ function capacityThresholdMetFor(site, iso) {
 // underneath — first requested (oldest requested_at) on top.
 // Both site calendars are rendered every refresh so they're visible
 // side by side (stacked) without switching tabs.
+// "Off today" strip on each site card. Independent of the month being viewed.
+// Approved leave only; someone with cross-site cover appears under BOTH sites
+// (same rule as the grid: requestInSite uses the snapshot taken at request time).
+async function renderOffToday() {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const { data, error } = await sb.from("leave_requests").select("*").eq("deleted", false).eq("status", "approved").eq("leave_date", today);
+  const rows = error ? [] : (data || []).filter(r => SHOW_DELETED || !isDeletedUserId(r.user_id));
+  Object.keys(SITE_LABEL).forEach(site => {
+    const el = document.getElementById(`offToday-${site}`); if (!el) return;
+    const here = [], seen = new Set();
+    rows.filter(r => requestInSite(r, site)).forEach(r => { if (seen.has(r.user_id)) return; seen.add(r.user_id); here.push(r); });
+    const part = (r) => ["toil_part_day", "annual_part_day"].includes(r.leave_type) || (r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length);
+    const chips = here.map(r => {
+      const p = profileById(r.user_id);
+      const nm = p ? p.full_name : "?";
+      const away = r.snapshot_primary_site !== site;
+      return `<span class="off-chip" title="${escapeHtml(nm)}${away ? " (based at " + escapeHtml(SITE_LABEL[r.snapshot_primary_site] || "") + ")" : ""}"><i>${escapeHtml(p ? p.initials : "?")}</i>${escapeHtml(nm)}${part(r) ? ' <small>part day</small>' : ""}${away ? ' <small>cross-site</small>' : ""}</span>`;
+    }).join("");
+    el.innerHTML = `<strong>Off today at ${escapeHtml(SITE_LABEL[site])}</strong>` + (here.length ? chips : `<span class="small">Nobody</span>`);
+  });
+}
+
 function renderGrid() {
   Object.keys(SITE_LABEL).forEach(site => {
     renderSiteControls(site);

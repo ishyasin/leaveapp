@@ -15,19 +15,39 @@
 </script>
 <link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<style>
+  .ml-wrap{max-width:1100px;margin:0 auto;}
+  .ml-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px;}
+  .ml-chips{display:flex;gap:6px;flex-wrap:wrap;flex:1;}
+  .ml-chips button{width:auto;margin:0;padding:4px 14px;font-size:13px;border-radius:999px;background:var(--surface);border:1px solid var(--border);color:inherit;cursor:pointer;}
+  .ml-chips button.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:800;}
+  .ml-link{font-weight:700;color:var(--teal);}
+  .ml-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;}
+  .ml-col{background:var(--surface-alt,rgba(100,116,139,.08));border:1px solid var(--border);border-radius:14px;padding:12px;min-width:0;}
+  .ml-col h2{margin:0 0 10px;font-size:17px;}
+  .ml-list{display:flex;flex-direction:column;gap:10px;}
+  .ml-card{background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--border);border-radius:10px;padding:10px 12px;}
+  .ml-card.approved{border-top-color:#15803d;}.ml-card.pending{border-top-color:#b45309;}.ml-card.rejected{border-top-color:#b91c1c;}
+  .ml-row{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .ml-date{font-weight:800;font-size:16px;}
+  .ml-type{margin-top:2px;}
+  .ml-by{font-size:12px;opacity:.7;margin-top:6px;overflow-wrap:anywhere;}
+  @media (max-width:800px){.ml-grid{grid-template-columns:minmax(0,1fr);}}
+</style>
 </head>
 <body>
 <div class="topbar" id="topbar"></div>
 <div class="wrap">
-  <div class="card">
-    <h1>My Leave</h1>
+  <div class="ml-wrap">
+    <div class="ml-top"><h1 style="margin:0;">My Leave</h1>
+      <div class="ml-chips" id="mlChips" role="group" aria-label="Show">
+        <button type="button" class="on" data-f="all">All</button><button type="button" data-f="pending">Pending</button><button type="button" data-f="approved">Approved</button><button type="button" data-f="rejected">Rejected</button></div>
+      <a class="ml-link" href="calendar.html">Request leave on the calendar</a></div>
     <div id="msg"></div>
-    <table>
-      <thead>
-        <tr><th>Date</th><th>Type</th><th>Status</th><th>Requested/Allocated</th><th>Actioned</th></tr>
-      </thead>
-      <tbody id="rows"></tbody>
-    </table>
+    <div class="ml-grid">
+      <section class="ml-col" aria-label="Upcoming"><h2>Upcoming</h2><div id="mlUp" class="ml-list"></div></section>
+      <section class="ml-col" aria-label="Past"><h2>Past</h2><div id="mlPast" class="ml-list"></div></section>
+    </div>
     <p id="empty" class="small" style="display:none;">No leave on record.</p>
   </div>
 </div>
@@ -58,13 +78,24 @@ async function load() {
     .eq("deleted", false)
     .order("leave_date", { ascending: false });
 
-  const tbody = document.getElementById("rows");
   const empty = document.getElementById("empty");
   if (error) { showMsg(document.getElementById("msg"), error.message, "error"); return; }
-  if (!data || data.length === 0) { tbody.innerHTML = ""; empty.style.display = ""; return; }
-  empty.style.display = "none";
+  ROWS = data || [];
+  empty.style.display = ROWS.length ? "none" : "";
+  renderLeave();
+}
 
-  tbody.innerHTML = data.map(r => {
+let ROWS = [], FILT = "all";
+document.getElementById("mlChips").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-f]"); if (!b) return;
+  FILT = b.dataset.f;
+  document.querySelectorAll("#mlChips button").forEach(x => x.classList.toggle("on", x === b));
+  renderLeave();
+});
+function renderLeave() {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const shown = ROWS.filter(r => FILT === "all" || r.status === FILT);
+  const card = (r) => {
     const isAllocated = r.requested_by && r.requested_by !== r.user_id;
     let typeDetail = LEAVE_TYPE_LABEL[r.leave_type] || r.leave_type;
     if (r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length) {
@@ -76,25 +107,23 @@ async function load() {
     } else if (r.leave_type === "full_day_split") {
       typeDetail += ` (AL: ${formatToilRanges(r.annual_leave_ranges)}; TOIL: ${formatToilRanges(r.toil_ranges)})`;
     }
-
-    const requestedCell = `${isAllocated ? "Allocated by" : "Requested by"} ${escapeHtml(nameFor(r.requested_by))}<br><span class="small">${fmtDateTime(r.requested_at)}</span>`;
-    let actionedCell = "";
-    if (r.status === "approved") {
-      actionedCell = `${escapeHtml(nameFor(r.approved_by))}<br><span class="small">${fmtDateTime(r.approved_at)}</span>`;
-    } else if (r.status === "rejected") {
-      actionedCell = `${escapeHtml(nameFor(r.approved_by))}<br><span class="small">${fmtDateTime(r.approved_at)}</span>`;
-      if (r.rejected_reason) actionedCell += `<br><span class="small">Reason: ${escapeHtml(r.rejected_reason)}</span>`;
+    let actioned = "";
+    if (r.status === "approved") actioned = `Approved by ${escapeHtml(nameFor(r.approved_by))} on ${fmtDateTime(r.approved_at)}`;
+    else if (r.status === "rejected") {
+      actioned = `Rejected by ${escapeHtml(nameFor(r.approved_by))} on ${fmtDateTime(r.approved_at)}`;
+      if (r.rejected_reason) actioned += `<br>Reason: ${escapeHtml(r.rejected_reason)}`;
     }
-
-    return `
-      <tr>
-        <td>${fmtDate(r.leave_date)}</td>
-        <td>${escapeHtml(typeDetail)}${isAllocated ? ' <span class="badge study">Allocated</span>' : ""}${rangesAmendmentNote(r) ? `<br><span class="small">${escapeHtml(rangesAmendmentNote(r))}</span>` : ""}</td>
-        <td><span class="badge ${r.status}">${r.status}</span></td>
-        <td class="small">${requestedCell}</td>
-        <td class="small">${actionedCell}</td>
-      </tr>`;
-  }).join("");
+    return `<div class="ml-card ${r.status}">
+      <div class="ml-row"><div class="ml-date">${fmtDate(r.leave_date)}</div><span class="badge ${r.status}">${r.status}</span></div>
+      <div class="ml-type">${escapeHtml(typeDetail)}${isAllocated ? ' <span class="badge study">Allocated</span>' : ""}</div>
+      ${rangesAmendmentNote(r) ? `<div class="ml-by">${escapeHtml(rangesAmendmentNote(r))}</div>` : ""}
+      <div class="ml-by">${isAllocated ? "Allocated by" : "Requested by"} ${escapeHtml(nameFor(r.requested_by))} on ${fmtDateTime(r.requested_at)}</div>
+      ${actioned ? `<div class="ml-by">${actioned}</div>` : ""}</div>`;
+  };
+  const up = shown.filter(r => r.leave_date >= today).sort((a, b) => a.leave_date.localeCompare(b.leave_date));
+  const past = shown.filter(r => r.leave_date < today).sort((a, b) => b.leave_date.localeCompare(a.leave_date));
+  document.getElementById("mlUp").innerHTML = up.map(card).join("") || '<p class="small">Nothing upcoming.</p>';
+  document.getElementById("mlPast").innerHTML = past.map(card).join("") || '<p class="small">Nothing in the past.</p>';
 }
 </script>
 </body>

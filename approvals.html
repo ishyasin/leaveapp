@@ -15,21 +15,53 @@
 </script>
 <link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<style>
+  .ap-wrap{max-width:1280px;margin:0 auto;}
+  .ap-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+  .ap-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .ap-tools>button{width:auto;margin:0;}
+  .ap-chips{display:flex;gap:6px;flex-wrap:wrap;}
+  .ap-chips button{width:auto;margin:0;padding:4px 12px;font-size:13px;border-radius:999px;background:var(--surface);border:1px solid var(--border);color:inherit;cursor:pointer;}
+  .ap-chips button.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:800;}
+  .ap-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start;}
+  .ap-col{background:var(--surface-alt,rgba(100,116,139,.08));border:1px solid var(--border);border-radius:14px;padding:10px;min-width:0;}
+  .ap-col header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 2px 10px;}
+  .ap-col h3{margin:0;font-size:15px;display:flex;align-items:center;gap:8px;}
+  .ap-col h3 i{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  .ap-col h3 b{font-size:12px;font-weight:800;padding:0 8px;border-radius:999px;background:var(--border);line-height:20px;}
+  .ap-list{display:flex;flex-direction:column;gap:10px;}
+  .ap-card{background:var(--surface);border:1px solid var(--border);border-top:4px solid #b45309;border-radius:10px;padding:10px 12px;min-width:0;}
+  .ap-card.flag{border-top-color:#b91c1c;}
+  .ap-card.done.ok{border-top-color:#15803d;}.ap-card.done.no{border-top-color:#b91c1c;}
+  .ap-row{display:flex;gap:10px;align-items:flex-start;}
+  .ap-row input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--teal);flex:none;}
+  .ap-main{flex:1;min-width:0;}
+  .ap-name{font-weight:800;overflow-wrap:anywhere;}
+  .ap-sub{font-size:13px;opacity:.85;}
+  .ap-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+  .ap-warn{margin-top:8px;font-size:12.5px;font-weight:700;color:#b45309;background:rgba(180,83,9,.12);border-radius:8px;padding:4px 8px;}
+  .ap-by{font-size:12px;opacity:.7;margin-top:6px;overflow-wrap:anywhere;}
+  .ap-act{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+  .ap-act button{width:auto;margin:0;padding:4px 12px;font-size:13px;}
+  @media (max-width:900px){.ap-grid{grid-template-columns:minmax(0,1fr);}}
+</style>
 </head>
 <body>
 <div class="topbar" id="topbar"></div>
 <div class="wrap">
-  <div class="card">
-    <h1>Pending Approvals</h1>
+  <div class="ap-wrap">
+    <div class="ap-top">
+      <h1 style="margin:0;">Leave approvals</h1>
+      <div class="ap-tools"><div class="ap-chips" id="apChips" role="group" aria-label="Filter by person"></div>
+        <button type="button" class="primary" id="apBulk" disabled onclick="bulkApprove()">Approve selected (0)</button></div>
+    </div>
     <div id="msg"></div>
     <div id="clashSummary"></div>
-    <table>
-      <thead>
-        <tr><th>#</th><th>Requested</th><th>Person</th><th>Date</th><th>Type</th><th>Requested by</th><th></th></tr>
-      </thead>
-      <tbody id="rows"></tbody>
-    </table>
-    <p id="empty" class="small" style="display:none;">No pending requests.</p>
+    <div class="ap-grid">
+      <section class="ap-col" aria-label="Pending"><header><h3><i style="background:#b45309"></i>Pending <b id="nPend">0</b></h3></header><div id="colPend" class="ap-list"></div><p id="empty" class="small" style="display:none;">No pending requests.</p></section>
+      <section class="ap-col" aria-label="Approved"><header><h3><i style="background:#15803d"></i>Approved <b id="nAppr">0</b></h3><span class="small">last 14 days</span></header><div id="colAppr" class="ap-list"></div></section>
+      <section class="ap-col" aria-label="Declined"><header><h3><i style="background:#b91c1c"></i>Declined <b id="nRej">0</b></h3><span class="small">last 14 days</span></header><div id="colRej" class="ap-list"></div></section>
+    </div>
   </div>
 </div>
 
@@ -136,14 +168,14 @@ async function load() {
     .eq("deleted", false)
     .order("requested_at", { ascending: true });
 
-  const tbody = document.getElementById("rows");
+  const colPend = document.getElementById("colPend");
   const empty = document.getElementById("empty");
   const clashEl = document.getElementById("clashSummary");
-  tbody.innerHTML = "";
+  colPend.innerHTML = "";
   clashEl.innerHTML = "";
 
   if (error) { showMsg(document.getElementById("msg"), error.message, "error"); return; }
-  if (!data || data.length === 0) { PENDING = []; empty.style.display = ""; return; }
+  if (!data || data.length === 0) { PENDING = []; empty.style.display = ""; document.getElementById("nPend").textContent = 0; renderChips(); await loadDecided(); return; }
   empty.style.display = "none";
   PENDING = data;
 
@@ -206,28 +238,90 @@ async function load() {
       .sort((p, q) => new Date(p.requested_at) - new Date(q.requested_at));
     const dayPos = dayGroup.findIndex(x => x.id === r.id);
     const dayOrd = dayGroup.length > 1 && dayPos >= 0 ? `<sup class="day-ord" title="${dayPos + 1} of ${dayGroup.length} requests for this day, in the order applied for">${dayPos + 1}</sup>` : "";
-    const tr = document.createElement("tr");
-    if (clashCount > 1) tr.className = "clash-row";
-    tr.innerHTML = `
-      <td><span class="badge study">${ordinalLabel(index + 1)}</span></td>
-      <td>${fmtDateTime(r.requested_at)}</td>
-      <td>${escapeHtml(nameFor(r.user_id))}${r._stacked ? `<br><span class="badge pending" title="This person has another live request for the same date.">Additional request</span>` : ""}</td>
-      <td>${fmtDate(r.leave_date)}${dayOrd}${clashCount > 1 ? ` <span class="badge pending" title="More than one pending request for this date">${clashCount} pending</span>` : ""}
-        ${targetProfile && targetProfile.suspended_last_day && r.leave_date > targetProfile.suspended_last_day ? `<br><span class="badge" style="background:#c9ccd1;color:#4b5563;" title="This person's account was suspended with a last working day of ${escapeHtml(fmtDate(targetProfile.suspended_last_day))}.">After last day</span>` : ""}
-        ${r._restrictionFlag ? `<br><span class="badge rejected" title="${escapeHtml(restrictionLabel(r._restrictionFlag))}">&#9888; Restricted day</span>` : ""}
-      </td>
-      <td>${LEAVE_TYPE_LABEL[r.leave_type]}${r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length ? ` (${formatToilRanges(r.toil_ranges)})` : ""}${r.leave_type === "annual_part_day" && r.annual_leave_ranges && r.annual_leave_ranges.length ? ` (${formatToilRanges(r.annual_leave_ranges)})` : ""}${r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length ? ` (${formatToilRanges(r.study_ranges)})` : ""}${r.requested_by && r.requested_by !== r.user_id ? `<br><span class="badge study">Allocated</span>` : ""}${rangesAmendmentNote(r) ? `<br><span class="small">${escapeHtml(rangesAmendmentNote(r))}</span>` : ""}</td>
-      <td>${escapeHtml(nameFor(r.requested_by))}</td>
-      <td style="white-space:nowrap;">
-        ${blocked
+    const afterLast = targetProfile && targetProfile.suspended_last_day && r.leave_date > targetProfile.suspended_last_day;
+    const typeTxt = `${LEAVE_TYPE_LABEL[r.leave_type]}${r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length ? ` (${formatToilRanges(r.toil_ranges)})` : ""}${r.leave_type === "annual_part_day" && r.annual_leave_ranges && r.annual_leave_ranges.length ? ` (${formatToilRanges(r.annual_leave_ranges)})` : ""}${r.leave_type === "study_leave" && r.study_ranges && r.study_ranges.length ? ` (${formatToilRanges(r.study_ranges)})` : ""}`;
+    // bulk-approvable only when nothing needs a human decision beyond a click
+    r._bulkOk = !blocked && !r._restrictionFlag && r.leave_type !== "toil_part_day";
+    const card = document.createElement("div");
+    card.className = "ap-card" + (clashCount > 1 || r._restrictionFlag ? " flag" : "");
+    card.dataset.user = r.user_id;
+    card.innerHTML = `
+      <div class="ap-row"><input type="checkbox" class="ap-sel" data-id="${r.id}" aria-label="Select ${escapeHtml(nameFor(r.user_id))}" ${r._bulkOk ? "" : "disabled"}>
+        <div class="ap-main"><div class="ap-name">${escapeHtml(nameFor(r.user_id))}</div>
+          <div class="ap-sub">${fmtDate(r.leave_date)}${dayOrd} &middot; ${typeTxt}</div></div>
+        <span class="badge study" title="Order applied for">${ordinalLabel(index + 1)}</span></div>
+      <div class="ap-tags">
+        ${r._stacked ? `<span class="badge pending" title="This person has another live request for the same date.">Additional request</span>` : ""}
+        ${clashCount > 1 ? `<span class="badge pending" title="More than one pending request for this date">${clashCount} pending</span>` : ""}
+        ${r.requested_by && r.requested_by !== r.user_id ? `<span class="badge study">Allocated</span>` : ""}
+        ${afterLast ? `<span class="badge" style="background:#c9ccd1;color:#4b5563;" title="This person's account was suspended with a last working day of ${escapeHtml(fmtDate(targetProfile.suspended_last_day))}.">After last day</span>` : ""}
+      </div>
+      ${r._restrictionFlag ? `<div class="ap-warn" title="${escapeHtml(restrictionLabel(r._restrictionFlag))}">&#9888; ${escapeHtml(restrictionLabel(r._restrictionFlag))}</div>` : ""}
+      ${rangesAmendmentNote(r) ? `<div class="ap-by">${escapeHtml(rangesAmendmentNote(r))}</div>` : ""}
+      <div class="ap-by">Requested ${fmtDateTime(r.requested_at)} by ${escapeHtml(nameFor(r.requested_by))}</div>
+      <div class="ap-act">${blocked
           ? '<span class="small">Awaiting another approver</span>'
           : `<button class="primary" onclick="approve('${r.id}')">Approve</button>
              <button class="danger" onclick="reject('${r.id}')">Reject</button>
              ${r.leave_type === "full_day" ? `<button class="secondary" onclick="doSplitLeave('${r.id}')">Split: AL + TOIL</button>` : ""}
              ${r.leave_type !== "full_day_split" && !isPharmacyAdmin(PROFILE) ? `<button class="secondary" onclick="doChangeType('${r.id}')">Change type / times</button>` : ""}`}
-      </td>`;
-    tbody.appendChild(tr);
+      </div>`;
+    colPend.appendChild(card);
   });
+  document.getElementById("nPend").textContent = data.length;
+  renderChips();
+  await loadDecided();
+}
+
+let AP_FILTER = "";
+function renderChips() {
+  const ids = [...new Set(PENDING.map(r => r.user_id))];
+  if (AP_FILTER && !ids.includes(AP_FILTER)) AP_FILTER = "";
+  document.getElementById("apChips").innerHTML = ids.length > 1
+    ? `<button type="button" class="${AP_FILTER ? "" : "on"}" data-u="">Everyone</button>` + ids.map(id => `<button type="button" class="${AP_FILTER === id ? "on" : ""}" data-u="${id}">${escapeHtml(nameFor(id))}</button>`).join("") : "";
+  applyFilter();
+}
+function applyFilter() {
+  document.querySelectorAll("#colPend .ap-card").forEach(c => { c.style.display = !AP_FILTER || c.dataset.user === AP_FILTER ? "" : "none"; });
+  updBulk();
+}
+function updBulk() {
+  const n = document.querySelectorAll("#colPend .ap-sel:checked").length;
+  const b = document.getElementById("apBulk"); b.disabled = !n; b.textContent = `Approve selected (${n})`;
+}
+document.addEventListener("click", (e) => { const b = e.target.closest("#apChips button"); if (b) { AP_FILTER = b.dataset.u; renderChips(); } });
+document.addEventListener("change", (e) => { if (e.target.classList && e.target.classList.contains("ap-sel")) updBulk(); });
+
+// Recently decided requests (last 14 days) fill the Approved / Declined columns.
+async function loadDecided() {
+  const since = new Date(Date.now() - 14 * 86400000).toISOString();
+  const { data, error } = await sb.from("leave_requests").select("*").in("status", ["approved", "rejected"]).eq("deleted", false)
+    .gte("updated_at", since).order("updated_at", { ascending: false }).limit(60);
+  const rows = error ? [] : (data || []);
+  const mk = (r, ok) => `<div class="ap-card done ${ok ? "ok" : "no"}"><div class="ap-name">${escapeHtml(nameFor(r.user_id))}</div>
+    <div class="ap-sub">${fmtDate(r.leave_date)} &middot; ${LEAVE_TYPE_LABEL[r.leave_type] || ""}</div>
+    <div class="ap-by">${ok ? "Approved" : "Declined"} by ${escapeHtml(nameFor(r.approved_by))}${r.approved_at ? " on " + escapeHtml(fmtDateTime(r.approved_at)) : ""}</div>
+    ${!ok && r.rejected_reason ? `<div class="ap-by">Reason: ${escapeHtml(r.rejected_reason)}</div>` : ""}</div>`;
+  const ap = rows.filter(r => r.status === "approved"), rj = rows.filter(r => r.status === "rejected");
+  document.getElementById("colAppr").innerHTML = ap.map(r => mk(r, true)).join("") || '<p class="small">None</p>';
+  document.getElementById("colRej").innerHTML = rj.map(r => mk(r, false)).join("") || '<p class="small">None</p>';
+  document.getElementById("nAppr").textContent = ap.length; document.getElementById("nRej").textContent = rj.length;
+}
+
+async function bulkApprove() {
+  const ids = [...document.querySelectorAll("#colPend .ap-sel:checked")].map(i => i.dataset.id);
+  if (!ids.length) return;
+  const note = await uiPrompt(`Approve ${ids.length} request${ids.length === 1 ? "" : "s"}? Days flagged as restricted, and part-day TOIL, can't be bulk approved.\n\nOptional note — only other approvers can see it:`,
+    "", { type: "textarea", title: "Approve selected", okLabel: "Approve " + ids.length });
+  if (note === null) return;
+  const msg = document.getElementById("msg");
+  let failed = 0;
+  for (const id of ids) {
+    const { error } = await sb.rpc("approve_leave", { p_leave_id: id, p_note: null, p_approver_note: note.trim() || null });
+    if (error) { failed++; showMsg(msg, error.message, "error"); }
+  }
+  await load();
+  if (!failed) showMsg(msg, `${ids.length} request${ids.length === 1 ? "" : "s"} approved.`, "ok");
 }
 
 async function approve(id) {

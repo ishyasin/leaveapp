@@ -76,7 +76,7 @@
       </div>
       <div class="set-grid" id="setGrid">
         <div id="setOverview" style="display:none;min-width:0;">
-          <div class="bd-ovhead"><h2 style="margin:0;">All set tasks <span class="small" id="ovCount"></span></h2></div>
+          <div class="bd-ovhead"><h2 style="margin:0;">All set tasks <span class="small" id="ovCount"></span></h2><label class="bd-toggle"><input type="checkbox" id="ovBulk" checked> View in bulk <span class="small">(group tasks sent to several people)</span></label></div>
           <div class="bd-chips" id="ovChips" role="group" aria-label="Filter by person"></div>
           <p class="small" id="ovHint" style="margin:6px 0 10px;"></p>
           <div class="bd-grid c3">
@@ -235,6 +235,14 @@
   .bd-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;position:sticky;top:76px;}
   .bd-panel .tk-people{max-height:240px;grid-template-columns:1fr;}
   .bd-ovhead{margin-bottom:8px;}
+  .bd-ovhead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .bd-toggle{display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:700;cursor:pointer;}
+  .bd-toggle input{width:auto;margin:0;accent-color:var(--teal);}
+  .bd-people{margin-top:8px;font-size:13px;}
+  .bd-people summary{cursor:pointer;font-weight:700;}
+  .bd-prow{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);}
+  .bd-prow span:nth-child(2){flex:1;min-width:0;overflow-wrap:anywhere;}
+  .bd-prow b{font-size:12px;} .bd-prow b.ok{color:#15803d;} .bd-prow b.bad{color:#b91c1c;}
   .bd-chips{display:flex;gap:6px;flex-wrap:wrap;}
   .bd-chips button{width:auto;margin:0;padding:4px 12px;font-size:13px;border-radius:999px;background:var(--surface);border:1px solid var(--border);color:inherit;cursor:pointer;display:inline-flex;gap:6px;align-items:center;}
   .bd-chips button.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:800;}
@@ -363,6 +371,32 @@ function renderSet() {
         ${t.done ? "" : bar(u)}
         ${t.assigned_by === PROFILE.id ? `<div class="bd-act"><button type="button" class="secondary" onclick="delAssigned('${t.id}')">Delete</button></div>` : ""}</div>`;
     };
+    if (document.getElementById("ovBulk").checked) {
+      // group identical tasks set together (same setter, title, note, deadline, time)
+      const gm = new Map();
+      list.forEach(t => { const k = [t.assigned_by, t.title, t.note || "", t.due_date || "", t.created_at].join("\u0001"); (gm.get(k) || gm.set(k, []).get(k)).push(t); });
+      const groups = [...gm.values()];
+      const gCard = (g) => {
+        if (g.length === 1) return ovCard(g[0]);
+        const t = g[0], nd = g.filter(x => x.done).length, od = g.filter(x => !x.done && x.due_date && x.due_date < today).length;
+        const pct = Math.round(nd / g.length * 100), mine = t.assigned_by === PROFILE.id;
+        const c = nd === g.length ? "#15803d" : od ? "#b91c1c" : "var(--teal)";
+        return `<div class="bd-card bd-group" style="--tc:${c}">
+          <div class="bd-title">${escapeHtml(t.title)}</div>${t.note ? `<div class="bd-note">${escapeHtml(t.note)}</div>` : ""}
+          <div class="bd-meta"><span class="bd-chip" style="--cc:var(--teal)">${g.length} people</span><span class="bd-chip" style="--cc:#15803d">${nd} of ${g.length} done</span>${od ? `<span class="bd-chip" style="--cc:#b91c1c">${od} overdue</span>` : ""}</div>
+          ${t.due_date ? `<div class="bd-by">Due ${escapeHtml(fmtDate(t.due_date))}</div>` : ""}
+          <div class="bd-prog"><div class="tk-bar"><div class="tk-fill" data-pct="${pct}" style="--tc:#15803d"></div></div><span>${pct}%</span></div>
+          <details class="bd-people"><summary>Show people</summary>${g.map(x => `<div class="bd-prow"><span class="bd-av" title="${escapeHtml(x.to_name)}">${escapeHtml(initials(x.to_name))}</span><span>${escapeHtml(x.to_name)}</span><b class="${x.done ? "ok" : x.due_date && x.due_date < today ? "bad" : ""}">${x.done ? "Done" : x.due_date && x.due_date < today ? "Overdue" : "Open"}</b></div>`).join("")}</details>
+          <div class="bd-by">Set by ${escapeHtml(t.by_name)} on ${escapeHtml(fmtDate(t.created_at.slice(0, 10)))}</div>
+          ${mine ? `<div class="bd-act"><button type="button" class="secondary" onclick="delGroup('${g.map(x => x.id).join(",")}')">Delete for all ${g.length}</button></div>` : ""}</div>`;
+      };
+      const fillG = (id, nid, arr) => { document.getElementById(id).innerHTML = arr.map(gCard).join("") || '<p class="small bd-none">None</p>'; document.getElementById(nid).textContent = arr.length; };
+      const gOver = groups.filter(g => g.some(x => !x.done && x.due_date && x.due_date < today));
+      const gDone = groups.filter(g => g.every(x => x.done));
+      const gOpen = groups.filter(g => !gOver.includes(g) && !gDone.includes(g));
+      fillG("ovOpen", "nOvOpen", gOpen); fillG("ovOver", "nOvOver", gOver); fillG("ovDone", "nOvDone", gDone);
+      animateBars(); return;
+    }
     const over = list.filter(t => !t.done && t.due_date && t.due_date < today);
     const opn = list.filter(t => !t.done && !(t.due_date && t.due_date < today));
     const dn = list.filter(t => t.done);
@@ -375,6 +409,14 @@ document.getElementById("ovChips").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-p]"); if (!b) return;
   OV_P = b.dataset.p; renderSet();
 });
+async function delGroup(ids) {
+  const a = ids.split(",");
+  if (!await uiConfirm(`Delete this task for all ${a.length} people? This can't be undone.`)) return;
+  clr();
+  for (const id of a) { const { error } = await sb.rpc("delete_assigned_task", { p_id: id }); if (error) { msg(error.message); break; } }
+  await load();
+}
+document.getElementById("ovBulk").addEventListener("change", renderSet);
 const toggleAssigned = (id, done) => rpc("toggle_assigned_task", { p_id: id, p_done: !!done });
 async function delAssigned(id) {
   if (!await uiConfirm("Delete this task for this person? This can't be undone.")) return;
