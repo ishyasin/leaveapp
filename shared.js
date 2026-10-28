@@ -2431,6 +2431,7 @@ async function getCurrentProfile() {
 }
 
 async function signOut() {
+  try { localStorage.removeItem("lm_dash_seen"); } catch (e) {}
   try {
     // 'local' scope only clears THIS browser's session — it doesn't
     // need to revoke every other session tied to the account, which
@@ -2651,6 +2652,41 @@ async function viewPrivacyNotice() {
   } catch (e) { uiAlert("Could not load the privacy notice.", "Privacy notice"); }
 }
 
+/* ---------------- dashboard (large dialog; see dashboard.js) ---------------- */
+const DASH_AUTO_KEY = "lm_dash_auto", DASH_SEEN_KEY = "lm_dash_seen";
+function dashAutoOn(profile) {
+  if (profile && typeof profile.show_dashboard === "boolean") return profile.show_dashboard;
+  try { const v = localStorage.getItem(DASH_AUTO_KEY); if (v !== null) return v !== "0"; } catch (e) {}
+  return true;
+}
+async function setDashAuto(on) {
+  try { localStorage.setItem(DASH_AUTO_KEY, on ? "1" : "0"); } catch (e) {}
+  if (window.__lmProfile) window.__lmProfile.show_dashboard = !!on;
+  const t = document.getElementById("dashAutoToggle");
+  if (t) { t.textContent = on ? "Dashboard at sign-in: On" : "Dashboard at sign-in: Off"; t.setAttribute("aria-pressed", on ? "true" : "false"); }
+  const c = document.getElementById("dashAuto"); if (c) c.checked = !!on;
+  try { await sb.rpc("set_own_show_dashboard", { p_on: !!on }); } catch (e) { /* kept locally if the database function isn't installed yet */ }
+}
+function openDashboard(profile) {
+  profile = profile || window.__lmProfile; if (!profile) return;
+  if (window.__openDashboard) { window.__openDashboard(profile); return; }
+  const s = document.createElement("script"); s.src = "dashboard.js"; s.onload = () => window.__openDashboard && window.__openDashboard(profile);
+  document.head.appendChild(s);
+}
+// Opens once after each sign-in (the sign-in page clears the flag), on the home page,
+// and waits for any required notice (e.g. the privacy notice) to be dealt with first.
+function autoOpenDashboard(profile) {
+  try { if (localStorage.getItem(DASH_SEEN_KEY) === "1") return; } catch (e) {}
+  let tries = 0;
+  const go = () => {
+    const busy = window.__pnChecking || [...document.querySelectorAll(".overlay")].some(o => o.style.display !== "none" && o.offsetParent !== null);
+    if (busy) { if (++tries < 40) setTimeout(go, 300); return; }
+    try { localStorage.setItem(DASH_SEEN_KEY, "1"); } catch (e) {}
+    openDashboard(profile);
+  };
+  setTimeout(go, 600);
+}
+
 function renderTopbar(profile) {
   const el = document.getElementById("topbar");
   if (!el) return;
@@ -2697,6 +2733,7 @@ function renderTopbar(profile) {
   el.innerHTML = `
     <button type="button" id="navToggle" class="nav-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sideNav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     <a href="portal.html" class="home-btn" aria-label="Home" title="Home"${page === "portal.html" ? ' aria-current="page"' : ""}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></a>
+    <button type="button" id="dashBtn" class="dash-btn" aria-label="Open dashboard" title="Dashboard"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Dashboard</span></button>
     <div class="brand">
       Pharmacy Portal<small><a href="https://home.edandg.com/" target="_blank" rel="noopener noreferrer" class="brand-edg" title="ED&amp;G — home.edandg.com">by ED&amp;G&trade;</a></small>
     </div>
@@ -2709,6 +2746,7 @@ function renderTopbar(profile) {
         ${themeHtml ? `<div class="um-row"><label for="themeSelectOwn">Theme</label>${themeHtml}</div>` : ""}
         <div class="um-row"><label for="colorModeSelect">Display</label><select id="colorModeSelect" class="mode-select" aria-label="Display mode">${modeOptions}</select></div>
         <button type="button" id="animToggle" class="anim-toggle" title="Stop or start the seasonal animations"></button>
+        <button type="button" id="dashAutoToggle" class="um-btn" title="Show the dashboard automatically after you sign in"></button>
         <hr>
         <button type="button" id="privacyBtn" class="um-btn" title="Privacy notice">Privacy notice</button>
         <button type="button" class="um-btn" onclick="signOut()">Sign out</button>
@@ -2733,6 +2771,14 @@ function renderTopbar(profile) {
   const ownThemeSel = document.getElementById("themeSelectOwn");
   if (ownThemeSel) ownThemeSel.addEventListener("change", (e) => setOwnTheme(e.target.value));
   document.getElementById("animToggle").addEventListener("click", toggleAnimations);
+  window.__lmProfile = profile;
+  (() => {
+    const t = document.getElementById("dashAutoToggle"), on = dashAutoOn(profile);
+    t.textContent = on ? "Dashboard at sign-in: On" : "Dashboard at sign-in: Off"; t.setAttribute("aria-pressed", on ? "true" : "false");
+    t.addEventListener("click", () => setDashAuto(!dashAutoOn(window.__lmProfile)));
+    document.getElementById("dashBtn").addEventListener("click", () => openDashboard(window.__lmProfile));
+    if (page === "portal.html" && on) autoOpenDashboard(profile);
+  })();
   applyAnimPref();
   initNotifications();
 

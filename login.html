@@ -304,6 +304,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     if (error) throw error;
 
     badRuns = 0;
+    try { localStorage.removeItem("lm_dash_seen"); } catch (e) {}
     window.location.href = "portal.html";
   } catch (err) {
     // A network failure or a gateway error page (not JSON) is an outage, not a wrong password.
