@@ -35,78 +35,71 @@
 
     <!-- LONG-TERM -->
     <div id="paneLong">
-      <div class="card">
-        <h2 style="margin-top:0;">Add a long-term task</h2>
-        <form id="longForm" class="tk-form">
-          <div style="flex:2 1 280px;"><label for="lgTitle">What needs doing?</label><input type="text" id="lgTitle" maxlength="200" required placeholder="e.g. Finish CD audit action plan"></div>
-          <div style="flex:0 1 170px;"><label for="lgDue">Deadline</label><input type="date" id="lgDue" required></div>
-          <div style="flex:2 1 220px;"><label for="lgNote">Note (optional)</label><input type="text" id="lgNote" maxlength="500" placeholder="Anything to remember"></div>
-          <div><button type="submit" class="primary" id="lgBtn">Add task</button></div>
-        </form>
-        <p class="small" style="margin:10px 0 0;">The bar on each task fills from the day you add it to its deadline &mdash; the fuller it is, the closer you are to the date.</p>
+      <form id="longForm" class="bd-add">
+        <input type="text" id="lgTitle" maxlength="200" required placeholder="New long-term task" aria-label="Task">
+        <input type="date" id="lgDue" required aria-label="Deadline" title="Deadline">
+        <input type="text" id="lgNote" maxlength="500" placeholder="Note (optional)" aria-label="Note">
+        <button type="submit" class="primary" id="lgBtn">+ Add task</button>
+      </form>
+      <div class="bd-sum"><strong id="lgCount">Open tasks (0)</strong><span class="small" id="lgDoneSum">Completed (0)</span></div>
+      <div id="lgEmpty" class="small" style="display:none;">Nothing here yet &mdash; add a task with a deadline above.</div>
+      <div class="bd-grid c4" id="lgBoard">
+        <section class="bd-col" aria-label="Overdue"><header><h3><i style="background:#b91c1c"></i>Overdue <b id="nOver">0</b></h3></header><div id="colOver" class="bd-list"></div></section>
+        <section class="bd-col" aria-label="This week"><header><h3><i style="background:#b45309"></i>This week <b id="nWeek">0</b></h3><button type="button" class="bd-plus" onclick="addTo(5)">+ Add task</button></header><div id="colWeek" class="bd-list"></div></section>
+        <section class="bd-col" aria-label="Later"><header><h3><i style="background:#15803d"></i>Later <b id="nLater">0</b></h3><button type="button" class="bd-plus" onclick="addTo(21)">+ Add task</button></header><div id="colLater" class="bd-list"></div></section>
+        <section class="bd-col" aria-label="Done" id="lgDoneBox"><header><h3><i style="background:#64748b"></i>Done <b id="nDone">0</b></h3></header><div id="lgDone" class="bd-list"></div></section>
       </div>
-      <div class="tk-legend"><strong id="lgCount" style="margin-right:auto;font-size:16px;">Open tasks</strong>
-        <span><i style="background:#15803d"></i>Plenty of time</span><span><i style="background:#b45309"></i>Getting close</span><span><i style="background:#b91c1c"></i>Due very soon / overdue</span></div>
-      <div id="lgList"></div>
-      <p id="lgEmpty" class="small" style="display:none;">No open long-term tasks. Add one above.</p>
-      <details class="tk-done" id="lgDoneBox" style="display:none;"><summary id="lgDoneSum"></summary><div id="lgDone"></div></details>
     </div>
 
     <!-- DAILY -->
     <div id="paneDaily" style="display:none;">
-      <div class="card tk-narrow">
-        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">
-          <h2 style="margin:0;flex:1;" id="dyDate"></h2>
-          <strong id="dyCount" class="tk-count"></strong>
-        </div>
-        <div class="tk-bar"><div id="dyBar" class="tk-fill" style="background:var(--teal);"></div></div>
-        <div id="dyCarry" class="tk-carry" style="display:none;"></div>
-        <div id="dyList"></div>
-        <p id="dyEmpty" class="small" style="display:none;">Nothing on today's list yet. Add your first task below.</p>
-        <form id="dailyForm" class="tk-form" style="margin-top:12px;">
-          <div style="flex:1 1 240px;"><label for="dyTitle" class="sr-only">New daily task</label><input type="text" id="dyTitle" maxlength="200" placeholder="Add a task for today&hellip;" required></div>
-          <div><button type="submit" class="primary" id="dyBtn">Add</button></div>
-        </form>
-        <p class="small" style="margin:12px 0 0;">Ticked tasks clear at midnight. Anything unfinished is offered to carry over to the next day.</p>
+      <div class="bd-strip">
+        <div><div class="bd-date" id="dyDate"></div><div class="tk-count" id="dyCount"></div></div>
+        <div class="tk-bar" style="flex:1;min-width:140px;margin:0;"><div class="tk-fill" id="dyBar" style="width:0;--tc:var(--teal);"></div></div>
+      </div>
+      <div class="bd-grid c3">
+        <section class="bd-col" aria-label="Carried over" id="dyCarryCol"><header><h3><i style="background:#b45309"></i>Carried over <b id="nCarry">0</b></h3></header>
+          <div id="dyCarry" class="bd-carry" style="display:none;"></div><div id="dyStale" class="bd-list"></div><p class="small bd-none" id="dyStaleNone">Nothing carried over.</p></section>
+        <section class="bd-col" aria-label="Today"><header><h3><i style="background:var(--teal)"></i>Today <b id="nToday">0</b></h3></header>
+          <form id="dailyForm" class="bd-quick"><input type="text" id="dyTitle" maxlength="200" required placeholder="Add a task for today" aria-label="Task for today"><button type="submit" class="primary" id="dyBtn" aria-label="Add">+</button></form>
+          <div id="dyList" class="bd-list"></div><p class="small bd-none" id="dyEmpty">Nothing on today&rsquo;s list yet.</p></section>
+        <section class="bd-col" aria-label="Done today"><header><h3><i style="background:#15803d"></i>Done today <b id="nDyDone">0</b></h3></header><div id="dyDoneList" class="bd-list"></div></section>
       </div>
     </div>
 
     <!-- SET TASKS -->
     <div id="paneSet" style="display:none;">
-      <div class="card">
-        <h2 style="margin-top:0;">Set for me</h2>
-        <p class="small" style="margin-top:0;">Tasks that a Lead Pharmacist or Clinical Team Lead has set for you. Tick one when it is done.</p>
-        <div id="setMine"></div>
-        <p id="setMineEmpty" class="small" style="display:none;">Nothing has been set for you.</p>
+      <div class="bd-strip col">
+        <h2>Set for me</h2>
+        <div id="setMine" class="bd-mine"></div>
+        <p id="setMineEmpty" class="small" style="display:none;margin:0;">Nothing has been set for you.</p>
       </div>
-
-      <div id="setForm" class="tk-dock" style="display:none;">
-       <button type="button" class="tk-dock-head" id="dockHead" aria-expanded="false" aria-controls="dockBody"><span>&#43; Set a task</span><span class="chev" aria-hidden="true">&#9650;</span></button>
-       <div class="tk-dock-body" id="dockBody" hidden>
-        <p class="small" style="margin-top:0;">Choose one or more people. Everyone ticked gets their own copy and is notified.</p>
-        <form id="assignForm">
-          <div class="tk-people-head"><strong>Who is it for?</strong>
-            <span><button type="button" class="secondary" onclick="pickAll(true)">Select all</button> <button type="button" class="secondary" onclick="pickAll(false)">Clear</button></span></div>
-          <div id="assignPeople" class="tk-people"></div>
-          <div class="tk-form" style="margin-top:12px;">
-            <div style="flex:2 1 280px;"><label for="asTitle">Task</label><input type="text" id="asTitle" maxlength="200" required placeholder="e.g. Complete CD stock check"></div>
-            <div style="flex:0 1 170px;"><label for="asDue">Deadline (optional)</label><input type="date" id="asDue"></div>
-            <div style="flex:2 1 220px;"><label for="asNote">Note (optional)</label><input type="text" id="asNote" maxlength="500"></div>
-            <div><button type="submit" class="primary" id="asBtn">Set task</button></div>
+      <div class="set-grid" id="setGrid">
+        <div id="setOverview" style="display:none;min-width:0;">
+          <div class="bd-ovhead"><h2 style="margin:0;">All set tasks <span class="small" id="ovCount"></span></h2></div>
+          <div class="bd-chips" id="ovChips" role="group" aria-label="Filter by person"></div>
+          <p class="small" id="ovHint" style="margin:6px 0 10px;"></p>
+          <div class="bd-grid c3">
+            <section class="bd-col" aria-label="Open"><header><h3><i style="background:var(--teal)"></i>Open <b id="nOvOpen">0</b></h3></header><div id="ovOpen" class="bd-list"></div></section>
+            <section class="bd-col" aria-label="Overdue"><header><h3><i style="background:#b91c1c"></i>Overdue <b id="nOvOver">0</b></h3></header><div id="ovOver" class="bd-list"></div></section>
+            <section class="bd-col" aria-label="Completed"><header><h3><i style="background:#15803d"></i>Completed <b id="nOvDone">0</b></h3></header><div id="ovDone" class="bd-list"></div></section>
           </div>
-        </form>
-       </div>
-      </div>
-
-      <div class="card" id="setOverview" style="display:none;">
-        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
-          <h2 style="margin:0;flex:1;min-width:180px;">All set tasks <span class="small" id="ovCount"></span></h2>
-          <select id="ovPerson" style="width:auto;margin:0;" onchange="renderSet()"><option value="">Everyone</option></select>
-          <select id="ovStatus" style="width:auto;margin:0;" onchange="renderSet()"><option value="open">Open</option><option value="done">Completed</option><option value="">All</option></select>
+          <p id="ovEmpty" class="small" style="display:none;">No tasks to show.</p>
         </div>
-        <p class="small" style="margin-top:0;" id="ovHint"></p>
-        <div id="ovList"></div>
-        <p id="ovEmpty" class="small" style="display:none;">No tasks to show.</p>
+        <aside id="setForm" class="bd-panel" style="display:none;">
+          <h2 style="margin-top:0;" id="dockHead">Set a task</h2>
+          <div id="dockBody">
+            <form id="assignForm">
+              <div class="tk-people-head"><label style="margin:0;">Who is it for?</label>
+                <span><button type="button" class="secondary" onclick="pickAll(true)">Select all</button> <button type="button" class="secondary" onclick="pickAll(false)">Clear</button></span></div>
+              <div class="tk-people" id="assignPeople"></div>
+              <label for="asTitle">Task</label><input type="text" id="asTitle" maxlength="200" required>
+              <label for="asDue">Deadline (optional)</label><input type="date" id="asDue">
+              <label for="asNote">Note (optional)</label><input type="text" id="asNote" maxlength="500">
+              <button type="submit" class="primary" id="asBtn" style="margin-top:12px;width:100%;">Set task</button>
+            </form>
+          </div>
+        </aside>
       </div>
     </div>
   </div>
@@ -131,7 +124,7 @@
 </div>
 
 <style>
-  .tk-wrap{max-width:1000px;margin:0 auto;}
+  .tk-wrap{max-width:1280px;margin:0 auto;}
   .tk-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px;}
   .tk-private{display:inline-flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;font-weight:600;color:#14532d;background:#dcfce7;border:1px solid #86efac;padding:4px 12px;border-radius:999px;}
   .tk-tabs{display:flex;background:var(--border);border-radius:12px;padding:4px;gap:4px;}
@@ -192,6 +185,63 @@
   .tk-dock-body{padding:16px 20px 18px;max-height:min(70vh,560px);overflow-y:auto;}
   .tk-dock-body[hidden]{display:none;}
   @media (prefers-reduced-motion:reduce){.tk-dock-head .chev{transition:none;}}
+
+  /* ---- board layout ---- */
+  #paneSet{padding-bottom:0;}
+  .bd-add{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
+  .bd-add input{margin:0;flex:1 1 180px;width:auto;}
+  .bd-add input[type=date]{flex:0 0 160px;}
+  .bd-add button{width:auto;margin:0;}
+  .bd-sum{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;}
+  .bd-grid{display:grid;gap:14px;align-items:start;}
+  .bd-grid.c4{grid-template-columns:repeat(4,minmax(0,1fr));}
+  .bd-grid.c3{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .bd-col{background:var(--surface-alt,rgba(100,116,139,.08));border:1px solid var(--border);border-radius:14px;padding:10px;min-width:0;}
+  .bd-col header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 2px 10px;}
+  .bd-col h3{margin:0;font-size:15px;display:flex;align-items:center;gap:8px;}
+  .bd-col h3 i{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  .bd-col h3 b{font-size:12px;font-weight:800;padding:0 8px;border-radius:999px;background:var(--border);line-height:20px;}
+  .bd-plus{width:auto;margin:0;padding:3px 10px;font-size:12px;background:transparent;border:1px dashed var(--border);color:inherit;border-radius:8px;cursor:pointer;}
+  .bd-plus:hover{border-style:solid;}
+  .bd-list{display:flex;flex-direction:column;gap:10px;}
+  .bd-none{opacity:.6;margin:4px 2px;}
+  .bd-card{background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--tc,#15803d);border-radius:10px;padding:10px 12px;min-width:0;}
+  .bd-card.is-done .bd-title{text-decoration:line-through;opacity:.6;}
+  .bd-check{display:flex;gap:10px;align-items:flex-start;margin:0;font-weight:400;cursor:pointer;}
+  .bd-check input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--teal);flex:none;}
+  .bd-title{font-weight:800;font-size:15px;overflow-wrap:anywhere;}
+  .bd-note{font-size:13px;opacity:.75;margin-top:4px;overflow-wrap:anywhere;}
+  .bd-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;}
+  .bd-chip{font-size:12px;font-weight:800;padding:1px 9px;border-radius:999px;color:var(--cc);border:1px solid var(--cc);background:transparent;}
+  .bd-by{font-size:12px;opacity:.7;margin-top:6px;}
+  .bd-prog{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;font-weight:700;}
+  .bd-prog .tk-bar{margin:0;height:8px;}
+  .bd-act{display:flex;gap:6px;margin-top:8px;}
+  .bd-act button{padding:2px 10px;font-size:12px;width:auto;margin:0;}
+  .bd-av{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--teal);color:#fff;font-size:11px;font-weight:800;}
+  .bd-strip{display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 16px;margin-bottom:14px;}
+  .bd-strip.col{flex-direction:column;align-items:stretch;gap:10px;}
+  .bd-strip h2{margin:0;font-size:17px;}
+  .bd-date{font-weight:800;font-size:17px;}
+  .bd-mine{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;}
+  .bd-quick{display:flex;gap:8px;margin-bottom:10px;}
+  .bd-quick input{margin:0;flex:1;min-width:0;}
+  .bd-quick button{width:auto;margin:0;padding:0 14px;font-size:18px;}
+  .bd-carry{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+  .bd-carry button{width:auto;margin:0;padding:4px 12px;font-size:13px;}
+  .set-grid{display:grid;gap:16px;grid-template-columns:minmax(0,1fr);align-items:start;}
+  .set-grid.has-panel{grid-template-columns:minmax(0,1fr) 310px;}
+  .set-grid.has-panel #setForm{order:2;}
+  .bd-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;position:sticky;top:76px;}
+  .bd-panel .tk-people{max-height:240px;grid-template-columns:1fr;}
+  .bd-ovhead{margin-bottom:8px;}
+  .bd-chips{display:flex;gap:6px;flex-wrap:wrap;}
+  .bd-chips button{width:auto;margin:0;padding:4px 12px;font-size:13px;border-radius:999px;background:var(--surface);border:1px solid var(--border);color:inherit;cursor:pointer;display:inline-flex;gap:6px;align-items:center;}
+  .bd-chips button.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:800;}
+  .bd-chips button i{font-style:normal;font-size:10px;font-weight:800;opacity:.8;}
+  @media (max-width:1100px){.bd-grid.c4{grid-template-columns:repeat(2,minmax(0,1fr));}}
+  @media (max-width:900px){.bd-grid.c3,.set-grid.has-panel{grid-template-columns:minmax(0,1fr);}.set-grid.has-panel #setForm{order:-1;position:static;}}
+  @media (max-width:600px){.bd-grid.c4{grid-template-columns:minmax(0,1fr);}}
   .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);}
   @media (prefers-reduced-motion:reduce){.tk-fill{transition:none;}}
 </style>
@@ -224,7 +274,7 @@ function showTab(t) {
   document.getElementById("tabSet").classList.toggle("on", t === "set");
   document.getElementById("tkPrivateTxt").textContent = t === "set" ? "Set tasks are visible only to the person they are set for and the Lead Pharmacists / Clinical Team Leads who oversee them" : "Private \u2014 only you can see these tasks";
   try { localStorage.setItem("tk_tab", t); } catch (e) {}
-  if (t === "long" || t === "set") animateBars();
+  animateBars();
 }
 
 async function load() {
@@ -250,17 +300,21 @@ function buildPeople() {
     h += `<h4>${ROLE_HEAD[r]}</h4>` + g.map(p => `<label><input type="checkbox" value="${p.id}" ${keep.has(p.id) ? "checked" : ""}> ${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})</label>`).join("");
   });
   document.getElementById("assignPeople").innerHTML = h || '<span class="small">There is nobody you can set tasks for.</span>';
-  const sel = document.getElementById("ovPerson"), cur = sel.value;
-  sel.innerHTML = '<option value="">Everyone</option>' + PEOPLE.map(p => `<option value="${p.id}">${escapeHtml(p.full_name)} (${escapeHtml(p.initials)})</option>`).join("");
-  sel.value = cur;
+  updAsBtn();
 }
 const picked = () => [...document.querySelectorAll("#assignPeople input:checked")].map(i => i.value);
-const pickAll = (on) => document.querySelectorAll("#assignPeople input").forEach(i => { i.checked = on; });
+const pickAll = (on) => { document.querySelectorAll("#assignPeople input").forEach(i => { i.checked = on; }); updAsBtn(); };
+function updAsBtn() { const n = picked().length; document.getElementById("asBtn").textContent = n ? `Set task for ${n} ${n === 1 ? "person" : "people"}` : "Set task"; }
+document.addEventListener("change", e => { if (e.target.closest && e.target.closest("#assignPeople")) updAsBtn(); });
 
 function dueInfo(t, today) {
   if (!t.due_date) return null;
   return urgency({ start_date: t.start_date, due_date: t.due_date }, today);
 }
+const initials = (n) => (n || "?").split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("");
+let OV_P = "";
+const bar = (u) => u ? `<div class="bd-prog"><div class="tk-bar"><div class="tk-fill" data-pct="${u.pct}"></div></div><span>${u.pct}%</span></div>` : "";
+const chip = (u, done) => done ? `<span class="bd-chip" style="--cc:#15803d">Done</span>` : u ? `<span class="bd-chip" style="--cc:${u.color}">${escapeHtml(u.label)}</span>` : `<span class="bd-chip" style="--cc:#64748b">No deadline</span>`;
 function renderSet() {
   const today = todayStr();
   const mine = ASSIGNED.filter(t => t.assigned_to === PROFILE.id);
@@ -269,44 +323,58 @@ function renderSet() {
   const badge = document.getElementById("setBadge");
   badge.textContent = open.length; badge.style.display = open.length ? "" : "none";
   document.getElementById("setMineEmpty").style.display = mine.length ? "none" : "";
-  const card = (t, own) => {
+  const card = (t) => {
     const u = dueInfo(t, today);
-    return `<div class="tk-card" style="--tc:${u ? u.color : "#64748b"}"><div class="tk-row">
-      <input type="checkbox" ${t.done ? "checked" : ""} aria-label="Done" ${own ? `onchange="toggleAssigned('${t.id}', this.checked)"` : "disabled"}>
-      <div class="tk-main"><div class="tk-title" ${t.done ? 'style="text-decoration:line-through;opacity:.6"' : ""}>${escapeHtml(t.title)}</div>
-        ${t.note ? `<div class="tk-note">${escapeHtml(t.note)}</div>` : ""}<div class="tk-note">Set by ${escapeHtml(t.by_name)} on ${escapeHtml(fmtDate(t.created_at.slice(0, 10)))}</div></div>
-      <div class="tk-due"><div class="tk-left">${t.done ? "Done" : u ? u.label : "No deadline"}</div>${t.due_date ? `<div class="small">Due ${escapeHtml(fmtDate(t.due_date))}</div>` : ""}</div></div>
-      ${u && !t.done ? `<div class="tk-prog"><div class="tk-bar"><div class="tk-fill" data-pct="${u.pct}"></div></div><div class="tk-pct">${u.pct}% of time used</div></div>` : ""}</div>`;
+    return `<div class="bd-card${t.done ? " is-done" : ""}" style="--tc:${t.done ? "#15803d" : u ? u.color : "#64748b"}">
+      <label class="bd-check"><input type="checkbox" ${t.done ? "checked" : ""} aria-label="Done" onchange="toggleAssigned('${t.id}', this.checked)"><span class="bd-title">${escapeHtml(t.title)}</span></label>
+      ${t.note ? `<div class="bd-note">${escapeHtml(t.note)}</div>` : ""}
+      <div class="bd-meta">${chip(u, t.done)}<span class="small">${t.due_date ? "Due " + escapeHtml(fmtDate(t.due_date)) : ""}</span></div>
+      <div class="bd-by">Set by ${escapeHtml(t.by_name)} on ${escapeHtml(fmtDate(t.created_at.slice(0, 10)))}</div>
+      ${t.done ? "" : bar(u)}</div>`;
   };
-  document.getElementById("setMine").innerHTML = open.map(t => card(t, true)).join("") +
-    (done.length ? `<details class="tk-done"><summary>Completed (${done.length})</summary>${done.map(t => card(t, true)).join("")}</details>` : "");
+  document.getElementById("setMine").innerHTML = open.concat(done).map(card).join("");
 
-  // setters: form + everyone-I-can-see overview
   const canSet = CAN_SET();
   document.getElementById("setForm").style.display = canSet ? "" : "none";
   const others = ASSIGNED.filter(t => t.assigned_to !== PROFILE.id);
   const showOv = canSet || others.length > 0;
+  document.getElementById("setGrid").classList.toggle("has-panel", canSet);
   document.getElementById("setOverview").style.display = showOv ? "" : "none";
   if (showOv) {
-    const p = document.getElementById("ovPerson").value, st = document.getElementById("ovStatus").value;
-    const list = others.filter(t => (!p || t.assigned_to === p) && (!st || (st === "done") === t.done))
-      .sort((a, b) => a.to_name.localeCompare(b.to_name) || (a.due_date || "9999").localeCompare(b.due_date || "9999"));
+    // person chips
+    const ppl = new Map(); others.forEach(t => ppl.set(t.assigned_to, t.to_name));
+    if (OV_P && !ppl.has(OV_P)) OV_P = "";
+    document.getElementById("ovChips").innerHTML = `<button type="button" class="${OV_P ? "" : "on"}" data-p="">Everyone</button>` +
+      [...ppl.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, n]) => `<button type="button" class="${OV_P === id ? "on" : ""}" data-p="${id}"><i>${escapeHtml(initials(n))}</i>${escapeHtml(n)}</button>`).join("");
+    const list = others.filter(t => !OV_P || t.assigned_to === OV_P)
+      .sort((a, b) => (a.due_date || "9999").localeCompare(b.due_date || "9999") || a.to_name.localeCompare(b.to_name));
     document.getElementById("ovCount").textContent = `(${list.length})`;
     document.getElementById("ovHint").textContent = PROFILE.role === "lead_pharmacist" ? "You can see tasks set for Pharmacists. Tasks set for other Lead Pharmacists are not shown."
       : PROFILE.role === "superuser" ? "You can see tasks set for Pharmacists and Lead Pharmacists." : "You can see every set task.";
     document.getElementById("ovEmpty").style.display = list.length ? "none" : "";
-    document.getElementById("ovList").innerHTML = list.map(t => {
+    const ovCard = (t) => {
       const u = dueInfo(t, today);
-      return `<div class="tk-ov" style="--tc:${t.done ? "#15803d" : u ? u.color : "#64748b"}">
-        <div class="tk-row"><div class="tk-main"><span class="who">${escapeHtml(t.to_name)}</span> &mdash; ${escapeHtml(t.title)}
-          <div class="meta">Set by ${escapeHtml(t.by_name)} on ${escapeHtml(fmtDate(t.created_at.slice(0, 10)))}${t.note ? " &middot; " + escapeHtml(t.note) : ""}</div></div>
-          <div class="tk-due"><span class="st ${t.done ? "done" : ""}">${t.done ? "Completed" : u ? u.label : "Open"}</span>${t.due_date ? `<div class="meta">Due ${escapeHtml(fmtDate(t.due_date))}</div>` : ""}
-          ${t.assigned_by === PROFILE.id ? `<div class="tk-actions"><button type="button" class="secondary" onclick="delAssigned('${t.id}')">Delete</button></div>` : ""}</div></div>
-        ${u && !t.done ? `<div class="tk-prog"><div class="tk-bar"><div class="tk-fill" data-pct="${u.pct}"></div></div><div class="tk-pct">${u.pct}% of time used</div></div>` : ""}</div>`;
-    }).join("");
+      return `<div class="bd-card${t.done ? " is-done" : ""}" style="--tc:${t.done ? "#15803d" : u ? u.color : "#64748b"}">
+        <div class="bd-title">${escapeHtml(t.title)}</div>
+        ${t.note ? `<div class="bd-note">${escapeHtml(t.note)}</div>` : ""}
+        <div class="bd-meta"><span class="bd-av" title="${escapeHtml(t.to_name)}">${escapeHtml(initials(t.to_name))}</span><span class="small">${escapeHtml(t.to_name)}</span></div>
+        <div class="bd-meta">${chip(u, t.done)}<span class="small">${t.due_date ? "Due " + escapeHtml(fmtDate(t.due_date)) : ""}</span></div>
+        <div class="bd-by">Set by ${escapeHtml(t.by_name)} on ${escapeHtml(fmtDate(t.created_at.slice(0, 10)))}</div>
+        ${t.done ? "" : bar(u)}
+        ${t.assigned_by === PROFILE.id ? `<div class="bd-act"><button type="button" class="secondary" onclick="delAssigned('${t.id}')">Delete</button></div>` : ""}</div>`;
+    };
+    const over = list.filter(t => !t.done && t.due_date && t.due_date < today);
+    const opn = list.filter(t => !t.done && !(t.due_date && t.due_date < today));
+    const dn = list.filter(t => t.done);
+    const fill = (id, nid, arr) => { document.getElementById(id).innerHTML = arr.map(ovCard).join("") || '<p class="small bd-none">None</p>'; document.getElementById(nid).textContent = arr.length; };
+    fill("ovOpen", "nOvOpen", opn); fill("ovOver", "nOvOver", over); fill("ovDone", "nOvDone", dn);
   }
   animateBars();
 }
+document.getElementById("ovChips").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-p]"); if (!b) return;
+  OV_P = b.dataset.p; renderSet();
+});
 const toggleAssigned = (id, done) => rpc("toggle_assigned_task", { p_id: id, p_done: !!done });
 async function delAssigned(id) {
   if (!await uiConfirm("Delete this task for this person? This can't be undone.")) return;
@@ -321,8 +389,7 @@ document.getElementById("assignForm").addEventListener("submit", async (e) => {
   b.disabled = false;
   if (!r.error) {
     document.getElementById("asTitle").value = ""; document.getElementById("asNote").value = ""; document.getElementById("asDue").value = ""; pickAll(false);
-    setDock(false);
-    msg(`Task set for ${r.data} ${r.data === 1 ? "person" : "people"}. They have been notified.`, "ok");
+        msg(`Task set for ${r.data} ${r.data === 1 ? "person" : "people"}. They have been notified.`, "ok");
   }
 });
 
@@ -336,33 +403,46 @@ function urgency(t, today) {
   return { pct, color, label, left };
 }
 
+function addTo(days) {
+  const d = new Date(dayNum(todayStr()) * 86400000 + days * 86400000).toISOString().slice(0, 10);
+  const el = document.getElementById("lgDue"); if (!el.value) el.value = d;
+  document.getElementById("lgTitle").focus();
+  document.getElementById("longForm").scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
 function render() {
   const today = todayStr();
-  // long-term
-  const open = TASKS.filter(t => t.kind === "long" && !t.done).sort((a, b) => a.due_date.localeCompare(b.due_date));
+  // long-term board: personal long-term tasks + open tasks set for me by a supervisor
+  const open = TASKS.filter(t => t.kind === "long" && !t.done);
   const done = TASKS.filter(t => t.kind === "long" && t.done).sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""));
-  document.getElementById("lgCount").textContent = `Open tasks (${open.length})`;
-  document.getElementById("lgEmpty").style.display = open.length ? "none" : "";
-  document.getElementById("lgList").innerHTML = open.map(t => {
-    const u = urgency(t, today);
-    return `<div class="tk-card" style="--tc:${u.color}">
-      <div class="tk-row">
-        <input type="checkbox" aria-label="Mark complete" onchange="toggle('${t.id}', this.checked)">
-        <div class="tk-main"><div class="tk-title">${escapeHtml(t.title)}</div>${t.note ? `<div class="tk-note">${escapeHtml(t.note)}</div>` : ""}</div>
-        <div class="tk-due"><div class="tk-left">${u.label}</div><div class="small">Due ${escapeHtml(fmtDate(t.due_date))}</div>
-          <div class="tk-actions"><button type="button" class="secondary" onclick="openEdit('${t.id}')">Edit</button><button type="button" class="secondary" onclick="del('${t.id}')">Delete</button></div></div>
-      </div>
-      <div class="tk-prog"><div class="tk-bar"><div class="tk-fill" data-pct="${u.pct}"></div></div><div class="tk-pct">${u.pct}% of time used</div></div>
-    </div>`;
-  }).join("");
-  document.getElementById("lgDoneBox").style.display = done.length ? "" : "none";
+  const setOpen = ASSIGNED.filter(t => t.assigned_to === PROFILE.id && !t.done);
+  const cols = { over: [], week: [], later: [] };
+  const lgCard = (t, own) => {
+    const u = dueInfo(t, today);
+    const left = u ? u.left : 999;
+    const c = u ? u.color : "#64748b";
+    (left < 0 ? cols.over : left <= 7 ? cols.week : cols.later).push({ t, html:
+      `<div class="bd-card" style="--tc:${c}">
+        <label class="bd-check"><input type="checkbox" aria-label="Mark complete" onchange="${own ? "toggle" : "toggleAssigned"}('${t.id}', this.checked)"><span class="bd-title">${escapeHtml(t.title)}</span></label>
+        ${t.note ? `<div class="bd-note">${escapeHtml(t.note)}</div>` : ""}
+        <div class="bd-meta">${chip(u)}${!own ? `<span class="bd-chip" style="--cc:var(--teal)">Set by ${escapeHtml(t.by_name)}</span>` : ""}</div>
+        ${t.due_date ? `<div class="bd-by">Due ${escapeHtml(fmtDate(t.due_date))}</div>` : ""}
+        ${bar(u)}
+        ${own ? `<div class="bd-act"><button type="button" class="secondary" onclick="openEdit('${t.id}')">Edit</button><button type="button" class="secondary" onclick="del('${t.id}')">Delete</button></div>` : ""}</div>` });
+  };
+  open.forEach(t => lgCard(t, true)); setOpen.forEach(t => lgCard(t, false));
+  const key = (x) => (x.t.due_date || "9999");
+  const put = (id, nid, arr) => { arr.sort((a, b) => key(a).localeCompare(key(b))); document.getElementById(id).innerHTML = arr.map(x => x.html).join("") || '<p class="small bd-none">Nothing here</p>'; document.getElementById(nid).textContent = arr.length; };
+  put("colOver", "nOver", cols.over); put("colWeek", "nWeek", cols.week); put("colLater", "nLater", cols.later);
+  const total = open.length + setOpen.length;
+  document.getElementById("lgCount").textContent = `Open tasks (${total})`;
+  document.getElementById("lgEmpty").style.display = total ? "none" : "";
   document.getElementById("lgDoneSum").textContent = `Completed (${done.length})`;
-  document.getElementById("lgDone").innerHTML = done.map(t => `<div class="tk-item done"><input type="checkbox" checked aria-label="Reopen" onchange="toggle('${t.id}', this.checked)"><span>${escapeHtml(t.title)}</span><button type="button" class="secondary" aria-label="Delete" onclick="del('${t.id}')">&times;</button></div>`).join("");
-  animateBars();
+  document.getElementById("nDone").textContent = done.length;
+  document.getElementById("lgDone").innerHTML = done.slice(0, 30).map(t => `<div class="bd-card is-done" style="--tc:#15803d"><label class="bd-check"><input type="checkbox" checked aria-label="Reopen" onchange="toggle('${t.id}', this.checked)"><span class="bd-title">${escapeHtml(t.title)}</span></label><div class="bd-act"><button type="button" class="secondary" aria-label="Delete" onclick="del('${t.id}')">Delete</button></div></div>`).join("") || '<p class="small bd-none">Nothing completed yet</p>';
 
-  // daily
+  // daily board
   const dts = TASKS.filter(t => t.kind === "daily");
-  const todays = dts.filter(t => t.task_date === today).sort((a, b) => Number(a.done) - Number(b.done) || a.created_at.localeCompare(b.created_at));
+  const todays = dts.filter(t => t.task_date === today).sort((a, b) => a.created_at.localeCompare(b.created_at));
   const stale = dts.filter(t => !t.done && t.task_date < today);
   const dn = todays.filter(t => t.done).length;
   document.getElementById("dyDate").textContent = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: TZ });
@@ -371,10 +451,19 @@ function render() {
   const carry = document.getElementById("dyCarry");
   if (stale.length) {
     carry.style.display = "";
-    carry.innerHTML = `<span><strong>${stale.length}</strong> unfinished task${stale.length === 1 ? "" : "s"} from earlier days.</span><button type="button" class="primary" onclick="carryOver(false)">Carry over to today</button><button type="button" class="secondary" onclick="carryOver(true)">Discard</button>`;
+    carry.innerHTML = `<button type="button" class="primary" onclick="carryOver(false)">Move to today</button><button type="button" class="secondary" onclick="carryOver(true)">Discard</button>`;
   } else carry.style.display = "none";
-  document.getElementById("dyEmpty").style.display = todays.length ? "none" : "";
-  document.getElementById("dyList").innerHTML = todays.map(t => `<div class="tk-item${t.done ? " done" : ""}"><input type="checkbox" ${t.done ? "checked" : ""} aria-label="Done" onchange="toggle('${t.id}', this.checked)"><span>${escapeHtml(t.title)}</span><button type="button" class="secondary" aria-label="Delete task" onclick="del('${t.id}')">&times;</button></div>`).join("");
+  document.getElementById("dyStale").innerHTML = stale.map(t => `<div class="bd-card" style="--tc:#b45309"><div class="bd-title">${escapeHtml(t.title)}</div><div class="bd-by">From ${escapeHtml(fmtDate(t.task_date))}</div></div>`).join("");
+  document.getElementById("dyStaleNone").style.display = stale.length ? "none" : "";
+  document.getElementById("nCarry").textContent = stale.length;
+  const dcard = (t) => `<div class="bd-card${t.done ? " is-done" : ""}" style="--tc:${t.done ? "#15803d" : "var(--teal)"}"><label class="bd-check"><input type="checkbox" ${t.done ? "checked" : ""} aria-label="Done" onchange="toggle('${t.id}', this.checked)"><span class="bd-title">${escapeHtml(t.title)}</span></label><div class="bd-act"><button type="button" class="secondary" aria-label="Delete task" onclick="del('${t.id}')">&times;</button></div></div>`;
+  const dopen = todays.filter(t => !t.done), ddone = todays.filter(t => t.done);
+  document.getElementById("dyList").innerHTML = dopen.map(dcard).join("");
+  document.getElementById("dyEmpty").style.display = dopen.length ? "none" : "";
+  document.getElementById("nToday").textContent = dopen.length;
+  document.getElementById("dyDoneList").innerHTML = ddone.map(dcard).join("") || '<p class="small bd-none">Nothing done yet</p>';
+  document.getElementById("nDyDone").textContent = ddone.length;
+  animateBars();
 }
 
 function animateBars() {
@@ -434,16 +523,6 @@ document.getElementById("editForm").addEventListener("submit", async (e) => {
   closeEdit(); await load();
 });
 
-// "Set a task" is docked to the bottom of the screen and expands when clicked.
-function setDock(open) {
-  const d = document.getElementById("setForm");
-  d.classList.toggle("open", open);
-  document.getElementById("dockBody").hidden = !open;
-  document.getElementById("dockHead").setAttribute("aria-expanded", String(open));
-  if (open) setTimeout(() => document.getElementById("asTitle").focus(), 0);
-}
-document.getElementById("dockHead").addEventListener("click", () => setDock(document.getElementById("dockBody").hidden));
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !document.getElementById("dockBody").hidden) setDock(false); });
 </script>
 </body>
 </html>
