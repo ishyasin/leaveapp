@@ -57,10 +57,14 @@
       D.overdue = lg.filter(x => x.due_date < today).length;
       D.week = lg.filter(x => x.due_date >= today && dayNum(x.due_date) - dayNum(today) <= 7).length;
       D.longOpen = lg.length;
+      const ln = t.filter(x => x.kind === "long");
+      D.longTotal = ln.length; D.longDone = ln.filter(x => x.done).length;
       const dy = t.filter(x => x.kind === "daily" && x.task_date === today);
       D.dailyTotal = dy.length; D.dailyDone = dy.filter(x => x.done).length;
       const as = await sb.rpc("get_assigned_tasks");
-      D.setOpen = as.error ? 0 : (as.data || []).filter(x => x.assigned_to === profile.id && !x.done).length;
+      const mine = as.error ? [] : (as.data || []).filter(x => x.assigned_to === profile.id);
+      D.setTotal = mine.length; D.setDone = mine.filter(x => x.done).length;
+      D.setOpen = mine.filter(x => !x.done).length;
       D.tasksOk = true;
     }));
     jobs.push(safe(async () => {
@@ -162,13 +166,13 @@
         : '<div class="dash-empty">No upcoming leave booked.</div>');
     }
     if (D.tasksOk) {
-      const pct = D.dailyTotal ? Math.round(D.dailyDone / D.dailyTotal * 100) : 0;
       const due = (D.overdue || 0) + (D.week || 0);
-      tile("tasks", 4, "tasks.html", "My tasks", due ? `${due} due soon` : "", `<div class="dash-ring" style="--p:${pct}" data-l="${D.dailyTotal ? pct + "%" : "0"}"></div>
-        <div class="dash-sub">Today ${D.dailyDone || 0} of ${D.dailyTotal || 0} done${D.overdue ? ` &middot; <strong class="dash-bad">${D.overdue} overdue</strong>` : ""}${D.setOpen ? ` &middot; ${D.setOpen} set for you` : ""}</div>`);
+      const ring = (label, done, total) => { const pct = total ? Math.round(done / total * 100) : 0;
+        return `<div class="dash-rw"><div class="dash-ring sm" style="--p:${pct}" data-l="${total ? pct + "%" : "0"}" role="img" aria-label="${label}: ${done} of ${total} done"></div><div class="dash-sub"><strong>${label}</strong><br>${done} of ${total}</div></div>`; };
+      tile("tasks", 4, "tasks.html", "My tasks", due ? `${due} due soon` : "", `<div class="dash-rings">${ring("Daily", D.dailyDone || 0, D.dailyTotal || 0)}${ring("Long term", D.longDone || 0, D.longTotal || 0)}${ring("Set for me", D.setDone || 0, D.setTotal || 0)}</div>${D.overdue ? `<div class="dash-sub" style="margin-top:8px"><strong class="dash-bad">${D.overdue} overdue</strong></div>` : ""}`);
     }
     // Row 2
-    if (D.shiftOk && isOncallPoolMember(profile)) {
+    if (D.shiftOk && (isOncallPoolMember(profile) || D.nextShift)) {
       const s = D.nextShift;
       tile("oncall", 4, "oncall.html", "Next on-call", "", s
         ? `<div class="dash-big" data-n="${Math.max(0, daysTo(s.shift_date, D.today))}">0</div><div class="dash-sub">${daysTo(s.shift_date, D.today) === 0 ? "day. You are on today" : "days until"} ${esc(fmt(s.shift_date))}<br>${esc(SITE_LABEL[s.site] || s.site)}, ${esc(s.duty_type === "on_call" ? "on-call" : "on-site")}</div>`

@@ -928,6 +928,10 @@ body.dash-open{overflow:hidden;}
 .dash-big{font-size:54px;font-weight:800;line-height:1;color:var(--heading-color);letter-spacing:-.03em;margin:4px 0;font-variant-numeric:tabular-nums;}
 .dash-ring{--p:0;width:86px;height:86px;border-radius:50%;background:conic-gradient(var(--teal) calc(var(--p) * 1%),var(--border) 0);display:grid;place-items:center;margin:4px 0 8px;}
 .dash-ring:after{content:attr(data-l);width:66px;height:66px;border-radius:50%;background:var(--surface-alt);display:grid;place-items:center;font-weight:800;font-size:18px;}
+.dash-rings{display:flex;gap:6px;justify-content:space-between;}
+.dash-rw{text-align:center;min-width:0;flex:1;}
+.dash-ring.sm{width:62px;height:62px;margin:4px auto 6px;}
+.dash-ring.sm:after{width:48px;height:48px;font-size:13px;}
 .dash-off{margin-bottom:8px;}
 .dash-post{margin:0 0 4px;font-weight:700;overflow-wrap:anywhere;}
 .dash-links{display:flex;gap:8px;flex-wrap:wrap;}
