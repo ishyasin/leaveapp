@@ -2696,6 +2696,7 @@ function renderTopbar(profile) {
   const themeHtml = themePickerHtml(profile);
   el.innerHTML = `
     <button type="button" id="navToggle" class="nav-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sideNav"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <a href="portal.html" class="home-btn" aria-label="Home" title="Home"${page === "portal.html" ? ' aria-current="page"' : ""}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></a>
     <div class="brand">
       Pharmacy Portal<small><a href="https://home.edandg.com/" target="_blank" rel="noopener noreferrer" class="brand-edg" title="ED&amp;G — home.edandg.com">by ED&amp;G&trade;</a></small>
     </div>

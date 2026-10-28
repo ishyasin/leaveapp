@@ -867,3 +867,11 @@ tr.user-actions-row td{padding:10px 12px 14px;background:var(--surface-subtle);b
 :root[data-theme="win98"] .nav-toggle{background:#c0c0c0;color:#000;}
 @media (max-width:720px){.page-title{font-size:17px;}.brand{display:none;}}
 @media print{.side-nav,.side-edge,.side-handle{display:none !important;}}
+
+/* Quick-access Home button, next to the navigation button */
+.home-btn{display:grid;place-items:center;width:38px;height:38px;margin-left:-14px;border:1px solid var(--border);border-radius:8px;color:var(--heading-color);background:none;text-decoration:none;}
+.home-btn:hover{border-color:var(--heading-color);background:var(--surface-alt);}
+.home-btn[aria-current="page"]{background:var(--surface-alt);}
+.home-btn:focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+:root[data-theme="win98"] .home-btn{background:#c0c0c0;color:#000;border:2px solid;border-color:#fff #404040 #404040 #fff;}
+@media (max-width:720px){.home-btn{margin-left:-6px;}}
