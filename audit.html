@@ -15,6 +15,18 @@
 </script>
 <link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<style>
+  .au-bar{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin:8px 0;}
+  .au-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .au-chips{display:flex;gap:6px;flex-wrap:wrap;}
+  .au-chips button{width:auto;margin:0;padding:4px 14px;font-size:13px;border-radius:999px;background:var(--surface);border:1px solid var(--border);color:inherit;cursor:pointer;}
+  .au-chips button.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:800;}
+  .au-day h3{margin:16px 0 8px;font-size:15px;}
+  .au-line{border-left:3px solid var(--border);margin-left:6px;padding-left:18px;display:flex;flex-direction:column;gap:12px;}
+  .au-ev{position:relative;}
+  .au-ev:before{content:"";position:absolute;left:-26px;top:5px;width:11px;height:11px;border-radius:50%;background:var(--ec,#64748b);border:2px solid var(--surface);}
+  .au-n{font-size:13px;opacity:.85;overflow-wrap:anywhere;}
+</style>
 </head>
 <body>
 <div class="topbar" id="topbar"></div>
@@ -22,9 +34,15 @@
   <div class="card">
     <h1>Audit Trail</h1>
     <p class="small">Every create, approve, reject, edit, unapprove, delete, and admin action is logged here permanently.</p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
-      <select id="actionFilter" style="width:200px;">
-        <option value="">All actions</option>
+    <div class="au-bar">
+      <div class="au-chips" id="auCats" role="group" aria-label="Category">
+        <button type="button" class="on" data-c="">All actions</button><button type="button" data-c="leave">Leave</button><button type="button" data-c="users">Users</button><button type="button" data-c="settings">Settings</button><button type="button" data-c="oncall">On-call</button><button type="button" data-c="team">Huddle &amp; links</button>
+      </div>
+      <div class="au-tools">
+        <input type="search" id="auSearch" placeholder="Search who or note…" aria-label="Search" style="margin:0;width:200px;">
+        <select id="auRange" aria-label="Date range" style="width:auto;margin:0;" onchange="load()"><option value="1">Last 24 hours</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option><option value="">All time</option></select>
+      <select id="actionFilter" style="width:auto;max-width:240px;margin:0;" onchange="load()">
+        <option value="">Any action</option>
         <option value="create_leave">Create leave</option>
         <option value="approve">Approve</option>
         <option value="reject">Reject</option>
@@ -89,13 +107,12 @@
         <option value="update_quick_link">Update quick link</option>
         <option value="delete_quick_link">Delete quick link</option>
       </select>
-      <button class="secondary" onclick="load()">Filter</button>
+        <button type="button" class="secondary" style="width:auto;margin:0;" onclick="exportCsv()">Export filtered</button>
+      </div>
     </div>
     <div id="msg"></div>
-    <table>
-      <thead><tr><th>When</th><th>Action</th><th>Actor</th><th>Person Affected</th><th>Note</th></tr></thead>
-      <tbody id="rows"></tbody>
-    </table>
+    <p class="small" id="auCount"></p>
+    <div id="auTimeline" class="au-tl"></div>
   </div>
 
   <div class="card" id="clearLogsCard" style="display:none;">
@@ -141,23 +158,63 @@ function nameFor(id) {
   return p ? `${p.full_name} (${p.initials})` : (id ? id.slice(0, 8) : "system");
 }
 
+const AU_CATS = {
+  leave: a => ["create_leave", "approve", "reject", "edit", "amend_leave_ranges", "unapprove", "delete", "import_historical_leave"].includes(a),
+  users: a => /user|invit|password/.test(a) && !a.includes("oncall"),
+  settings: a => /restricted_day|capacity|bank_holiday|rota_complete|dsr_complete|easter_egg|reset_app_data|clear_audit_log/.test(a) && !a.includes("oncall"),
+  oncall: a => a.includes("oncall"),
+  team: a => /huddle|quick_link/.test(a),
+};
+let AU_ROWS = [], AU_CAT = "", AU_SHOWN = [];
+const AU_COLOR = { leave: "#0f7d8a", users: "#b45309", settings: "#6a1b9a", oncall: "#15803d", team: "#2563eb" };
+const auCat = (a) => Object.keys(AU_CATS).find(k => AU_CATS[k](a)) || "settings";
+const auLabel = (a) => a.replace(/_/g, " ").replace(/^./, c => c.toUpperCase());
+document.getElementById("auCats").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-c]"); if (!b) return;
+  AU_CAT = b.dataset.c; document.querySelectorAll("#auCats button").forEach(x => x.classList.toggle("on", x === b)); renderAudit();
+});
+document.getElementById("auSearch").addEventListener("input", () => renderAudit());
+
 async function load() {
   let q = sb.from("audit_log").select("*").order("created_at", { ascending: false }).limit(500);
   const filter = document.getElementById("actionFilter").value;
   if (filter) q = q.eq("action", filter);
+  const days = document.getElementById("auRange").value;
+  if (days) q = q.gte("created_at", new Date(Date.now() - Number(days) * 86400000).toISOString());
   const { data, error } = await q;
-  const tbody = document.getElementById("rows");
   if (error) { showMsg(document.getElementById("msg"), error.message, "error"); return; }
+  AU_ROWS = data || [];
+  renderAudit();
+}
 
-  tbody.innerHTML = (data || []).map(a => `
-    <tr>
-      <td class="small">${fmtDateTime(a.created_at)}</td>
-      <td><span class="badge study">${a.action}</span></td>
-      <td>${escapeHtml(nameFor(a.actor_id))}</td>
-      <td>${a.target_user_id ? escapeHtml(nameFor(a.target_user_id)) : ""}</td>
-      <td class="small">${escapeHtml(a.note || "")}</td>
-    </tr>
-  `).join("");
+function renderAudit() {
+  const term = document.getElementById("auSearch").value.trim().toLowerCase();
+  AU_SHOWN = AU_ROWS.filter(a => (!AU_CAT || AU_CATS[AU_CAT](a.action)) &&
+    (!term || (nameFor(a.actor_id) + " " + (a.target_user_id ? nameFor(a.target_user_id) : "") + " " + (a.note || "") + " " + a.action).toLowerCase().includes(term)));
+  document.getElementById("auCount").textContent = `${AU_SHOWN.length} entr${AU_SHOWN.length === 1 ? "y" : "ies"}` + (AU_ROWS.length >= 500 ? " (latest 500 loaded — narrow the date range for older entries)" : "");
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const yest = new Date(Date.now() - 86400000).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const groups = new Map();
+  AU_SHOWN.forEach(a => {
+    const d = new Date(a.created_at).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+    (groups.get(d) || groups.set(d, []).get(d)).push(a);
+  });
+  document.getElementById("auTimeline").innerHTML = [...groups.entries()].map(([d, arr]) => `
+    <div class="au-day"><h3>${d === today ? "Today" : d === yest ? "Yesterday" : escapeHtml(fmtDate(d))}</h3>
+      <div class="au-line">${arr.map(a => `<div class="au-ev" style="--ec:${AU_COLOR[auCat(a.action)] || "#64748b"}">
+        <div class="au-t"><strong>${escapeHtml(nameFor(a.actor_id))}</strong> <span class="badge study" style="background:var(--ec)">${escapeHtml(auLabel(a.action))}</span>${a.target_user_id ? ` &rarr; ${escapeHtml(nameFor(a.target_user_id))}` : ""}</div>
+        ${a.note ? `<div class="au-n">${escapeHtml(a.note)}</div>` : ""}
+        <div class="small">${escapeHtml(fmtDateTime(a.created_at))}</div></div>`).join("")}</div></div>`).join("") || '<p class="small">No entries match.</p>';
+}
+
+function exportCsv() {
+  const q = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""').replace(/^([=+\-@])/, "'$1")}"`;
+  const lines = [["When", "Action", "Actor", "Person affected", "Note"].map(q).join(",")].concat(
+    AU_SHOWN.map(a => [a.created_at, a.action, nameFor(a.actor_id), a.target_user_id ? nameFor(a.target_user_id) : "", a.note || ""].map(q).join(",")));
+  const blob = new Blob([lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob), el = document.createElement("a");
+  el.href = url; el.download = `audit-${new Date().toISOString().slice(0, 10)}.csv`; document.body.appendChild(el); el.click(); el.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /* ---------------- Clear all logs (Developer only) ---------------- */

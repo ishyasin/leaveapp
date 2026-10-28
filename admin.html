@@ -16,26 +16,42 @@
 <link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  .wrap{display:grid;grid-template-columns:230px minmax(0,1fr);gap:18px;align-items:start;max-width:1280px;}
+  .wrap>*{grid-column:2;min-width:0;}
+  .wrap>.ad-nav{grid-column:1;grid-row:1 / span 40;position:sticky;top:76px;align-self:start;display:flex;flex-direction:column;gap:2px;background:var(--navy);color:#fff;border-radius:14px;padding:12px 10px;}
+  .ad-head{margin:12px 10px 4px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.6;font-weight:700;}
+  .ad-head:first-child{margin-top:2px;}
+  .ad-nav button{width:100%;margin:0;text-align:left;background:transparent;border:0;color:#fff;padding:8px 10px;border-radius:8px;font-size:14px;cursor:pointer;}
+  .ad-nav button:hover{background:rgba(255,255,255,.12);}
+  .ad-nav button.active{background:rgba(255,255,255,.2);font-weight:800;box-shadow:inset 3px 0 0 var(--honey);}
+  @media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr);}.wrap>*{grid-column:1;}.wrap>.ad-nav{grid-row:auto;position:static;flex-direction:row;flex-wrap:wrap;}.ad-head{display:none !important;}.ad-nav button{width:auto;}}
+</style>
 </head>
 <body>
 <div class="topbar" id="topbar"></div>
 <div class="wrap">
 
-  <div class="tabs">
+  <nav class="ad-nav" id="adNav" aria-label="Admin sections">
+    <h4 class="ad-head">People</h4>
     <button class="active" id="tabBtn-users" onclick="showTab('users')">Users</button>
+    <button id="tabBtn-leave" onclick="showTab('leave')">Leave Records</button>
+    <h4 class="ad-head">Leave rules</h4>
     <button id="tabBtn-holidays" onclick="showTab('holidays')">Bank Holidays</button>
     <button id="tabBtn-restricted" onclick="showTab('restricted')">Restricted Days</button>
     <button id="tabBtn-capacity" onclick="showTab('capacity')">Leave Capacity</button>
+    <h4 class="ad-head">On-call</h4>
     <button id="tabBtn-oncall" onclick="showTab('oncall')">On-Call Settings</button>
+    <h4 class="ad-head">System</h4>
     <button id="tabBtn-backup" onclick="showTab('backup')">Daily Backup</button>
-    <button id="tabBtn-leave" onclick="showTab('leave')">Leave Records</button>
+    <button id="tabBtn-appearance" onclick="showTab('appearance')" style="display:none;">Appearance</button>
+    <button id="tabBtn-privacy" onclick="showTab('privacy')" style="display:none;">Privacy Notice</button>
     <button id="tabBtn-import" onclick="showTab('import')" style="display:none;">Import Historical Leave</button>
     <button id="tabBtn-reset" onclick="showTab('reset')" style="display:none;">Reset Data</button>
-    <button id="tabBtn-appearance" onclick="showTab('appearance')" style="display:none;">Appearance</button>
+    <h4 class="ad-head">Developer</h4>
     <button id="tabBtn-egg" onclick="showTab('egg')" style="display:none;">Easter Egg 1</button>
     <button id="tabBtn-egg2" onclick="showTab('egg2')" style="display:none;">Easter Egg 2</button>
-    <button id="tabBtn-privacy" onclick="showTab('privacy')" style="display:none;">Privacy Notice</button>
-  </div>
+  </nav>
 
   <!-- USERS -->
   <div id="tab-users">
@@ -768,6 +784,7 @@ let PROFILES = [];
   // Appearance (apply a theme to everyone / by month): Clinical Team Lead and Developer.
   document.getElementById("tabBtn-appearance").style.display = "";
   setupBulkThemeTab();
+  syncNavHeads();
   setupRoleOptions();
   setupInviteRoles();
   generateTempPw();
@@ -790,7 +807,15 @@ let PROFILES = [];
   if (location.hash === "#backup") showTab("backup");
 })();
 
+function syncNavHeads() {
+  document.querySelectorAll("#adNav .ad-head").forEach(h => {
+    let n = h.nextElementSibling, any = false;
+    while (n && n.tagName === "BUTTON") { if (n.style.display !== "none") any = true; n = n.nextElementSibling; }
+    h.style.display = any ? "" : "none";
+  });
+}
 function showTab(name) {
+  syncNavHeads();
   ["users","holidays","restricted","capacity","oncall","backup","leave","import","reset","appearance","egg","egg2","privacy"].forEach(t => {
     document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
     document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);

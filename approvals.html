@@ -43,6 +43,9 @@
   .ap-by{font-size:12px;opacity:.7;margin-top:6px;overflow-wrap:anywhere;}
   .ap-act{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
   .ap-act button{width:auto;margin:0;padding:4px 12px;font-size:13px;}
+  .ap-group{cursor:pointer;}
+  .grp-day{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--border);}
+  .grp-day.flag{border-left:4px solid #b45309;padding-left:8px;}
   @media (max-width:900px){.ap-grid{grid-template-columns:minmax(0,1fr);}}
 </style>
 </head>
@@ -52,7 +55,7 @@
   <div class="ap-wrap">
     <div class="ap-top">
       <h1 style="margin:0;">Leave approvals</h1>
-      <div class="ap-tools"><div class="ap-chips" id="apChips" role="group" aria-label="Filter by person"></div>
+      <div class="ap-tools"><select id="apPerson" aria-label="Filter by person" style="display:none;width:auto;margin:0;min-width:200px;"></select>
         <button type="button" class="primary" id="apBulk" disabled onclick="bulkApprove()">Approve selected (0)</button></div>
     </div>
     <div id="msg"></div>
@@ -62,6 +65,15 @@
       <section class="ap-col" aria-label="Approved"><header><h3><i style="background:#15803d"></i>Approved <b id="nAppr">0</b></h3><span class="small">last 14 days</span></header><div id="colAppr" class="ap-list"></div></section>
       <section class="ap-col" aria-label="Declined"><header><h3><i style="background:#b91c1c"></i>Declined <b id="nRej">0</b></h3><span class="small">last 14 days</span></header><div id="colRej" class="ap-list"></div></section>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="grpOverlay" style="display:none;" onclick="if(event.target===this)closeGroup()">
+  <div class="modal modal-wide">
+    <h3 id="grpTitle">Multiple dates</h3>
+    <p class="small">Action days one at a time. Approving or rejecting every day closes this window.</p>
+    <div id="grpBody"></div>
+    <div class="modal-actions"><button type="button" class="secondary" onclick="closeGroup()">Close</button></div>
   </div>
 </div>
 
@@ -175,7 +187,7 @@ async function load() {
   clashEl.innerHTML = "";
 
   if (error) { showMsg(document.getElementById("msg"), error.message, "error"); return; }
-  if (!data || data.length === 0) { PENDING = []; empty.style.display = ""; document.getElementById("nPend").textContent = 0; renderChips(); await loadDecided(); return; }
+  if (!data || data.length === 0) { PENDING = []; empty.style.display = ""; document.getElementById("nPend").textContent = 0; renderChips(); renderGroup(); await loadDecided(); return; }
   empty.style.display = "none";
   PENDING = data;
 
@@ -225,7 +237,24 @@ async function load() {
     }).join("");
   }
 
+  data.forEach(r => {
+    const tp = PROFILES.find(p => p.id === r.user_id);
+    r._blocked = !canProcessLeaveForRole(PROFILE, tp);
+    r._restrictionFlag = restrictionFlagFor(r, ctx);
+    r._stacked = stackedFor(r, ctx);
+    r._bulkOk = !r._blocked && !r._restrictionFlag && r.leave_type !== "toil_part_day";
+  });
+  // A range of dates requested together (same person, same moment, same type) becomes ONE tile.
+  const gKey = (x) => [x.user_id, x.requested_at, x.leave_type].join("|");
+  const gCount = {}; data.forEach(x => { gCount[gKey(x)] = (gCount[gKey(x)] || 0) + 1; });
+  const gDone = new Set();
   data.forEach((r, index) => {
+    if (gCount[gKey(r)] > 1) {
+      if (gDone.has(gKey(r))) return;
+      gDone.add(gKey(r));
+      colPend.appendChild(groupCard(data.filter(x => gKey(x) === gKey(r)), index));
+      return;
+    }
     const targetProfile = PROFILES.find(p => p.id === r.user_id);
     const blocked = !canProcessLeaveForRole(PROFILE, targetProfile);
     const clashCount = byDate[r.leave_date].length;
@@ -268,8 +297,9 @@ async function load() {
       </div>`;
     colPend.appendChild(card);
   });
-  document.getElementById("nPend").textContent = data.length;
+  document.getElementById("nPend").textContent = colPend.children.length;
   renderChips();
+  renderGroup();
   await loadDecided();
 }
 
@@ -277,19 +307,22 @@ let AP_FILTER = "";
 function renderChips() {
   const ids = [...new Set(PENDING.map(r => r.user_id))];
   if (AP_FILTER && !ids.includes(AP_FILTER)) AP_FILTER = "";
-  document.getElementById("apChips").innerHTML = ids.length > 1
-    ? `<button type="button" class="${AP_FILTER ? "" : "on"}" data-u="">Everyone</button>` + ids.map(id => `<button type="button" class="${AP_FILTER === id ? "on" : ""}" data-u="${id}">${escapeHtml(nameFor(id))}</button>`).join("") : "";
+  const sel = document.getElementById("apPerson");
+  sel.style.display = ids.length > 1 ? "" : "none";
+  sel.innerHTML = '<option value="">Everyone</option>' + ids.map(id => `<option value="${id}">${escapeHtml(nameFor(id))}</option>`).join("");
+  sel.value = AP_FILTER;
   applyFilter();
 }
 function applyFilter() {
   document.querySelectorAll("#colPend .ap-card").forEach(c => { c.style.display = !AP_FILTER || c.dataset.user === AP_FILTER ? "" : "none"; });
   updBulk();
 }
+const selIds = () => [...document.querySelectorAll("#colPend .ap-sel:checked")].flatMap(i => (i.dataset.ids || i.dataset.id).split(","));
 function updBulk() {
-  const n = document.querySelectorAll("#colPend .ap-sel:checked").length;
+  const n = selIds().length;
   const b = document.getElementById("apBulk"); b.disabled = !n; b.textContent = `Approve selected (${n})`;
 }
-document.addEventListener("click", (e) => { const b = e.target.closest("#apChips button"); if (b) { AP_FILTER = b.dataset.u; renderChips(); } });
+document.getElementById("apPerson").addEventListener("change", (e) => { AP_FILTER = e.target.value; applyFilter(); });
 document.addEventListener("change", (e) => { if (e.target.classList && e.target.classList.contains("ap-sel")) updBulk(); });
 
 // Recently decided requests (last 14 days) fill the Approved / Declined columns.
@@ -308,8 +341,82 @@ async function loadDecided() {
   document.getElementById("nAppr").textContent = ap.length; document.getElementById("nRej").textContent = rj.length;
 }
 
+function groupMembers(key) { return PENDING.filter(x => [x.user_id, x.requested_at, x.leave_type].join("|") === key).sort((a, b) => a.leave_date.localeCompare(b.leave_date)); }
+function dayLabel(iso) { return new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }); }
+function groupCard(g, index) {
+  g = g.slice().sort((a, b) => a.leave_date.localeCompare(b.leave_date));
+  const r = g[0], last = g[g.length - 1];
+  const key = [r.user_id, r.requested_at, r.leave_type].join("|");
+  const flagged = g.filter(x => x._restrictionFlag).length;
+  const blocked = g.some(x => x._blocked);
+  const allOk = g.every(x => x._bulkOk);
+  const card = document.createElement("div");
+  card.className = "ap-card ap-group" + (flagged ? " flag" : "");
+  card.dataset.user = r.user_id; card.dataset.key = key; card.tabIndex = 0;
+  card.innerHTML = `
+    <div class="ap-row"><input type="checkbox" class="ap-sel" data-ids="${g.map(x => x.id).join(",")}" aria-label="Select ${escapeHtml(nameFor(r.user_id))}" ${allOk ? "" : "disabled"}>
+      <div class="ap-main"><div class="ap-name">${escapeHtml(nameFor(r.user_id))}</div>
+        <div class="ap-sub">${dayLabel(r.leave_date)} &ndash; ${dayLabel(last.leave_date)} ${new Date(last.leave_date + "T12:00:00Z").getUTCFullYear()} &middot; ${g.length} days &middot; ${LEAVE_TYPE_LABEL[r.leave_type]}</div></div>
+      <span class="badge study" title="Order applied for">${ordinalLabel(index + 1)}</span></div>
+    <div class="ap-tags"><span class="badge pending">Multiple dates</span>
+      ${g.some(x => x._stacked) ? `<span class="badge pending">Additional request</span>` : ""}
+      ${r.requested_by && r.requested_by !== r.user_id ? `<span class="badge study">Allocated</span>` : ""}</div>
+    ${flagged ? `<div class="ap-warn">&#9888; ${flagged} of ${g.length} days flagged (restricted / at capacity)</div>` : ""}
+    <div class="ap-by">Requested ${fmtDateTime(r.requested_at)} by ${escapeHtml(nameFor(r.requested_by))}</div>
+    <div class="ap-act">${blocked ? '<span class="small">Awaiting another approver</span>' : `<button class="primary" data-g="approve">Approve all</button><button class="danger" data-g="reject">Reject all</button>`}
+      <button class="secondary" data-g="open">View days</button></div>`;
+  return card;
+}
+let OPEN_GRP = null;
+document.addEventListener("click", (e) => {
+  const c = e.target.closest(".ap-group"); if (!c || e.target.closest(".ap-sel")) return;
+  const btn = e.target.closest("button[data-g]");
+  const act = btn ? btn.dataset.g : "open";
+  if (act === "approve") groupApprove(c.dataset.key); else if (act === "reject") groupReject(c.dataset.key); else openGroup(c.dataset.key);
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.classList && e.target.classList.contains("ap-group")) openGroup(e.target.dataset.key); if (e.key === "Escape") closeGroup(); });
+function openGroup(key) { OPEN_GRP = key; renderGroup(); }
+function closeGroup() { OPEN_GRP = null; document.getElementById("grpOverlay").style.display = "none"; }
+function renderGroup() {
+  const ov = document.getElementById("grpOverlay");
+  if (!OPEN_GRP) { ov.style.display = "none"; return; }
+  const g = groupMembers(OPEN_GRP);
+  if (!g.length) { closeGroup(); return; }
+  document.getElementById("grpTitle").textContent = `${nameFor(g[0].user_id)} — ${g.length} day${g.length === 1 ? "" : "s"} pending`;
+  document.getElementById("grpBody").innerHTML = g.map(r => `<div class="grp-day${r._restrictionFlag ? " flag" : ""}">
+      <div class="grp-d"><strong>${escapeHtml(fmtDate(r.leave_date))}</strong><div class="small">${escapeHtml(LEAVE_TYPE_LABEL[r.leave_type])}${r.leave_type === "toil_part_day" && r.toil_ranges && r.toil_ranges.length ? " (" + escapeHtml(formatToilRanges(r.toil_ranges)) + ")" : ""}${r._restrictionFlag ? ` &middot; <span style="color:#b45309;font-weight:700;">&#9888; ${escapeHtml(restrictionLabel(r._restrictionFlag))}</span>` : ""}</div></div>
+      <div class="ap-act" style="margin:0;">${r._blocked ? '<span class="small">Awaiting another approver</span>' : `<button class="primary" onclick="approve('${r.id}')">Approve</button><button class="danger" onclick="reject('${r.id}')">Reject</button>
+        ${r.leave_type === "full_day" ? `<button class="secondary" onclick="doSplitLeave('${r.id}')">Split: AL + TOIL</button>` : ""}
+        ${r.leave_type !== "full_day_split" && !isPharmacyAdmin(PROFILE) ? `<button class="secondary" onclick="doChangeType('${r.id}')">Change type / times</button>` : ""}`}</div></div>`).join("");
+  ov.style.display = "flex";
+}
+async function groupApprove(key) {
+  const g = groupMembers(key); if (!g.length) return;
+  const flagged = g.filter(x => x._restrictionFlag).length;
+  const note = await uiPrompt(`Approve all ${g.length} days for ${nameFor(g[0].user_id)}?${flagged ? `\n\n${flagged} of these days are flagged (restricted / at capacity) — check rota capacity first.` : ""}${g[0].leave_type === "toil_part_day" ? "\n\nThe requested TOIL times will be confirmed as agreed." : ""}\n\nOptional note — only other approvers can see it:`,
+    "", { type: "textarea", title: "Approve all days", okLabel: "Approve " + g.length });
+  if (note === null) return;
+  const msg = document.getElementById("msg"); let bad = 0;
+  for (const r of g) {
+    const { error } = await sb.rpc("approve_leave", { p_leave_id: r.id, p_note: r.leave_type === "toil_part_day" ? formatToilRanges(r.toil_ranges) : null, p_approver_note: note.trim() || null });
+    if (error) { bad++; showMsg(msg, error.message, "error"); }
+  }
+  await load(); if (!bad) showMsg(msg, `${g.length} days approved.`, "ok");
+}
+async function groupReject(key) {
+  const g = groupMembers(key); if (!g.length) return;
+  const reason = await uiPrompt(`Reason for rejecting all ${g.length} days for ${nameFor(g[0].user_id)}:`, "", { required: true, title: "Reject all days" });
+  if (reason === null) return;
+  const msg = document.getElementById("msg"); let bad = 0;
+  for (const r of g) {
+    const { error } = await sb.rpc("reject_leave", { p_leave_id: r.id, p_reason: reason });
+    if (error) { bad++; showMsg(msg, error.message, "error"); }
+  }
+  await load(); if (!bad) showMsg(msg, `${g.length} days rejected.`, "ok");
+}
+
 async function bulkApprove() {
-  const ids = [...document.querySelectorAll("#colPend .ap-sel:checked")].map(i => i.dataset.id);
+  const ids = selIds();
   if (!ids.length) return;
   const note = await uiPrompt(`Approve ${ids.length} request${ids.length === 1 ? "" : "s"}? Days flagged as restricted, and part-day TOIL, can't be bulk approved.\n\nOptional note — only other approvers can see it:`,
     "", { type: "textarea", title: "Approve selected", okLabel: "Approve " + ids.length });

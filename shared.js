@@ -2795,8 +2795,12 @@ function buildSideNav(links, subLinks, page) {
   const tog = document.getElementById("navToggle");
   let openT = null, closeT = null, pinned = false;
   const setOpen = (v) => { nav.classList.toggle("open", v); handle.classList.toggle("gone", v); tog.setAttribute("aria-expanded", String(v)); };
-  edge.addEventListener("mousemove", () => { if (nav.classList.contains("open") || openT) return; clearTimeout(closeT); closeT = null; openT = setTimeout(() => { openT = null; setOpen(true); }, 90); });
-  edge.addEventListener("mouseleave", () => { clearTimeout(openT); openT = null; });
+  // Hot zone: the left 40px of the window (tracked on the document, so page content underneath stays clickable).
+  document.addEventListener("mousemove", (e) => {
+    if (e.clientX <= 40 && !nav.classList.contains("open")) {
+      if (!openT) { clearTimeout(closeT); closeT = null; openT = setTimeout(() => { openT = null; setOpen(true); }, 35); }
+    } else if (openT) { clearTimeout(openT); openT = null; }
+  });
   // Close shortly after the pointer leaves the column (tracked on the document so it works even when
   // the pointer never "entered" the column because it was already resting on the edge).
   document.addEventListener("mousemove", (e) => {
@@ -3065,10 +3069,19 @@ function paintNotifications() {
   const panel = document.getElementById("notifPanel");
   if (panel && panel.style.display !== "none") renderNotifPanel();
 }
+function notifIcon(kind) {
+  const k = String(kind || "");
+  const [ch, col] = /task/.test(k) ? ["T", "#0f7d8a"] : /leave|approv|reject/.test(k) ? ["L", "#15803d"] : /swap|oncall|on_call/.test(k) ? ["O", "#b45309"] : /huddle/.test(k) ? ["H", "#2563eb"] : ["i", "#64748b"];
+  return `<span class="notif-ico" style="background:${col}" aria-hidden="true">${ch}</span>`;
+}
 function renderNotifPanel() {
   const panel = document.getElementById("notifPanel");
-  const rows = NOTIFS.map(n => `<button type="button" class="notif-item${n.read_at ? "" : " unread"}" data-id="${n.id}" data-link="${escapeHtml(n.link || "")}">
-      <span class="notif-dot" aria-hidden="true"></span><span class="notif-text"><strong>${escapeHtml(n.title)}</strong><span>${escapeHtml(n.body || "")}</span><em>${escapeHtml(timeAgo(n.created_at))}</em></span></button>`).join("");
+  const todayKey = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const item = (n) => `<button type="button" class="notif-item${n.read_at ? "" : " unread"}" data-id="${n.id}" data-link="${escapeHtml(n.link || "")}">
+      ${notifIcon(n.kind)}<span class="notif-text"><strong>${escapeHtml(n.title)}</strong><span>${escapeHtml(n.body || "")}</span><em>${escapeHtml(timeAgo(n.created_at))}</em></span>${n.read_at ? "" : '<span class="notif-dot" aria-label="Unread"></span>'}</button>`;
+  const isToday = (n) => new Date(n.created_at).toLocaleDateString("en-CA", { timeZone: "Europe/London" }) === todayKey;
+  const td = NOTIFS.filter(isToday), ea = NOTIFS.filter(n => !isToday(n));
+  const rows = (td.length ? `<div class="notif-group">Today</div>` + td.map(item).join("") : "") + (ea.length ? `<div class="notif-group">Earlier</div>` + ea.map(item).join("") : "");
   panel.innerHTML = `<div class="notif-head"><strong>Notifications</strong>
       <span><button type="button" class="notif-link" data-act="readall">Mark all read</button><button type="button" class="notif-link" data-act="clear">Clear all</button></span></div>
     <div class="notif-list">${rows || '<div class="notif-empty">You\'re all caught up.</div>'}</div>`;
