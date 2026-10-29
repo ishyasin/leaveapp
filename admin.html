@@ -470,7 +470,7 @@
   <div id="tab-egg" style="display:none;">
     <div class="card">
       <h2>Easter egg 1: Portal Defence</h2>
-      <p class="small">Developer only. A hidden full-screen game, opened from the portal home page. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, anyone signed in who types the secret code on the home page and presses Enter opens it. Only you can switch it on or off or change the code. The code is stored only as a salted hash: it can never be read back, so if it is forgotten, set a new one. Changing the code stops the old one working straight away. Every change is written to the audit log (never the code itself).</p>
+      <p class="small">Developer only. A hidden full-screen game, opened from the portal home page. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, anyone signed in who types the secret code on the home page and presses Enter opens it. Only you can switch it on or off or change the code. The current code is shown below (visible to the Developer only), so it can always be looked up. Changing the code stops the old one working straight away. Every change is written to the audit log (never the code itself).</p>
       <div id="eggMsg"></div>
       <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="eggStatus">loading…</span><br><span class="small" id="eggMeta"></span></p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -482,10 +482,9 @@
       <h2>Secret code</h2>
       <form id="eggForm" autocomplete="off">
         <label for="eggCode">New code</label>
-        <input type="password" id="eggCode" autocomplete="new-password" maxlength="40" placeholder="4 to 40 characters">
-        <label for="eggCode2">Type it again</label>
-        <input type="password" id="eggCode2" autocomplete="new-password" maxlength="40">
-        <label class="small" style="display:flex;gap:6px;align-items:center;margin-top:6px;"><input type="checkbox" id="eggShow" style="width:auto;"> Show what I type</label>
+        <input type="text" id="eggCode" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="eggCode2">
+        <input type="checkbox" id="eggShow" style="display:none;">
         <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess. Saving a code does not change whether the egg is on or off.</p>
         <div style="margin-top:14px;"><button type="submit" class="primary" id="eggSaveBtn">Save new code</button></div>
       </form>
@@ -497,7 +496,7 @@
   <div id="tab-egg2" style="display:none;">
     <div class="card">
       <h2>Easter egg 2: Tile Defence</h2>
-      <p class="small">Developer only. A second hidden game that plays on top of the portal home page: virus bots try to eat the tiles and reach the portal while GRAEMe defends it. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, anyone signed in who types the secret code on the home page and presses Enter opens it. Only you can switch it on or off or change the code. The code is stored only as a salted hash: it can never be read back, so if it is forgotten, set a new one. Changing the code stops the old one working straight away. Every change is written to the audit log (never the code itself).</p>
+      <p class="small">Developer only. A second hidden game that plays on top of the portal home page: virus bots try to eat the tiles and reach the portal while GRAEMe defends it. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, anyone signed in who types the secret code on the home page and presses Enter opens it. Only you can switch it on or off or change the code. The current code is shown below (visible to the Developer only), so it can always be looked up. Changing the code stops the old one working straight away. Every change is written to the audit log (never the code itself).</p>
       <div id="egg2Msg"></div>
       <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg2Status">loading…</span><br><span class="small" id="egg2Meta"></span></p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -509,10 +508,9 @@
       <h2>Secret code</h2>
       <form id="egg2Form" autocomplete="off">
         <label for="egg2Code">New code</label>
-        <input type="password" id="egg2Code" autocomplete="new-password" maxlength="40" placeholder="4 to 40 characters">
-        <label for="egg2Code2">Type it again</label>
-        <input type="password" id="egg2Code2" autocomplete="new-password" maxlength="40">
-        <label class="small" style="display:flex;gap:6px;align-items:center;margin-top:6px;"><input type="checkbox" id="egg2Show" style="width:auto;"> Show what I type</label>
+        <input type="text" id="egg2Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg2Code2">
+        <input type="checkbox" id="egg2Show" style="display:none;">
         <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the code for Easter Egg 1 (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
         <div style="margin-top:14px;"><button type="submit" class="primary" id="egg2SaveBtn">Save new code</button></div>
       </form>
@@ -523,7 +521,7 @@
   <div id="tab-egg3" style="display:none;">
     <div class="card">
       <h2>Easter egg 3: Portal Defence: Payback</h2>
-      <p class="small">Developer only. A third hidden game, a first-person rail shooter: GRAEMe drives down a road through the internet firing a mounted machine gun at the evil bot farm, with a boss at the end of each level. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, anyone signed in who types the secret code on the home page and presses Enter opens it. Only you can switch it on or off or change the code. The code is stored only as a salted hash: it can never be read back, so if it is forgotten, set a new one. Changing the code stops the old one working straight away. Every change is written to the audit log (never the code itself).</p>
+      <p class="small">Developer only. A third hidden game, a first-person rail shooter: GRAEMe drives down a road through the internet firing a mounted machine gun at the evil bot farm, with a boss at the end of each level. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, anyone signed in who types the secret code on the home page and presses Enter opens it. Only you can switch it on or off or change the code. The current code is shown below (visible to the Developer only), so it can always be looked up. Changing the code stops the old one working straight away. Every change is written to the audit log (never the code itself).</p>
       <div id="egg3Msg"></div>
       <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg3Status">loading…</span><br><span class="small" id="egg3Meta"></span></p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -535,10 +533,9 @@
       <h2>Secret code</h2>
       <form id="egg3Form" autocomplete="off">
         <label for="egg3Code">New code</label>
-        <input type="password" id="egg3Code" autocomplete="new-password" maxlength="40" placeholder="4 to 40 characters">
-        <label for="egg3Code2">Type it again</label>
-        <input type="password" id="egg3Code2" autocomplete="new-password" maxlength="40">
-        <label class="small" style="display:flex;gap:6px;align-items:center;margin-top:6px;"><input type="checkbox" id="egg3Show" style="width:auto;"> Show what I type</label>
+        <input type="text" id="egg3Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg3Code2">
+        <input type="checkbox" id="egg3Show" style="display:none;">
         <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for Easter Eggs 1 and 2 (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
         <div style="margin-top:14px;"><button type="submit" class="primary" id="egg3SaveBtn">Save new code</button></div>
       </form>
@@ -549,7 +546,7 @@
   <div id="tab-egg4" style="display:none;">
     <div class="card">
       <h2>Easter egg 4: GRAEMe Escape</h2>
-      <p class="small">Developer only. A fourth hidden game, a side-scrolling platformer: GRAEMe is out of ammo and must run, jump and stomp his way through the internet to the Pharmacy Portal to rearm, picking up ammo crates to shoot the bot farm. A pink theme swaps GRAEMe for a pink convertible with waving blonde hair. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, anyone signed in who types the secret code on the home page and presses Enter opens it. Only you can switch it on or off or change the code. The code is stored only as a salted hash: it can never be read back, so if it is forgotten, set a new one. Changing the code stops the old one working straight away. Every change is written to the audit log (never the code itself).</p>
+      <p class="small">Developer only. A fourth hidden game, a side-scrolling platformer: GRAEMe is out of ammo and must run, jump and stomp his way through the internet to the Pharmacy Portal to rearm, picking up ammo crates to shoot the bot farm. A pink theme swaps GRAEMe for a pink convertible with waving blonde hair. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, anyone signed in who types the secret code on the home page and presses Enter opens it. Only you can switch it on or off or change the code. The current code is shown below (visible to the Developer only), so it can always be looked up. Changing the code stops the old one working straight away. Every change is written to the audit log (never the code itself).</p>
       <div id="egg4Msg"></div>
       <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg4Status">loading…</span><br><span class="small" id="egg4Meta"></span></p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -561,10 +558,9 @@
       <h2>Secret code</h2>
       <form id="egg4Form" autocomplete="off">
         <label for="egg4Code">New code</label>
-        <input type="password" id="egg4Code" autocomplete="new-password" maxlength="40" placeholder="4 to 40 characters">
-        <label for="egg4Code2">Type it again</label>
-        <input type="password" id="egg4Code2" autocomplete="new-password" maxlength="40">
-        <label class="small" style="display:flex;gap:6px;align-items:center;margin-top:6px;"><input type="checkbox" id="egg4Show" style="width:auto;"> Show what I type</label>
+        <input type="text" id="egg4Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg4Code2">
+        <input type="checkbox" id="egg4Show" style="display:none;">
         <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for Easter Eggs 1, 2 and 3 (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
         <div style="margin-top:14px;"><button type="submit" class="primary" id="egg4SaveBtn">Save new code</button></div>
       </form>
@@ -2259,11 +2255,10 @@ function setupEggTab() {
     });
     eggEl(n, "Form").addEventListener("submit", async e => {
       e.preventDefault();
-      const msg = eggEl(n, "Msg"), c1 = eggEl(n, "Code").value, c2 = eggEl(n, "Code2").value;
-      if (c1 !== c2) return showMsg(msg, "The two codes do not match.", "error");
+      const msg = eggEl(n, "Msg"), c1 = eggEl(n, "Code").value;
       if (c1.replace(/\s+/g, "").length < 4) return showMsg(msg, "The code needs at least 4 characters (spaces do not count).", "error");
       const ok = await eggCall(n, EGG_STATE[n].on, c1, "New code saved. The old one no longer works.");
-      if (ok) { eggEl(n, "Code").value = ""; eggEl(n, "Code2").value = ""; }
+      if (ok) { eggEl(n, "Code").value = ""; }
     });
     loadEgg(n);
   });
@@ -2273,9 +2268,12 @@ function renderEgg(n, st) {
   S.on = !!st.enabled; S.set = !!st.code_set;
   eggEl(n, "Status").innerHTML = S.on ? '<strong style="color:#2e7d32;">ON</strong>' : '<strong>OFF</strong>';
   const when = st.code_set_at ? new Date(st.code_set_at).toLocaleString("en-GB") : null;
-  eggEl(n, "Meta").textContent = S.set
+  const metaTxt = S.set
     ? "A code is set" + (when ? " (last changed " + when + (st.code_set_by ? " by " + st.code_set_by : "") + ")." : ".")
     : "No code is set yet. Set one below, then switch the egg on.";
+  eggEl(n, "Meta").innerHTML = escapeHtml(metaTxt) + (st.code
+    ? '<br>Current code: <strong style="font-size:1.15em;letter-spacing:.04em;user-select:all;">' + escapeHtml(st.code) + "</strong>"
+    : (S.set ? '<br>This code was set before codes could be shown. Type it again below to make it visible.' : ""));
   eggEl(n, "OnBtn").style.display = S.on ? "none" : "";
   eggEl(n, "OffBtn").style.display = S.on ? "" : "none";
 }

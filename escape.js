@@ -252,13 +252,14 @@ function drawDrone(e){var x=e.x,y=e.y;if(e.dead){c.globalAlpha=.5}
  c.fillStyle='#ffd24a';c.beginPath();c.arc(0,4,5,0,7);c.fill();c.stroke();
  c.fillStyle='#1a0710';c.fillRect(-4,-22,8,9);c.strokeStyle='#cfe9ff';c.lineWidth=2.5;var sp=Math.sin(t*50)*22;c.beginPath();c.moveTo(-sp-6,-23);c.lineTo(sp+6,-23);c.stroke();
  c.restore();c.globalAlpha=1}
+function plus(cx,cy,L,a,fill,stroke){var p=[[-a,-L],[a,-L],[a,-a],[L,-a],[L,a],[a,a],[a,L],[-a,L],[-a,a],[-L,a],[-L,-a],[-a,-a]];c.beginPath();p.forEach(function(q,i){if(i)c.lineTo(cx+q[0],cy+q[1]);else c.moveTo(cx+q[0],cy+q[1])});c.closePath();c.fillStyle=fill;c.fill();c.strokeStyle=stroke;c.lineWidth=1.6;c.lineJoin='round';c.stroke()}
 function drawGate(){
  var x=gx;if(x>camX+W+300||x<camX-300)return;var h=185,w=170,gy=GY;
  c.save();var gl=c.createRadialGradient(x+w/2,gy-h*.45,10,x+w/2,gy-h*.45,300);gl.addColorStop(0,'rgba(70,224,138,.45)');gl.addColorStop(1,'rgba(70,224,138,0)');c.fillStyle=gl;c.fillRect(x-200,gy-h-120,w+400,h+120);
  c.fillStyle='#0c2a3a';c.strokeStyle='#46e08a';c.lineWidth=4;c.fillRect(x,gy-h,26,h);c.strokeRect(x,gy-h,26,h);c.fillRect(x+w-26,gy-h,26,h);c.strokeRect(x+w-26,gy-h,26,h);c.fillRect(x-10,gy-h-30,w+20,40);c.strokeRect(x-10,gy-h-30,w+20,40);
  var og=c.createLinearGradient(x,gy-h,x,gy);og.addColorStop(0,'#baffd9');og.addColorStop(1,'#1fae66');c.fillStyle=og;c.globalAlpha=.9;c.fillRect(x+26,gy-h+10,w-52,h-10);c.globalAlpha=1;
  c.strokeStyle='rgba(255,255,255,.55)';c.lineWidth=2;for(var i=0;i<6;i++){var yy=gy-h+20+((t*60+i*30)%(h-20));c.beginPath();c.moveTo(x+26,yy);c.lineTo(x+w-26,yy);c.stroke()}
- c.fillStyle='#46e08a';var cx=x+w/2,cy=gy-h-10;c.fillRect(cx-6,cy-14,12,28);c.fillRect(cx-14,cy-6,28,12);c.strokeStyle='#04170e';c.lineWidth=2;c.strokeRect(cx-6,cy-14,12,28);
+ var cx=x+w/2,cy=gy-h-10;plus(cx,cy,15,5.5,'#46e08a','#04170e');
  c.fillStyle='#eafff3';c.font='700 15px "Chakra Petch",Impact,sans-serif';c.textAlign='center';c.fillText('PHARMACY PORTAL',cx,gy-h-44);c.font='700 12px "Chakra Petch",sans-serif';c.fillStyle='#46e08a';c.fillText('REARM HERE',cx,gy-h-62);c.textAlign='left';
  c.restore()}
 function drawPlayer(){
@@ -306,7 +307,7 @@ function hud(){
  c.font='500 13px "Chakra Petch",system-ui,sans-serif';c.fillStyle='#8fb0cc';c.fillText('SORTIE '+sortie+(best?'   BEST '+best.toLocaleString('en-GB'):''),20,52);
  if(pink){if(CARB.complete)for(var i=0;i<lives;i++)c.drawImage(CARB,20+i*42,62,40,20)}else if(SPR.complete&&SPR.naturalWidth){for(var i=0;i<lives;i++)c.drawImage(SPR,20+i*26,60,24,24)}
  var bx=W/2-130,by=22,bw=260,fr=P?Math.min(1,P.x/gx):0;c.fillStyle='rgba(255,255,255,.14)';c.fillRect(bx,by,bw,6);c.fillStyle=T().line;c.fillRect(bx,by,bw*fr,6);
- c.fillStyle='#46e08a';c.fillRect(bx+bw+8,by-5,5,16);c.fillRect(bx+bw+2.5,by,16,6);
+ plus(bx+bw+11,by+3,9,3.2,'#46e08a','#04170e');
  if(cpX){c.fillStyle=cpHit?'#46e08a':'#ff5a4a';c.fillRect(bx+bw*cpX/gx-1,by-3,2,12)}
  if(pink){if(CARB.complete)c.drawImage(CARB,bx+bw*fr-17,by-15,34,17)}else if(SPR.complete&&SPR.naturalWidth)c.drawImage(SPR,bx+bw*fr-11,by-17,22,22);
  var am=Math.floor(ammo+.001),empty=am<=0,full=am>=30;var ax=W-232,ay=14,pw=214,ph=40;
