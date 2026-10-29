@@ -511,7 +511,7 @@ const THEME_SCENES = {
     banner() {
       let b = `<span class="bgrd" style="background:#e5177f"></span>`;
       b += SBX("bbob", SCN.shades, "left:10%;top:8px;--w:44") + SBX("bbob", SCN.shades, "left:62%;top:12px;--w:34;animation-delay:-1.5s");
-      b += SBX("bcross", SCN.convertible, "left:0;bottom:5px;--w:70;--still:34%;animation-duration:16s");
+      b += SBX("bcross", `<canvas class="bcarc" width="280" height="140" aria-hidden="true"></canvas>`, "left:0;bottom:2px;--w:112;--still:34%;animation-duration:16s");
       for (let i = 0; i < 9; i++) b += SBX("brise", SCN.heart(pick(["#fff", "#ffd1ea", "#ffe3f3"], i)), `left:${fxRand(3, 95).toFixed(0)}%;--w:${fxRand(10, 20).toFixed(0)};animation-duration:${fxRand(4, 8).toFixed(1)}s;animation-delay:${(-fxRand(0, 8)).toFixed(1)}s`);
       for (let i = 0; i < 16; i++) b += `<i class="bsp" style="left:${fxRand(2, 97).toFixed(0)}%;top:${fxRand(4, 70).toFixed(0)}%;font-size:${fxRand(9, 17).toFixed(0)}px;color:#fff;animation-duration:${fxRand(1.8, 4).toFixed(1)}s;animation-delay:${(-fxRand(0, 4)).toFixed(1)}s">&#10022;</i>`;
       return b;
@@ -1910,6 +1910,43 @@ Object.assign(THEME_SCENES, {
   },
 });
 
+/* Barbie-style banner car: a pink convertible whose blonde hair waves in the wind as it drives.
+   The car and the hair are two images (barbie-car-base.webp, barbie-car-hair.webp); the hair is drawn as a small
+   wavy mesh on a canvas. The loop only runs while the banner canvas exists and the tab is visible; with animations
+   off (or reduced motion) the hair is drawn once, still. */
+const BCAR = { base: null, hair: null, loaded: 0, running: false };
+function barbieCarStart() {
+  if (!document.querySelector(".theme-banner .bcarc")) return;
+  if (!BCAR.base) {
+    BCAR.base = new Image(); BCAR.hair = new Image();
+    BCAR.base.onload = BCAR.hair.onload = () => { BCAR.loaded++; };
+    BCAR.base.src = "barbie-car-base.webp"; BCAR.hair.src = "barbie-car-hair.webp";
+  }
+  if (BCAR.running) return;
+  BCAR.running = true;
+  const HKX = 153.6, HKY = 44.4, HKW = 84, HKH = 104, NX = 14, NY = 16;
+  function draw(cv, t) {
+    const c = cv.getContext("2d"), W = cv.width, H = cv.height, K = W / 710, A = 2.1;
+    c.clearRect(0, 0, W, H);
+    c.drawImage(BCAR.base, 0, 0, W, H);
+    const cw = HKW / NX, ch = HKH / NY, ph = t * 13;
+    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
+      const u = 1 - (i * cw + cw / 2) / HKW, v = (j * ch + ch / 2) / HKH, w = Math.pow(Math.max(0, u), 1.25) * Math.min(1, .55 + v * .7);
+      const dy = (w * (3.4 * Math.sin(ph - u * 5.5 + v * 1.3) + 1.5 * Math.sin(ph * 1.7 - u * 9 + v * 2)) - w * 2.2) * A;
+      const dx = (-w * (1.8 + 1.1 * Math.sin(ph * 1.3 - u * 4 + v)) - w * 2.5) * A;
+      c.drawImage(BCAR.hair, i * cw, j * ch, cw + 1, ch + 1, (HKX + i * cw) * K + dx, (HKY + j * ch) * K + dy, cw * K + .8, ch * K + .8);
+    }
+  }
+  function frame(ts) {
+    const list = document.querySelectorAll(".theme-banner .bcarc");
+    if (!list.length) { BCAR.running = false; return; }
+    const still = document.documentElement.getAttribute("data-anim") === "off" || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+    if (BCAR.loaded >= 2 && !document.hidden) list.forEach(cv => draw(cv, still ? .6 : ts / 1000));
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
 function buildThemeFx() {
   const theme = document.documentElement.getAttribute("data-theme");
   const SCENE = THEME_SCENES[theme];
@@ -1997,6 +2034,7 @@ function buildThemeFx() {
     b += `<span class="bunny-actor" style="display:none"><span class="b-hop"><span class="b-side">${FX_SVG.bunnySide}</span><span class="b-front" style="display:none">${FX_SVG.bunny}</span></span></span>`;
   }
   banner.innerHTML = b;
+  barbieCarStart();
   startBunnyCycle();
 }
 document.addEventListener("DOMContentLoaded", buildThemeFx);

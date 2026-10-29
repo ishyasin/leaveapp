@@ -309,6 +309,7 @@
 .theme-banner .bx{position:absolute;line-height:0;}
 .theme-banner .bx svg,.theme-banner .scn{display:block;}
 .theme-banner .bx svg{width:calc(var(--w,30) * 1px);height:auto;}
+.theme-banner .bcarc{display:block;width:calc(var(--w,100) * 1px);height:auto;}
 .theme-banner .scn{position:absolute;left:0;bottom:0;width:100%;height:100%;}
 .theme-banner .bgrd{position:absolute;left:0;right:0;bottom:0;height:6px;}
 .theme-banner .bbob{animation:fxFloat 4s ease-in-out infinite;}
