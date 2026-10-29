@@ -32,6 +32,36 @@
   .week-block th,.week-block td{padding:2px 4px;}
   .week-block tr.outside td{background:var(--surface-alt);}
   .week-block{break-inside:avoid;}
+
+  /* Large week view: 4 weeks as week strips, full screen */
+  .bv{position:fixed;inset:0;z-index:80;background:var(--bg,var(--surface));display:flex;flex-direction:column;padding:12px max(14px,env(safe-area-inset-right,0px)) 12px max(14px,env(safe-area-inset-left,0px));gap:8px;}
+  .bv[hidden]{display:none;}
+  .bv-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .bv-top h2{margin:0;font-size:clamp(18px,2.2vw,26px);color:var(--heading-color);}
+  .bv-top .sub{color:var(--text-muted);font-weight:600;font-size:14px;}
+  .bv-top .spacer{flex:1;}
+  .bv-top button{width:auto;margin:0;}
+  .bv-banner{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff4d6;color:#3d2e00;border:1px solid #e7a800;border-radius:10px;padding:6px 12px;font-weight:600;font-size:14px;}
+  .bv-banner button{width:auto;margin:0;padding:3px 12px;}
+  .bv-body{flex:1;min-height:0;display:grid;grid-template-rows:repeat(4,minmax(0,1fr));gap:8px;overflow:auto;}
+  .bv-wk{display:grid;grid-template-rows:auto minmax(0,1fr);min-height:150px;min-width:760px;}
+  .bv-wk h3{margin:0 0 3px;font-size:13px;color:var(--text-muted);display:flex;justify-content:space-between;}
+  .bv-wk.cur h3{color:var(--teal);}
+  .bv-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;min-height:0;}
+  .bv-day{border:1px solid var(--border);border-radius:11px;overflow:hidden;background:var(--surface);display:flex;flex-direction:column;min-width:0;color:#1f2430;}
+  .bv-day .hd{padding:4px 9px;display:flex;justify-content:space-between;align-items:center;gap:6px;font-weight:800;font-size:clamp(12px,1.1vw,16px);}
+  .bv-day .hd em{font-style:normal;font-weight:700;}
+  .bv-day .bd{flex:1;padding:6px 9px;display:flex;flex-direction:column;justify-content:space-evenly;gap:4px;background:var(--surface);color:var(--text);}
+  .bv-day .lab{font-size:11px;font-weight:700;color:var(--text-muted);}
+  .bv-day.out{opacity:.35;background:var(--surface-alt);}
+  .bv-day.past .bd{opacity:.55;}
+  .bv-day.today{outline:4px solid var(--teal);outline-offset:-2px;}
+  .bv-tag{background:var(--teal);color:#fff;border-radius:999px;padding:0 8px;font-size:11px;font-weight:800;}
+  .bv-pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 12px;font-weight:800;font-size:clamp(13px,1.3vw,19px);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bv-pill.swapped{outline:2px dashed #b45309;outline-offset:2px;}
+  .bv-need{border:1px dashed #b91c1c;color:#b91c1c;border-radius:999px;padding:2px 10px;font-weight:700;font-size:13px;display:inline-block;}
+  .bv-na{color:var(--text-muted);}
+  .bv-foot{font-size:12px;color:var(--text-muted);}
   @media print{
     @page{size:A3 landscape;margin:8mm;}
     .topbar,#subnav,#oncallTabs,.oncall-controls,#buildRotaCard,#editModeHint{display:none !important;}
@@ -154,6 +184,7 @@
         <label style="margin:0;">Show</label>
         <select id="personFilter" style="width:210px;" onchange="onPersonFilter()"></select>
         <button class="secondary" id="swapModeBtn" style="display:none;" onclick="toggleSwapMode()" title="Tap shifts to select them, without needing Ctrl/Cmd">Select shifts to swap</button>
+        <button class="secondary" id="bigViewBtn" onclick="openBigView()" title="Full-screen view of four weeks at a time">Week view</button>
         <button class="secondary" onclick="window.print()">Print</button>
       </div>
       <p class="small" id="swapHint" style="display:none;margin:8px 0 0;"><strong>Swapping a shift?</strong> Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on a Mac) and click one or more of <em>your own</em> shifts, then click one or more shifts belonging to <em>one</em> colleague, then press <strong>Request swap</strong>. You must include at least one of your own shifts. On a phone or tablet use <strong>Select shifts to swap</strong> instead.</p>
@@ -296,9 +327,11 @@
         <button type="button" class="aud-chip" data-f="swap">&#8644; Swaps</button>
         <button type="button" class="aud-chip" data-f="alloc">Allocations</button>
         <button type="button" class="aud-chip" data-f="setup">Setup &amp; settings</button>
+        <button type="button" class="aud-chip" data-f="table">Swaps by pharmacist</button>
         <button type="button" class="aud-chip aud-refresh" onclick="loadAudit(true)">&#8635; Refresh</button>
       </div>
       <div id="auditMsg"></div>
+      <div id="auditSwaps" style="display:none;"></div>
       <div id="auditRows" class="aud-feed"></div>
       <p id="auditEmpty" class="small" style="display:none;">Nothing recorded yet.</p>
       <div style="text-align:center;margin-top:10px;"><button class="secondary" id="auditMoreBtn" style="display:none;" onclick="loadAudit(false)">Load older entries</button></div>
@@ -377,6 +410,7 @@
 </div>
 
 <script src="shared.js"></script>
+<script src="oncall-swaps.js"></script>
 <script>
 let PROFILE = null;
 let PROFILES = [];
@@ -918,6 +952,102 @@ function renderChip(day, dutyType, row, requiresOnsite) {
   return `<span class="${cls}${mine}${pendCls}" style="color:${tc};" data-key="${key}" title="${escapeHtml(title)}"${onclick}>${escapeHtml(label)}</span>${pend}${star}${noteDot}`;
 }
 
+/* ---------------- Large week view (4 weeks, full screen) ---------------- */
+let BIG_START = null, BIG_FOLLOW = true, BIG_TIMER = null, BIG_DAY = "";
+const bigThisWeek = () => sundayOf(new Date());
+function openBigView() {
+  if (!SELECTED_PERIOD) return;
+  let ov = document.getElementById("bigView");
+  if (!ov) {
+    ov = document.createElement("div"); ov.id = "bigView"; ov.className = "bv"; ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true"); ov.setAttribute("aria-label", "On-call rota, four week view");
+    ov.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-bv]"); if (!b) return;
+      const a = b.dataset.bv;
+      if (a === "close") closeBigView();
+      else if (a === "today") { BIG_START = bigThisWeek(); BIG_FOLLOW = true; renderBigView(); }
+      else { BIG_START = addDays(BIG_START, a === "prev" ? -28 : 28); BIG_FOLLOW = ymd(BIG_START) === ymd(bigThisWeek()); renderBigView(); }
+    });
+    document.body.appendChild(ov);
+  }
+  BIG_START = bigThisWeek(); BIG_FOLLOW = true; BIG_DAY = ymd(new Date());
+  ov.hidden = false; document.body.style.overflow = "hidden";
+  renderBigView();
+  document.addEventListener("keydown", bigKey, true);
+  document.addEventListener("visibilitychange", bigTick);
+  clearInterval(BIG_TIMER); BIG_TIMER = setInterval(bigTick, 30000);
+  const c = ov.querySelector('[data-bv="close"]'); if (c) c.focus();
+}
+function closeBigView() {
+  const ov = document.getElementById("bigView"); if (ov) ov.hidden = true;
+  document.body.style.overflow = "";
+  clearInterval(BIG_TIMER); BIG_TIMER = null;
+  document.removeEventListener("keydown", bigKey, true);
+  document.removeEventListener("visibilitychange", bigTick);
+}
+function bigKey(e) {
+  const ov = document.getElementById("bigView"); if (!ov || ov.hidden) return;
+  if (e.key === "Escape") { e.stopPropagation(); closeBigView(); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); ov.querySelector('[data-bv="prev"]').click(); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); ov.querySelector('[data-bv="next"]').click(); }
+}
+// Like the leave calendar, the view keeps itself on the right dates: when midnight passes the
+// "today" marker moves, and when a new week starts a view that was following this week rolls on.
+function bigTick() {
+  const ov = document.getElementById("bigView"); if (!ov || ov.hidden || document.hidden) return;
+  const day = ymd(new Date());
+  if (day === BIG_DAY) return;
+  BIG_DAY = day;
+  if (BIG_FOLLOW) BIG_START = bigThisWeek();
+  renderBigView(BIG_FOLLOW ? "Moved on to today's date." : "");
+}
+function bigPill(row) {
+  const p = row && profileById(row.user_id);
+  if (!p) return "";
+  if (FILTER_USER && row.user_id !== FILTER_USER) return "";
+  const c = colorFor(p);
+  let title = p.full_name + (row.note ? " \u2014 " + row.note : "");
+  let cls = "bv-pill", mark = "";
+  if (row.replaced_user_id) { cls += " swapped"; mark = " \u21C4"; title = swapSentence(row); }
+  const ps = PENDING_SWAPS[row.id];
+  if (ps) { cls += " swapped"; mark += " \u21C4?"; title += " \u2014 swap requested, not yet agreed"; }
+  return `<span class="${cls}" style="background:${escapeHtml(c)};color:${textOn(c)};" title="${escapeHtml(title)}">${escapeHtml(p.initials)} ${escapeHtml((p.full_name || "").split(" ")[0])}${mark}</span>`;
+}
+function renderBigView(notice) {
+  const ov = document.getElementById("bigView"); if (!ov || !SELECTED_PERIOD) return;
+  const nowWeek = bigThisWeek(), todayS = ymd(new Date());
+  const onThis = ymd(BIG_START) === ymd(nowWeek);
+  const endDay = addDays(BIG_START, 27);
+  const f = (d) => `${d.getDate()}/${d.getMonth() + 1}`;
+  let weeks = "";
+  for (let w = 0; w < 4; w++) {
+    const ws = addDays(BIG_START, w * 7), cur = ymd(ws) === ymd(nowWeek);
+    let days = "";
+    for (let i = 0; i < 7; i++) {
+      const day = addDays(ws, i), dow = day.getDay(), ds = ymd(day);
+      const out = day < RANGE_FIRST || day > RANGE_LAST;
+      if (out) { days += `<div class="bv-day out" aria-hidden="true"></div>`; continue; }
+      const bh = bankHolidayFor(day);
+      const bg = bh ? (bh.color || DEFAULT_BH_COLOR) : (dow <= 2 ? "#cdeccf" : "#f8d4e1");
+      const oc = assignmentFor(day, "on_call"), os = assignmentFor(day, "onsite");
+      const needs = dow === 0 || dow === 6 || !!bh;
+      const osHtml = needs ? (bigPill(os) || (os || FILTER_USER ? "" : `<span class="bv-need">Onsite needed</span>`)) : `<span class="bv-na">\u2014</span>`;
+      const today = ds === todayS;
+      days += `<div class="bv-day${today ? " today" : ""}${ds < todayS ? " past" : ""}"${today ? ' aria-current="date"' : ""}>
+        <div class="hd" style="background:${escapeHtml(bg)};"><span>${WEEKDAY_NAMES[i]}${bh ? ` <small title="${escapeHtml(bh.label || "Bank holiday")}">BH</small>` : ""}</span>${today ? '<span class="bv-tag">Today</span>' : ""}<em>${f(day)}</em></div>
+        <div class="bd"><div><div class="lab">Overnight</div>${bigPill(oc) || (FILTER_USER ? "" : '<span class="bv-na">\u2014</span>')}</div>${needs ? `<div><div class="lab">Onsite</div>${osHtml}</div>` : ""}</div></div>`;
+    }
+    weeks += `<section class="bv-wk${cur ? " cur" : ""}"><h3><span>Week ${isoWeekNumber(addDays(ws, 1))}${cur ? " \u2014 this week" : ""}</span><span>${f(ws)} \u2013 ${f(addDays(ws, 6))}</span></h3><div class="bv-days">${days}</div></section>`;
+  }
+  const filt = FILTER_USER ? profileById(FILTER_USER) : null;
+  ov.innerHTML = `<div class="bv-top"><h2>On-call rota</h2><span class="sub">${escapeHtml(SITE_LABEL[SELECTED_SITE] || "")} \u00B7 ${f(BIG_START)} \u2013 ${f(endDay)}${filt ? " \u00B7 " + escapeHtml(filt.full_name) + " only" : ""}</span><span class="spacer"></span>
+      <button class="secondary" data-bv="prev" aria-label="Previous four weeks">\u2190 Previous</button><button class="${onThis ? "primary" : "secondary"}" data-bv="today">This week</button><button class="secondary" data-bv="next" aria-label="Next four weeks">Next \u2192</button><button class="secondary" data-bv="close">Close</button></div>
+    ${onThis ? (notice ? `<div class="bv-banner" role="status">${escapeHtml(notice)}</div>` : "") : `<div class="bv-banner" role="status">Not showing this week. <button class="primary" data-bv="today">Back to this week</button></div>`}
+    <div class="bv-body" style="overflow:auto;">${weeks}</div>
+    <div class="bv-foot">Today is outlined and tagged. Earlier days are faded. \u21C4 marks a swapped shift; hover for details. Arrow keys move four weeks; Esc closes.</div>`;
+  const c = ov.querySelector('[data-bv="close"]');
+  if (document.activeElement === document.body && c) c.focus();
+}
+
 /* ---------------- manual-swap detail ("*") ---------------- */
 function swapSentence(row) {
   const now = profileById(row.user_id), was = profileById(row.replaced_user_id);
@@ -1202,6 +1332,15 @@ function auditEntry(a) {
 }
 function renderAudit() {
   const f = document.getElementById("auditFilter").value;
+  const tbl = f === "table";
+  document.getElementById("auditSwaps").style.display = tbl ? "" : "none";
+  document.getElementById("auditRows").style.display = tbl ? "none" : "";
+  if (tbl) {
+    document.getElementById("auditEmpty").style.display = "none"; document.getElementById("auditMoreBtn").style.display = "none";
+    document.querySelectorAll("#auditChips .aud-chip[data-f]").forEach(c => c.classList.toggle("on", c.dataset.f === f));
+    if (!document.getElementById("auditSwaps").dataset.done) { document.getElementById("auditSwaps").dataset.done = "1"; OncallSwaps.mount(document.getElementById("auditSwaps"), PROFILES); }
+    return;
+  }
   const rows = AUDIT.filter(a => !f || (AUDIT_CATEGORY[a.action] || "setup") === f);
   document.getElementById("auditEmpty").style.display = rows.length ? "none" : "";
   let lastDay = "", html = "";

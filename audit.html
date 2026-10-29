@@ -36,7 +36,7 @@
     <p class="small">Every create, approve, reject, edit, unapprove, delete, and admin action is logged here permanently.</p>
     <div class="au-bar">
       <div class="au-chips" id="auCats" role="group" aria-label="Category">
-        <button type="button" class="on" data-c="">All actions</button><button type="button" data-c="leave">Leave</button><button type="button" data-c="users">Users</button><button type="button" data-c="settings">Settings</button><button type="button" data-c="oncall">On-call</button><button type="button" data-c="team">Huddle &amp; links</button>
+        <button type="button" class="on" data-c="">All actions</button><button type="button" data-c="leave">Leave</button><button type="button" data-c="users">Users</button><button type="button" data-c="settings">Settings</button><button type="button" data-c="oncall">On-call</button><button type="button" data-c="swaps">On-call swaps table</button><button type="button" data-c="team">Huddle &amp; links</button>
       </div>
       <div class="au-tools">
         <input type="search" id="auSearch" placeholder="Search who or note…" aria-label="Search" style="margin:0;width:200px;">
@@ -113,6 +113,7 @@
     <div id="msg"></div>
     <p class="small" id="auCount"></p>
     <div id="auTimeline" class="au-tl"></div>
+    <div id="swapsPanel" style="display:none;"></div>
   </div>
 
   <div class="card" id="clearLogsCard" style="display:none;">
@@ -140,6 +141,7 @@
 </div>
 
 <script src="shared.js"></script>
+<script src="oncall-swaps.js"></script>
 <script>
 let PROFILE = null;
 let PROFILES = [];
@@ -163,6 +165,7 @@ const AU_CATS = {
   users: a => /user|invit|password/.test(a) && !a.includes("oncall"),
   settings: a => /restricted_day|capacity|bank_holiday|rota_complete|dsr_complete|easter_egg|reset_app_data|clear_audit_log/.test(a) && !a.includes("oncall"),
   oncall: a => a.includes("oncall"),
+  swaps: a => false,
   team: a => /huddle|quick_link/.test(a),
 };
 let AU_ROWS = [], AU_CAT = "", AU_SHOWN = [];
@@ -171,7 +174,14 @@ const auCat = (a) => Object.keys(AU_CATS).find(k => AU_CATS[k](a)) || "settings"
 const auLabel = (a) => a.replace(/_/g, " ").replace(/^./, c => c.toUpperCase());
 document.getElementById("auCats").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-c]"); if (!b) return;
-  AU_CAT = b.dataset.c; document.querySelectorAll("#auCats button").forEach(x => x.classList.toggle("on", x === b)); renderAudit();
+  AU_CAT = b.dataset.c; document.querySelectorAll("#auCats button").forEach(x => x.classList.toggle("on", x === b));
+  const sw = AU_CAT === "swaps";
+  document.getElementById("swapsPanel").style.display = sw ? "" : "none";
+  document.getElementById("auTimeline").style.display = sw ? "none" : "";
+  document.querySelector(".au-tools").style.display = sw ? "none" : "";
+  document.getElementById("auCount").style.display = sw ? "none" : "";
+  if (sw) { OncallSwaps.mount(document.getElementById("swapsPanel"), PROFILES); return; }
+  renderAudit();
 });
 document.getElementById("auSearch").addEventListener("input", () => renderAudit());
 

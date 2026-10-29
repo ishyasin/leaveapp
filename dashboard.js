@@ -24,7 +24,7 @@
   async function gather(profile) {
     const today = todayStr();
     const hasLeave = !isReadOnlyRole(profile);
-    const canApprove = isLeadPlus(profile) || isPharmacyAdmin(profile);
+    const canApprove = isLeadPlus(profile);
     const dirRes = await safe(() => sb.rpc("get_profile_directory"));
     const dir = (dirRes && dirRes.data) || [];
     const nameOf = (id) => { const p = dir.find(x => x.id === id); return p ? p.full_name : "Someone"; };
@@ -37,7 +37,8 @@
       if (r.error) return;
       const groups = new Map();
       (r.data || []).forEach(x => { const k = x.user_id + "|" + x.requested_at + "|" + x.leave_type; (groups.get(k) || groups.set(k, []).get(k)).push(x); });
-      D.pending = [...groups.values()].map(g => g.sort((a, b) => a.leave_date.localeCompare(b.leave_date)));
+      // Only leave this person is actually allowed to approve (same rule as the Approvals page).
+      D.pending = [...groups.values()].filter(g => { const tp = dir.find(p => p.id === g[0].user_id); return canProcessLeaveForRole(profile, tp); }).map(g => g.sort((a, b) => a.leave_date.localeCompare(b.leave_date)));
     }));
     if (hasLeave) {
       jobs.push(safe(async () => {
@@ -157,7 +158,7 @@
     if (D.canApprove && D.pending) {
       const top = D.pending.slice(0, 4);
       tile("approvals", 8, "approvals.html", "Leave to approve", D.pending.length ? `${D.pending.length} waiting` : "", D.pending.length
-        ? top.map(g => `<div class="dash-req"><span class="dash-av">${esc(D.initOf(g[0].user_id))}</span><div><b>${esc(D.nameOf(g[0].user_id))}</b><span class="dash-sub">${esc(spanLabel(g))}</span></div>${g.length > 1 ? '<span class="dash-chip">Multiple dates</span>' : ""}<span class="dash-review">Review</span></div>`).join("") + (D.pending.length > top.length ? `<div class="dash-sub" style="margin-top:6px;">and ${D.pending.length - top.length} more</div>` : "")
+        ? top.map(g => `<div class="dash-req"><span class="dash-av">${esc(D.initOf(g[0].user_id))}</span><div><b>${esc(D.nameOf(g[0].user_id))}</b><span class="dash-sub">${esc(spanLabel(g))}</span></div>${g.length > 1 ? '<span class="dash-chip">Multiple dates</span>' : ""}<span class="dash-review" role="link" tabindex="0" data-href="calendar.html?date=${g[0].leave_date}">Review</span></div>`).join("") + (D.pending.length > top.length ? `<div class="dash-sub" style="margin-top:6px;">and ${D.pending.length - top.length} more</div>` : "")
         : '<div class="dash-empty">Nothing waiting for approval.</div>');
     }
     if (D.hasLeave && D.myLeave) {
@@ -246,7 +247,10 @@
     ov.addEventListener("mousedown", (e) => { if (e.target === ov) close(); });
     ov.addEventListener("click", (e) => { if (e.target.closest("#dashClose,#dashDone")) { editing = false; close(); } });
     ov.addEventListener("mousemove", (e) => { const t = e.target.closest(".dash-tile"); if (!t) return; const r = t.getBoundingClientRect(); t.style.setProperty("--x", (e.clientX - r.left) + "px"); t.style.setProperty("--y", (e.clientY - r.top) + "px"); });
+    const goReview = (e) => { const r = e.target.closest(".dash-review[data-href]"); if (!r) return false; e.preventDefault(); e.stopPropagation(); location.href = r.dataset.href; return true; };
+    ov.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches(".dash-review[data-href]")) goReview(e); });
     ov.addEventListener("click", (e) => {
+      if (goReview(e)) return;
       const g = $(".dash-grid", ov);
       if (e.target.closest("#dashCust")) { editing = !editing; drawGrid(); return; }
       if (e.target.closest("#dashReset")) { LAYOUT = normaliseLayout(null, { canApprove: !!TILES.find(t => t.id === "approvals") }); saveLayout(profileRef); drawGrid(); return; }
