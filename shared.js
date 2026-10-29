@@ -511,7 +511,7 @@ const THEME_SCENES = {
     banner() {
       let b = `<span class="bgrd" style="background:#e5177f"></span>`;
       b += SBX("bbob", SCN.shades, "left:10%;top:8px;--w:44") + SBX("bbob", SCN.shades, "left:62%;top:12px;--w:34;animation-delay:-1.5s");
-      b += SBX("bcross", `<canvas class="bcarc" width="280" height="140" aria-hidden="true"></canvas>`, "left:0;bottom:2px;--w:112;--still:34%;animation-duration:16s");
+      b += SBX("bcross", `<canvas class="bcarc" width="280" height="140" aria-hidden="true"></canvas>`, "left:0;bottom:2px;--w:112;--still:34%;animation-duration:30s");
       for (let i = 0; i < 9; i++) b += SBX("brise", SCN.heart(pick(["#fff", "#ffd1ea", "#ffe3f3"], i)), `left:${fxRand(3, 95).toFixed(0)}%;--w:${fxRand(10, 20).toFixed(0)};animation-duration:${fxRand(4, 8).toFixed(1)}s;animation-delay:${(-fxRand(0, 8)).toFixed(1)}s`);
       for (let i = 0; i < 16; i++) b += `<i class="bsp" style="left:${fxRand(2, 97).toFixed(0)}%;top:${fxRand(4, 70).toFixed(0)}%;font-size:${fxRand(9, 17).toFixed(0)}px;color:#fff;animation-duration:${fxRand(1.8, 4).toFixed(1)}s;animation-delay:${(-fxRand(0, 4)).toFixed(1)}s">&#10022;</i>`;
       return b;
@@ -1929,7 +1929,7 @@ function barbieCarStart() {
     const c = cv.getContext("2d"), W = cv.width, H = cv.height, K = W / 710, A = 2.1;
     c.clearRect(0, 0, W, H);
     c.drawImage(BCAR.base, 0, 0, W, H);
-    const cw = HKW / NX, ch = HKH / NY, ph = t * 13;
+    const cw = HKW / NX, ch = HKH / NY, ph = t * 10;
     for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
       const u = 1 - (i * cw + cw / 2) / HKW, v = (j * ch + ch / 2) / HKH, w = Math.pow(Math.max(0, u), 1.25) * Math.min(1, .55 + v * .7);
       const dy = (w * (3.4 * Math.sin(ph - u * 5.5 + v * 1.3) + 1.5 * Math.sin(ph * 1.7 - u * 9 + v * 2)) - w * 2.2) * A;
