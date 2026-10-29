@@ -51,6 +51,8 @@
     <h4 class="ad-head">Developer</h4>
     <button id="tabBtn-egg" onclick="showTab('egg')" style="display:none;">Easter Egg 1</button>
     <button id="tabBtn-egg2" onclick="showTab('egg2')" style="display:none;">Easter Egg 2</button>
+    <button id="tabBtn-egg3" onclick="showTab('egg3')" style="display:none;">Easter Egg 3</button>
+    <button id="tabBtn-egg4" onclick="showTab('egg4')" style="display:none;">Easter Egg 4</button>
   </nav>
 
   <!-- USERS -->
@@ -517,6 +519,58 @@
     </div>
   </div>
 
+  <!-- EASTER EGG 3 (Developer only) -->
+  <div id="tab-egg3" style="display:none;">
+    <div class="card">
+      <h2>Easter egg 3: Portal Defence: Payback</h2>
+      <p class="small">Developer only. A third hidden game, a first-person rail shooter: GRAEMe drives down a road through the internet firing a mounted machine gun at the evil bot farm, with a boss at the end of each level. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, anyone signed in who types the secret code on the home page and presses Enter opens it. Only you can switch it on or off or change the code. The code is stored only as a salted hash: it can never be read back, so if it is forgotten, set a new one. Changing the code stops the old one working straight away. Every change is written to the audit log (never the code itself).</p>
+      <div id="egg3Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg3Status">loading…</span><br><span class="small" id="egg3Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg3OnBtn" onclick="eggSwitch(3, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg3OffBtn" onclick="eggSwitch(3, false)" style="display:none;">Switch off</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Secret code</h2>
+      <form id="egg3Form" autocomplete="off">
+        <label for="egg3Code">New code</label>
+        <input type="password" id="egg3Code" autocomplete="new-password" maxlength="40" placeholder="4 to 40 characters">
+        <label for="egg3Code2">Type it again</label>
+        <input type="password" id="egg3Code2" autocomplete="new-password" maxlength="40">
+        <label class="small" style="display:flex;gap:6px;align-items:center;margin-top:6px;"><input type="checkbox" id="egg3Show" style="width:auto;"> Show what I type</label>
+        <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for Easter Eggs 1 and 2 (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg3SaveBtn">Save new code</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- EASTER EGG 4 (Developer only) -->
+  <div id="tab-egg4" style="display:none;">
+    <div class="card">
+      <h2>Easter egg 4: GRAEMe Escape</h2>
+      <p class="small">Developer only. A fourth hidden game, a side-scrolling platformer: GRAEMe is out of ammo and must run, jump and stomp his way through the internet to the Pharmacy Portal to rearm, picking up ammo crates to shoot the bot farm. A pink theme swaps GRAEMe for a pink convertible with waving blonde hair. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, anyone signed in who types the secret code on the home page and presses Enter opens it. Only you can switch it on or off or change the code. The code is stored only as a salted hash: it can never be read back, so if it is forgotten, set a new one. Changing the code stops the old one working straight away. Every change is written to the audit log (never the code itself).</p>
+      <div id="egg4Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg4Status">loading…</span><br><span class="small" id="egg4Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg4OnBtn" onclick="eggSwitch(4, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg4OffBtn" onclick="eggSwitch(4, false)" style="display:none;">Switch off</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Secret code</h2>
+      <form id="egg4Form" autocomplete="off">
+        <label for="egg4Code">New code</label>
+        <input type="password" id="egg4Code" autocomplete="new-password" maxlength="40" placeholder="4 to 40 characters">
+        <label for="egg4Code2">Type it again</label>
+        <input type="password" id="egg4Code2" autocomplete="new-password" maxlength="40">
+        <label class="small" style="display:flex;gap:6px;align-items:center;margin-top:6px;"><input type="checkbox" id="egg4Show" style="width:auto;"> Show what I type</label>
+        <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for Easter Eggs 1, 2 and 3 (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg4SaveBtn">Save new code</button></div>
+      </form>
+    </div>
+  </div>
+
   <!-- PRIVACY NOTICE (Developer) -->
   <div id="tab-privacy" style="display:none;">
     <div class="card">
@@ -777,6 +831,8 @@ let PROFILES = [];
     document.getElementById("tabBtn-reset").style.display = "";
     document.getElementById("tabBtn-egg").style.display = "";
     document.getElementById("tabBtn-egg2").style.display = "";
+    document.getElementById("tabBtn-egg3").style.display = "";
+    document.getElementById("tabBtn-egg4").style.display = "";
     setupEggTab();
     document.getElementById("tabBtn-privacy").style.display = "";
     setupPrivacyTab();
@@ -816,7 +872,7 @@ function syncNavHeads() {
 }
 function showTab(name) {
   syncNavHeads();
-  ["users","holidays","restricted","capacity","oncall","backup","leave","import","reset","appearance","egg","egg2","privacy"].forEach(t => {
+  ["users","holidays","restricted","capacity","oncall","backup","leave","import","reset","appearance","egg","egg2","egg3","egg4","privacy"].forEach(t => {
     document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
     document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);
   });
@@ -2190,13 +2246,13 @@ async function removeCapacityOverride(site, date) {
 
 /* ---------------- daily backup recipients ---------------- */
 /* ---------------- easter eggs (Developer) ---------------- */
-// Two eggs share one set of functions: n = 1 (Portal Defence) or 2 (Tile Defence).
-// Element ids are "egg..." for egg 1 and "egg2..." for egg 2.
-const EGG_STATE = { 1: { on: false, set: false }, 2: { on: false, set: false } };
-const eggId = (n, name) => (n === 1 ? "egg" : "egg2") + name;
+// Four eggs share one set of functions: n = 1 (Portal Defence), 2 (Tile Defence), 3 (Portal Defence: Payback) or 4 (GRAEMe Escape).
+// Element ids are "egg..." for egg 1, "egg2..." for egg 2, "egg3..." for egg 3 and "egg4..." for egg 4.
+const EGG_STATE = { 1: { on: false, set: false }, 2: { on: false, set: false }, 3: { on: false, set: false }, 4: { on: false, set: false } };
+const eggId = (n, name) => (n === 1 ? "egg" : "egg" + n) + name;
 const eggEl = (n, name) => document.getElementById(eggId(n, name));
 function setupEggTab() {
-  [1, 2].forEach(n => {
+  [1, 2, 3, 4].forEach(n => {
     eggEl(n, "Show").addEventListener("change", e => {
       eggEl(n, "Code").type = e.target.checked ? "text" : "password";
       eggEl(n, "Code2").type = e.target.checked ? "text" : "password";
