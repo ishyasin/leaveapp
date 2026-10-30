@@ -9,7 +9,7 @@
 // Applies the last-known colour theme/mode before first paint (see shared.js).
 (function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="shared.css?v=202610301253">
+<link rel="stylesheet" href="shared.css?v=202610301542">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <style>
   /* ---- Animated background (same triangles / orbs / particles / light beams as the sign-in page).
@@ -164,18 +164,19 @@
   :root[data-theme="portalvi"] .orb1,:root[data-theme="portalvi"] .orb4{background:rgba(255,63,180,0.26);}
   :root[data-theme="portalvi"] .orb2,:root[data-theme="portalvi"] .orb3{background:rgba(25,227,255,0.18);}
   :root[data-theme="portalvi"] .portal-hero h1{color:#fff;text-shadow:0 0 14px rgba(255,63,180,.75),0 0 2px rgba(25,227,255,.6);}
-  :root[data-theme="portalvi"] .portal-grid{grid-template-columns:repeat(60,1fr);grid-auto-rows:auto;gap:14px;}
-  :root[data-theme="portalvi"] .portal-tile{grid-column:span 20;align-self:stretch;padding:0;min-height:0;position:relative;overflow:hidden;border:1px solid rgba(255,90,200,.6);border-top:1px solid rgba(255,90,200,.6);border-radius:14px;background-color:#0b0614;background-size:cover;background-position:center;box-shadow:0 0 0 1px rgba(25,227,255,.14),0 8px 26px rgba(255,63,180,.22);transition:transform .15s,box-shadow .15s,border-color .15s;}
+  :root[data-theme="portalvi"] .portal-grid{grid-template-columns:repeat(5,1fr);grid-auto-rows:auto;gap:14px;}
+  :root[data-theme="portalvi"] .portal-tile{align-self:stretch;padding:0;min-height:0;position:relative;overflow:hidden;border:1px solid rgba(255,90,200,.6);border-top:1px solid rgba(255,90,200,.6);border-radius:14px;background-color:#0b0614;background-size:cover;background-position:center;box-shadow:0 0 0 1px rgba(25,227,255,.14),0 8px 26px rgba(255,63,180,.22);transition:transform .15s,box-shadow .15s,border-color .15s;}
+  :root[data-theme="portalvi"] .portal-tile{aspect-ratio:700/500;}
   :root[data-theme="portalvi"] .portal-tile:hover{transform:translateY(-3px);border-color:rgba(25,227,255,.9);box-shadow:0 0 0 1px rgba(25,227,255,.5),0 12px 34px rgba(255,63,180,.45);}
   :root[data-theme="portalvi"] .portal-tile:focus-visible{outline:3px solid #19e3ff;outline-offset:3px;}
   :root[data-theme="portalvi"] .portal-tile svg{display:none;}
   :root[data-theme="portalvi"] .portal-tile h2,:root[data-theme="portalvi"] .portal-tile p{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}  /* kept for screen readers; the art carries the name */
-  :root[data-theme="portalvi"] .portal-tile[href="calendar.html"]{aspect-ratio:694/340;background-image:url(portalvi-leave.webp?v=202610301243);}
-  :root[data-theme="portalvi"] .portal-tile[href="huddle.html"]{aspect-ratio:695/340;background-image:url(portalvi-huddle.webp?v=202610301243);}
-  :root[data-theme="portalvi"] .portal-tile[href="links.html"]{aspect-ratio:693/340;background-image:url(portalvi-links.webp?v=202610301243);}
-  :root[data-theme="portalvi"] .portal-tile[href="oncall.html"]{grid-column:span 31;aspect-ratio:1095/315;background-image:url(portalvi-oncall.webp?v=202610301243);}
-  :root[data-theme="portalvi"] .portal-tile[href="tasks.html"]{grid-column:span 29;aspect-ratio:1014/315;background-image:url(portalvi-tasks.webp?v=202610301243);}
-  :root[data-theme="portalvi"] .theme-banner{height:clamp(150px,22vw,300px);background-size:cover;background-position:center 40%;border-top:0;}
+  :root[data-theme="portalvi"] .portal-tile[href="calendar.html"]{background-image:url(portalvi-leave.webp?v=202610301538);}
+  :root[data-theme="portalvi"] .portal-tile[href="huddle.html"]{background-image:url(portalvi-huddle.webp?v=202610301538);}
+  :root[data-theme="portalvi"] .portal-tile[href="links.html"]{background-image:url(portalvi-links.webp?v=202610301538);}
+  :root[data-theme="portalvi"] .portal-tile[href="oncall.html"]{background-image:url(portalvi-oncall.webp?v=202610301538);}
+  :root[data-theme="portalvi"] .portal-tile[href="tasks.html"]{background-image:url(portalvi-tasks.webp?v=202610301538);}
+  :root[data-theme="portalvi"] .theme-banner{height:auto;aspect-ratio:2000/364;background-size:cover;background-position:center;border-top:0;}
   
   /* shimmer: a slow diagonal sheen sweeps each tile, staggered */
   :root[data-theme="portalvi"] .portal-tile::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.0) 40%,rgba(255,200,240,.38) 48%,rgba(25,227,255,.32) 52%,rgba(255,255,255,0) 60%,transparent 65%);background-size:260% 100%;background-position:130% 0;mix-blend-mode:screen;animation:pvShimmer 5s ease-in-out infinite;}
@@ -183,13 +184,20 @@
   :root[data-theme="portalvi"] .portal-tile:nth-child(3)::after{animation-delay:1.8s}
   :root[data-theme="portalvi"] .portal-tile:nth-child(4)::after{animation-delay:2.7s}
   :root[data-theme="portalvi"] .portal-tile:nth-child(5)::after{animation-delay:3.6s}
-  :root[data-theme="portalvi"] .portal-tile{animation:pvGlow 5s ease-in-out infinite;}
   @keyframes pvShimmer{0%{background-position:130% 0}45%,100%{background-position:-30% 0}}
   @keyframes pvGlow{0%,100%{border-color:rgba(255,90,200,.6)}50%{border-color:rgba(25,227,255,.85)}}
+  /* tiles fade in one after another, then breathe softly */
+  :root[data-theme="portalvi"] .portal-tile{animation:pvFadeIn .9s ease-out both,pvGlow 5s ease-in-out 1s infinite;}
+  :root[data-theme="portalvi"] .portal-tile:nth-child(2){animation-delay:.2s,1s}
+  :root[data-theme="portalvi"] .portal-tile:nth-child(3){animation-delay:.4s,1s}
+  :root[data-theme="portalvi"] .portal-tile:nth-child(4){animation-delay:.6s,1s}
+  :root[data-theme="portalvi"] .portal-tile:nth-child(5){animation-delay:.8s,1s}
+  @keyframes pvFadeIn{from{opacity:0;filter:blur(6px)}to{opacity:1;filter:none}}
   :root[data-anim="off"][data-theme="portalvi"] .portal-tile,:root[data-anim="off"][data-theme="portalvi"] .portal-tile::after{animation:none !important;}
   @media (prefers-reduced-motion:reduce){:root[data-theme="portalvi"] .portal-tile,:root[data-theme="portalvi"] .portal-tile::after{animation:none !important;}}
   :root[data-theme="portalvi"] .portal-grid{gap:14px;}
-  @media (max-width:720px){:root[data-theme="portalvi"] .portal-grid{grid-template-columns:1fr;}:root[data-theme="portalvi"] .portal-tile{grid-column:1 / -1 !important;}}
+  @media (max-width:1000px){:root[data-theme="portalvi"] .portal-grid{grid-template-columns:repeat(6,1fr);}:root[data-theme="portalvi"] .portal-tile{grid-column:span 2;}:root[data-theme="portalvi"] .portal-tile:nth-child(n+4){grid-column:span 3;}}
+  @media (max-width:560px){:root[data-theme="portalvi"] .portal-grid{grid-template-columns:1fr;}:root[data-theme="portalvi"] .portal-tile,:root[data-theme="portalvi"] .portal-tile:nth-child(n+4){grid-column:1 / -1;}}
 </style>
 </head>
 <body>
@@ -322,7 +330,7 @@
   <div class="bot-fig"><div class="g-rig" id="graemeRig"></div></div>
 </div>
 
-<script src="shared.js?v=202610301243"></script>
+<script src="shared.js?v=202610301542"></script>
 <script>
 // GRAEMe sticker-sheet poses. Each pose is an opaque body picture (eyes painted out), two separate glowing eyes,
 // optional extras (lightbulb, question mark, cheer sparks) and an antenna light, so they can be animated.

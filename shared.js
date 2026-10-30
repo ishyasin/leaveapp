@@ -177,6 +177,7 @@ function applyTheme(theme) {
   if (!THEMES[theme]) theme = "default";
   document.documentElement.setAttribute("data-theme", theme);
   try { placeThemeBanner(); } catch (e) {}
+  try { if (window.ppMusicSync) window.ppMusicSync(); } catch (e) {}
   try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (e) {}
   buildThemeFx();
 }
@@ -3225,3 +3226,60 @@ function initNotifications() {
   _notifTimer = setInterval(() => { if (!document.hidden) loadNotifications(); }, 60000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) loadNotifications(); });
 }
+
+/* ---------------- Pharmacy Portal VI: background music ----------------
+   Plays portalvi-music.mp3 (loops) only while the theme is Pharmacy Portal VI. A round button (bottom-left)
+   switches it off/on; the choice is remembered. Browsers block sound until the first click or key press, so it
+   starts then. If the file is missing the button is not shown. Playback position carries between pages. */
+(function () {
+  const SRC = "portalvi-music.mp3", VOL = 0.35;
+  let audio = null, btn = null, failed = false;
+  const isVI = () => document.documentElement.getAttribute("data-theme") === "portalvi";
+  const want = () => { try { return localStorage.getItem("pp_music") !== "off"; } catch (e) { return true; } };
+  const save = v => { try { localStorage.setItem("pp_music", v ? "on" : "off"); } catch (e) {} };
+  function icon(on) {
+    return on
+      ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>'
+      : '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/><path d="M3 3l18 18"/></svg>';
+  }
+  function paint() {
+    if (!btn) return;
+    const on = want();
+    btn.innerHTML = icon(on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    btn.setAttribute("aria-label", on ? "Music on. Press to switch off" : "Music off. Press to switch on");
+    btn.title = on ? "Music: on (click to switch off)" : "Music: off (click to switch on)";
+  }
+  function play() {
+    if (!audio || failed || !want() || !isVI()) return;
+    const p = audio.play();
+    if (p && p.then) p.then(() => { if (btn) btn.style.animation = ""; }).catch(() => { if (btn && want()) btn.style.animation = "ppMusicPulse 1.6s ease-in-out infinite"; });
+  }
+  function stop() { if (audio) audio.pause(); }
+  function remember() { try { if (audio) sessionStorage.setItem("pp_music_t", String(audio.currentTime)); } catch (e) {} }
+  function build() {
+    if (audio) return;
+    audio = new Audio(SRC); audio.loop = true; audio.volume = VOL; audio.preload = "auto";
+    audio.addEventListener("error", () => { failed = true; if (btn) btn.hidden = true; });
+    audio.addEventListener("loadedmetadata", () => { try { const t = parseFloat(sessionStorage.getItem("pp_music_t")); if (t > 0 && t < audio.duration) audio.currentTime = t; } catch (e) {} });
+    btn = document.createElement("button");
+    btn.type = "button"; btn.id = "ppMusicBtn";
+    btn.style.cssText = "position:fixed;left:max(14px,env(safe-area-inset-left,0px));bottom:max(14px,env(safe-area-inset-bottom,0px));z-index:90;width:44px;height:44px;border-radius:50%;border:1px solid #ff3fb4;background:#1a0b2e;color:#ff7fd0;display:grid;place-items:center;cursor:pointer;box-shadow:0 0 16px rgba(255,63,180,.55);padding:0;";
+    btn.addEventListener("click", () => { const on = !want(); save(on); paint(); on ? play() : stop(); });
+    const st = document.createElement("style");
+    st.textContent = "@keyframes ppMusicPulse{0%,100%{box-shadow:0 0 12px rgba(255,63,180,.5)}50%{box-shadow:0 0 0 7px rgba(255,63,180,.25),0 0 26px rgba(25,227,255,.8)}}@media (prefers-reduced-motion:reduce){#ppMusicBtn{animation:none !important}}";
+    document.head.appendChild(st);
+    document.body.appendChild(btn); paint();
+    const kick = () => { play(); };
+    ["pointerdown", "keydown", "touchstart", "click"].forEach(ev => document.addEventListener(ev, kick, { once: true, passive: true }));
+    window.addEventListener("pagehide", remember);
+    setInterval(remember, 2000);
+    play();
+  }
+  function sync() {
+    if (isVI()) { if (document.body) build(); if (btn && !failed) btn.hidden = false; play(); }
+    else { if (btn) btn.hidden = true; stop(); }
+  }
+  window.ppMusicSync = sync;
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", sync); else sync();
+})();

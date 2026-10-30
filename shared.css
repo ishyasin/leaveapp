@@ -1049,7 +1049,7 @@ body.dash-open{overflow:hidden;}
 :root[data-theme="portalvi"]:not([data-color-mode="inverted"]){--grey-bg:#0b0614; --surface:#170a26; --surface-alt:#221040; --surface-subtle:#1c0c32; --text:#fdeefc; --text-muted:#c9a8d9; --border:#4a2570; --heading-color:#ff7fd0;}
 
 /* ---- Pharmacy Portal VI banner (the supplied artwork; compact on inner pages, bigger on the portal home page) ---- */
-:root[data-theme="portalvi"] .theme-banner{display:block;height:clamp(100px,16vw,200px);background:#1a0b2e url(portalvi-banner.webp?v=202610301253) center 42%/cover no-repeat;border-bottom:3px solid #ff3fb4;box-shadow:0 4px 22px rgba(255,63,180,.35);}
+:root[data-theme="portalvi"] .theme-banner{display:block;height:auto;aspect-ratio:2000/364;background:#1a0b2e url(portalvi-banner.webp?v=202610301538) center/cover no-repeat;border-bottom:3px solid #ff3fb4;box-shadow:0 4px 22px rgba(255,63,180,.35);}
 @media (max-width:720px){:root[data-theme="portalvi"] .theme-banner{height:auto;aspect-ratio:3/1;}}
 
 /* Pharmacy Portal VI: sunset glow with palm-tree silhouettes behind the slide-out menu */
