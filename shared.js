@@ -162,9 +162,21 @@ const COLOR_MODE_STORAGE_KEY = "lm_color_mode";
 // attribute before first paint, avoiding a flash of the wrong palette.
 // The database profile row remains the source of truth — requireAuth()
 // re-applies from it, and corrects the cache, on every page load.
+/* Pharmacy Portal VI: the banner art is the very top strip, above the top bar. Other themes: under it. */
+function placeThemeBanner() {
+  const b = document.getElementById("themeBanner"), bar = document.getElementById("topbar");
+  if (!b || !bar) return;
+  if (document.documentElement.getAttribute("data-theme") === "portalvi") {
+    if (b.nextElementSibling !== bar) bar.insertAdjacentElement("beforebegin", b);
+  } else {
+    const anchor = document.getElementById("subnav") || bar;
+    if (anchor.nextElementSibling !== b) anchor.insertAdjacentElement("afterend", b);
+  }
+}
 function applyTheme(theme) {
   if (!THEMES[theme]) theme = "default";
   document.documentElement.setAttribute("data-theme", theme);
+  try { placeThemeBanner(); } catch (e) {}
   try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (e) {}
   buildThemeFx();
 }
@@ -2842,6 +2854,7 @@ function renderTopbar(profile) {
     banner.setAttribute("aria-hidden", "true");
     (document.getElementById("subnav") || el).insertAdjacentElement("afterend", banner);
   }
+  placeThemeBanner();
   buildThemeFx();
 }
 
