@@ -158,6 +158,24 @@
   .bn-row .msg{flex:1;min-width:200px;font-size:13.5px;white-space:pre-line;word-break:break-word;}
   .bn-pill{display:inline-block;font-size:11px;font-weight:700;border-radius:10px;padding:1px 8px;margin-right:6px;background:var(--surface-alt);color:var(--text);border:1px solid var(--border);}
   .bn-pill.live{background:#d3f9d8;color:#1b6b2c;border-color:#8fd6a0;}
+
+  /* ---- Pharmacy Portal VI: only the five art tiles, tutorial off ---- */
+  :root[data-theme="portalvi"] .tour-btn,:root[data-theme="portalvi"] .portal-tile.soon{display:none !important;}
+  :root[data-theme="portalvi"] .orb1,:root[data-theme="portalvi"] .orb4{background:rgba(255,63,180,0.26);}
+  :root[data-theme="portalvi"] .orb2,:root[data-theme="portalvi"] .orb3{background:rgba(25,227,255,0.18);}
+  :root[data-theme="portalvi"] .portal-hero h1{color:#fff;text-shadow:0 0 14px rgba(255,63,180,.75),0 0 2px rgba(25,227,255,.6);}
+  :root[data-theme="portalvi"] .portal-grid{grid-template-columns:repeat(60,1fr);grid-auto-rows:auto;gap:14px;}
+  :root[data-theme="portalvi"] .portal-tile{grid-column:span 20;align-self:stretch;padding:0;min-height:0;position:relative;overflow:hidden;border:1px solid rgba(255,90,200,.6);border-top:1px solid rgba(255,90,200,.6);border-radius:14px;background-color:#0b0614;background-size:cover;background-position:center;box-shadow:0 0 0 1px rgba(25,227,255,.14),0 8px 26px rgba(255,63,180,.22);transition:transform .15s,box-shadow .15s,border-color .15s;}
+  :root[data-theme="portalvi"] .portal-tile:hover{transform:translateY(-3px);border-color:rgba(25,227,255,.9);box-shadow:0 0 0 1px rgba(25,227,255,.5),0 12px 34px rgba(255,63,180,.45);}
+  :root[data-theme="portalvi"] .portal-tile:focus-visible{outline:3px solid #19e3ff;outline-offset:3px;}
+  :root[data-theme="portalvi"] .portal-tile svg{display:none;}
+  :root[data-theme="portalvi"] .portal-tile h2,:root[data-theme="portalvi"] .portal-tile p{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}  /* kept for screen readers; the art carries the name */
+  :root[data-theme="portalvi"] .portal-tile[href="calendar.html"]{aspect-ratio:694/340;background-image:url(portalvi-leave.webp);}
+  :root[data-theme="portalvi"] .portal-tile[href="huddle.html"]{aspect-ratio:695/340;background-image:url(portalvi-huddle.webp);}
+  :root[data-theme="portalvi"] .portal-tile[href="links.html"]{aspect-ratio:693/340;background-image:url(portalvi-links.webp);}
+  :root[data-theme="portalvi"] .portal-tile[href="oncall.html"]{grid-column:span 31;aspect-ratio:1095/315;background-image:url(portalvi-oncall.webp);}
+  :root[data-theme="portalvi"] .portal-tile[href="tasks.html"]{grid-column:span 29;aspect-ratio:1014/315;background-image:url(portalvi-tasks.webp);}
+  @media (max-width:720px){:root[data-theme="portalvi"] .portal-grid{grid-template-columns:1fr;}:root[data-theme="portalvi"] .portal-tile{grid-column:1 / -1 !important;}}
 </style>
 </head>
 <body>
@@ -566,7 +584,7 @@ window.GRAEME_POSES = {"neutral":{"w":195,"h":260,"src":"data:image/webp;base64,
     setTimeout(() => { bot.classList.remove("go", "on-below", "on-right"); bot.style.transition = ""; bot.setAttribute("aria-hidden", "true"); window.__tour = false; }, 520);
   }
   function begin() {
-    if (window.__tour) return;
+    if (window.__tour || document.documentElement.getAttribute("data-theme") === "portalvi") return;   // tutorial is off in Pharmacy Portal VI
     steps = STEPS.map(s => { let el = document.querySelector(s.sel); if (s.lazy) { el = el || (s.alt && document.querySelector(s.alt)); } else if ((!el || el.offsetParent === null) && s.alt) el = document.querySelector(s.alt); return { ...s, el }; }).filter(s => s.el && (s.lazy || s.el.offsetParent !== null));
     if (!steps.length) return;
     window.__tour = true;

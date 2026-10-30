@@ -146,6 +146,7 @@ const THEMES = {
   stormaustin: "Storm Austen",
   aurora: "Northern Lights",
   retropharm: "Retro Pharmacy",
+  portalvi: "Pharmacy Portal VI",
 };
 const COLOR_MODES = {
   light:    "Light",

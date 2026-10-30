@@ -93,6 +93,7 @@
 :root[data-theme="stormaustin"]{--navy:#2a3a4d; --navy-light:#40566e; --teal:#5f8fb4; --teal-light:#9cc3e0; --honey:#e8c15a; --honey-dark:#c49b2e;}
 :root[data-theme="aurora"]{--navy:#0b2433; --navy-light:#14485a; --teal:#1a8f76; --teal-light:#7fe8c8; --honey:#9be37a; --honey-dark:#5fb04a;}
 :root[data-theme="retropharm"]{--navy:#4a2f1b; --navy-light:#6b4528; --teal:#8a5a2b; --teal-light:#d2a86a; --honey:#c9962e; --honey-dark:#9c7420;}
+:root[data-theme="portalvi"]{--navy:#1a0b2e; --navy-light:#2c1250; --teal:#ff3fb4; --teal-light:#ff7fd0; --honey:#19e3ff; --honey-dark:#0fb5cc;}
 :root[data-theme="calmforest"]{--navy:#2f4a3a; --navy-light:#4a6b58; --teal:#6b8f71; --teal-light:#a9c7a8; --honey:#c9b27a; --honey-dark:#a08a52;}
 :root[data-theme="win98"]{--navy:#000080; --navy-light:#1084d0; --teal:#008080; --teal-light:#1084d0; --honey:#ffffe1; --honey-dark:#808080;}
 
@@ -1043,3 +1044,6 @@ body.dash-open{overflow:hidden;}
 .sw-out td:first-child{box-shadow:inset 4px 0 0 var(--pending);}
 .sw-out .sw-badge{border-color:var(--pending);color:var(--pending);}
 .sw-own{color:var(--text-muted);}
+
+/* ---- Pharmacy Portal VI: dark neon surfaces (the portal home tiles are styled in portal.html) ---- */
+:root[data-theme="portalvi"]:not([data-color-mode="inverted"]){--grey-bg:#0b0614; --surface:#170a26; --surface-alt:#221040; --surface-subtle:#1c0c32; --text:#fdeefc; --text-muted:#c9a8d9; --border:#4a2570; --heading-color:#ff7fd0;}
