@@ -166,6 +166,8 @@
   .week-block td,.week-block th{border-bottom:2px solid #fff !important;border-right:2px solid #fff;}
   .week-block td:last-child,.week-block th:last-child{border-right:0;}
   .week-block td.os-cell{background:var(--surface) !important;color:#1f2430;text-align:center;}
+  .week-block td.os-cell.filled{font-weight:700;}
+  .os-name{font-weight:700;font-size:12.5px;}
   .os-pill{display:inline-block;max-width:92%;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;border-radius:6px;padding:1px 10px;font-weight:700;font-size:12px;line-height:20px;}
   .week-block td.merged .mname{display:block;overflow:hidden;text-overflow:ellipsis;}
   .week-block td.merged.clickable{cursor:pointer;}
@@ -358,6 +360,8 @@
         <button type="button" class="aud-chip" data-f="setup">Setup &amp; settings</button>
         <button type="button" class="aud-chip" data-f="table">Swaps by pharmacist</button>
         <button type="button" class="aud-chip aud-refresh" onclick="loadAudit(true)">&#8635; Refresh</button>
+        <button type="button" class="aud-chip" id="clearOncallAuditBtn" style="display:none;color:#b91c1c;" onclick="clearOncallAudit()">Clear on-call audit trail for system reset</button>
+        <button type="button" class="aud-chip" id="clearOncallSwapBtn" style="display:none;color:#b91c1c;" onclick="clearOncallSwapLog()">Clear on-call swap log for system reset</button>
       </div>
       <div id="auditMsg"></div>
       <div id="auditSwaps" style="display:none;"></div>
@@ -481,7 +485,7 @@ const DEFAULT_ONCALL_COLORS = ["#a5d8ff","#b2f2bb","#ffec99","#ffc9c9","#d0bfff"
 
 /* ---------------- edit lock (enforced by the database; this is the matching UI) ---------------- */
 let EDIT_UNTIL = 0, LOCK_TICK = null;
-const LOCK_WRITE_RPCS = new Set(["create_oncall_rota_period","archive_oncall_rota_period","reopen_oncall_rota_period","complete_oncall_rota_period","set_oncall_user_color","set_oncall_bank_holiday","remove_oncall_bank_holiday","set_oncall_assignment","clear_oncall_assignment","bulk_set_oncall_assignments","annotate_oncall_assignments"]);
+const LOCK_WRITE_RPCS = new Set(["create_oncall_rota_period","archive_oncall_rota_period","reopen_oncall_rota_period","complete_oncall_rota_period","set_oncall_user_color","set_oncall_bank_holiday","remove_oncall_bank_holiday","set_oncall_assignment","clear_oncall_assignment","bulk_set_oncall_assignments","annotate_oncall_assignments","clear_oncall_audit_trail","clear_oncall_swap_log"]);
 function canEdit() { return isLeadPlus(PROFILE) && Date.now() < EDIT_UNTIL; }
 function fmtLeft(ms) { const t = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); }
 function applyLockState(rerender) {
@@ -491,6 +495,8 @@ function applyLockState(rerender) {
   document.getElementById("buildRotaCard").style.display = open ? "" : "none";
   document.getElementById("unlockBtn").style.display = open ? "none" : "";
   document.getElementById("lockNowBtn").style.display = open ? "" : "none";
+  document.getElementById("clearOncallAuditBtn").style.display = (open && PROFILE.role === "developer") ? "" : "none";
+  document.getElementById("clearOncallSwapBtn").style.display = (open && PROFILE.role === "developer") ? "" : "none";
   const pill = document.getElementById("lockPill");
   pill.className = "lockpill" + (open ? " open" : "");
   pill.innerHTML = open ? "&#128275; Editing unlocked — " + fmtLeft(EDIT_UNTIL - Date.now()) + " left" : "&#128274; Locked";
@@ -539,6 +545,22 @@ async function initEditLock() {
 }
 function openUnlock() { document.getElementById("unlockMsg").innerHTML = ""; document.getElementById("unlockOverlay").style.display = "flex"; setTimeout(() => document.getElementById("unlockPw").focus(), 30); }
 function closeUnlock() { document.getElementById("unlockOverlay").style.display = "none"; document.getElementById("unlockPw").value = ""; }
+async function clearOncallAudit() {
+  if (!await uiConfirm("Permanently delete every on-call audit entry? This only clears the on-call trail (not leave, users or settings) and the rota itself is not changed. It cannot be undone.", "Clear on-call audit trail for system reset")) return;
+  const { data, error } = await sb.rpc("clear_oncall_audit_trail");
+  if (error) { uiAlert(error.message || "Could not clear the audit trail.", "Error"); return; }
+  AUDIT_LOADED = false;
+  await loadAudit(true);
+  uiAlert(`Cleared ${data} on-call audit entr${data === 1 ? "y" : "ies"}.`, "Done");
+}
+async function clearOncallSwapLog() {
+  if (!await uiConfirm("Permanently delete every on-call swap request (pending, completed, declined and cancelled)? The rota itself is not changed. It cannot be undone.", "Clear on-call swap log for system reset")) return;
+  const { data, error } = await sb.rpc("clear_oncall_swap_log");
+  if (error) { uiAlert(error.message || "Could not clear the swap log.", "Error"); return; }
+  AUDIT_LOADED = false;
+  try { await loadPendingSwaps(); await loadAssignments(); renderRota(); await loadAudit(true); } catch (e) {}
+  uiAlert(`Cleared ${data} swap request${data === 1 ? "" : "s"}.`, "Done");
+}
 async function lockNow() {
   try { await sb.rpc("lock_oncall_editing"); } catch (e) {}
   EDIT_UNTIL = 0; applyLockState(true);
@@ -954,7 +976,7 @@ function renderLegend() {
     <span class="legend-sw"><i style="background:#cdeccf"></i>Wed &ndash; Sat (day)</span>
     <span class="legend-sw"><i style="background:${DEFAULT_BH_COLOR}"></i>Bank holiday (colour set per day)</span>
   </div>`;
-  html += `<div class="small" style="margin:4px 0;"><span class="swap-flag">\u21C4</span> + dashed outline = a swap has been requested for that shift and is awaiting a reply &nbsp; <span class="swap-flag review">\u21C4</span> (purple) = agreed, awaiting Lead Pharmacist approval &nbsp; Hover over the symbol for details.</div>`;
+  html += `<div class="small" style="margin:4px 0;">Dashed outline = a swap has been requested for that shift. Click any shift that has been swapped, has a note or is awaiting a swap to see the details.</div>`;
   if (pool.length) html += `<div class="small" style="margin:4px 0;"><strong>Key:</strong> ${pool.map(p => `<span class="legend-sw" style="margin-right:10px;"><i style="background:${escapeHtml(colorFor(p))}"></i>${escapeHtml(p.initials)} = ${escapeHtml(p.full_name)}</span>`).join("")}</div>`;
   if (!pool.length) html += `<p class="small">Nobody is in this site's on-call pool yet — set it up from Admin &rarr; Users &rarr; Edit on-call.</p>`;
   wrap.innerHTML = html;
@@ -1028,7 +1050,7 @@ function renderWeekBlock(weekStart) {
       }
       const rs = []; for (let k = 0; k < n; k++) rs.push([ymd(addDays(weekStart, i + k)), assignmentFor(addDays(weekStart, i + k), "on_call")]);
       const sw = rs.find(x => x[1].replaced_user_id), nt = rs.find(x => x[1].note);
-      blockInfo[i] = { uid: r.user_id, span: n, swapDate: sw && sw[0], noteDate: nt && !sw ? nt[0] : null };
+      blockInfo[i] = { uid: r.user_id, span: n, start: ymd(addDays(weekStart, i)), hasInfo: !!(sw || nt) };
       i += n;
     }
   }
@@ -1052,7 +1074,7 @@ function renderWeekBlock(weekStart) {
     const osP = onsite && profileById(onsite.user_id);
     const onsiteCell = viewOnly
       ? (onsiteApplies && osP && !PENDING_SWAPS[onsite.id]
-          ? `<span class="os-pill" title="${escapeHtml(osP.full_name)}" style="background:${escapeHtml(colorFor(osP))};color:${textOn(colorFor(osP))};">${escapeHtml(shortName(osP))}</span>${flagFor(day, "onsite", onsite)}`
+          ? `<span class="os-name" title="${escapeHtml(osP.full_name)}${cellInfoText(onsite, "onsite", ymd(day)) ? " \u2014 click for details" : ""}"${cellInfoText(onsite, "onsite", ymd(day)) ? ` style="cursor:pointer;" onclick="showCellInfo('${ymd(day)}','onsite')"` : ""}>${escapeHtml(shortName(osP))}</span>${flagFor(day, "onsite", onsite)}`
           : (onsiteApplies && (onsite || bh) ? renderChip(day, "onsite", onsite, !!bh) : ""))
       : onsiteApplies
       ? renderChip(day, "onsite", onsite, !!bh)
@@ -1062,7 +1084,7 @@ function renderWeekBlock(weekStart) {
         <td class="daycell" ${cellStyle}>${WEEKDAY_NAMES[i]}${bh ? `<span class="bh-tag" title="${escapeHtml(bh.label || "Bank holiday")}">BH</span>` : ""}</td>
         <td class="datecell" ${cellStyle}${bh && bh.label ? ` title="${escapeHtml(bh.label)}"` : ""}>${day.getDate()} ${MONTH_SHORT[day.getMonth()]}</td>
         ${blockInfo[i] ? mergedCell(blockInfo[i]) : (inMerged(blockInfo, i) ? "" : (mergeOn && !onCall) ? `<td ${cellStyle}></td>` : `<td ${shiftStyle(onCall, cellStyle)}>${renderChip(day, "on_call", onCall)}</td>`)}
-        <td ${(viewOnly || !onsiteApplies) ? 'class="os-cell"' : shiftStyle(onsite, cellStyle)}>${onsiteCell}</td>
+        <td ${viewOnly && onsiteApplies && osP && !PENDING_SWAPS[onsite.id] ? `class="os-cell filled" style="background:${escapeHtml(colorFor(osP))} !important;color:${textOn(colorFor(osP))};"` : (viewOnly || !onsiteApplies) ? 'class="os-cell"' : shiftStyle(onsite, cellStyle)}>${onsiteCell}</td>
       </tr>`;
   }
   return `
@@ -1084,22 +1106,49 @@ function shortName(p) {
   const parts = (p.full_name || "").trim().split(/\s+/);
   return parts.length > 1 ? first + " " + parts[parts.length - 1][0].toUpperCase() + "." : first;
 }
-// Swap star / note dot for the sheet look (same detail popups as the per-day chips).
-function flagFor(dayOrStr, duty, row, byDate) {
-  const ds = typeof dayOrStr === "string" ? dayOrStr : ymd(dayOrStr);
-  const r = row || assignmentFor(new Date(ds + "T00:00:00"), duty);
-  if (!r) return "";
-  if (r.replaced_user_id) return `<span class="swap-star" role="button" tabindex="0" title="Swapped \u2014 click for details" onclick="event.stopPropagation();showSwapDetail(event,'${ds}','${duty}')">*</span>`;
-  if (r.note) return `<span class="note-dot" role="button" tabindex="0" title="${escapeHtml(r.note)}" onclick="event.stopPropagation();showNoteDetail(event,'${ds}','${duty}')">&bull;</span>`;
-  return "";
+// Extra info (manual swap, note, swap in progress) is not drawn in the cell: it opens when the cell or block is clicked.
+function flagFor() { return ""; }
+function cellInfoText(row, dutyType, dateStr) {
+  if (!row) return "";
+  const out = [];
+  if (row.replaced_user_id) {
+    const by = profileById(row.updated_by);
+    out.push(swapSentence(row) + (by ? ` Changed by ${by.full_name} on ${fmtDateTime(row.updated_at)}.` : ""));
+  }
+  if (row.note && !row.replaced_user_id) { const p = profileById(row.user_id); out.push(`Note (${p ? p.full_name : "Unknown"}): ${row.note}`); }
+  const ps = PENDING_SWAPS[row.id];
+  if (ps) {
+    const a = profileById(ps.requested_by), b = profileById(ps.counterparty_id);
+    out.push(`Swap requested (${a ? a.full_name : "?"} with ${b ? b.full_name : "?"}) \u2014 ${ps.status === "awaiting_approval" ? "agreed, awaiting Lead Pharmacist approval" : "awaiting " + (b ? b.full_name : "the other pharmacist") + "'s reply"}. This date can't be offered in another swap until it is cancelled or declined.`);
+  }
+  return out.length ? `${DUTY_LABEL[dutyType]} \u2014 ${fmtDate(dateStr)}\n` + out.join("\n") : "";
+}
+function showCellInfo(dateStr, dutyType) {
+  const row = ASSIGNMENTS.find(a => a.shift_date === dateStr && a.duty_type === dutyType);
+  const t = cellInfoText(row, dutyType, dateStr);
+  if (t) uiAlert(`${SITE_LABEL[SELECTED_SITE]}\n${t}`, "Shift details");
+}
+function showBlockInfo(start, span) {
+  const parts = [];
+  for (let k = 0; k < span; k++) {
+    const d = addDays(new Date(start + "T00:00:00"), k), ds = ymd(d);
+    const row = ASSIGNMENTS.find(a => a.shift_date === ds && a.duty_type === "on_call");
+    const t = cellInfoText(row, "on_call", ds);
+    if (t) parts.push(t);
+  }
+  if (parts.length) uiAlert(`${SITE_LABEL[SELECTED_SITE]}\n` + parts.join("\n\n"), "Shift details");
 }
 function inMerged(info, i) { return Object.keys(info).some(k => i > +k && i < +k + info[k].span); }
 function mergedCell(b) {
   const p = profileById(b.uid), c = colorFor(p);
   const swappable = isOncallPoolMember(PROFILE) && !isReadOnlyRole(PROFILE);
-  return `<td class="merged${swappable ? " clickable" : ""}" rowspan="${b.span}" style="background:${escapeHtml(c)};color:${textOn(c)};" title="${escapeHtml(p.full_name)}${swappable ? " \u2014 click to select shifts for a swap" : ""}"${swappable ? ` onclick="mergedClick()"` : ""}><span class="mname">${escapeHtml(shortName(p))}${b.swapDate ? flagFor(b.swapDate, "on_call", null, true) : (b.noteDate ? flagFor(b.noteDate, "on_call", null, true) : "")}</span></td>`;
+  const clickable = swappable || b.hasInfo;
+  return `<td class="merged${clickable ? " clickable" : ""}" rowspan="${b.span}" style="background:${escapeHtml(c)};color:${textOn(c)};" title="${escapeHtml(p.full_name)}${b.hasInfo ? " \u2014 click for details" : (swappable ? " \u2014 click to select shifts for a swap" : "")}"${clickable ? ` onclick="mergedClick(event,'${b.start}',${b.span},${b.hasInfo})"` : ""}><span class="mname">${escapeHtml(shortName(p))}</span></td>`;
 }
-function mergedClick() { if (!SWAP_MODE) toggleSwapMode(); }
+function mergedClick(e, start, span, hasInfo) {
+  if (hasInfo && !(e.ctrlKey || e.metaKey)) { showBlockInfo(start, span); return; }
+  if (!SWAP_MODE) toggleSwapMode();
+}
 
 // A filled Overnight / Onsite cell takes that pharmacist's own colour.
 function shiftStyle(row, fallback) {
@@ -1128,8 +1177,9 @@ function renderChip(day, dutyType, row, requiresOnsite) {
   const label = p ? shortName(p) : "?";
   let title = row.note ? `${p ? p.full_name : "Unknown"} \u2014 ${row.note}` : (p ? p.full_name : "Unknown");
   if (swappable) title += " \u2014 Ctrl/Cmd-click to select for a swap";
-  const cls = "person-chip" + ((editable || swappable) ? " clickable" : "") + selCls;
-  const onclick = (editable || swappable) ? ` onclick="cellClick(event,'${ymd(day)}','${dutyType}')"` : "";
+  const cls = "person-chip" + ((editable || swappable || cellInfoText(row, dutyType, ymd(day))) ? " clickable" : "") + selCls;
+  const hasInfo = !!cellInfoText(row, dutyType, ymd(day));
+  const onclick = (editable || swappable || hasInfo) ? ` onclick="cellClick(event,'${ymd(day)}','${dutyType}')"` : "";
   const star = row.replaced_user_id
     ? `<span class="swap-star" role="button" tabindex="0" title="Manually swapped \u2014 click for details" onclick="showSwapDetail(event,'${ymd(day)}','${dutyType}')" onkeydown="if(event.key==='Enter')showSwapDetail(event,'${ymd(day)}','${dutyType}')">*</span>`
     : "";
@@ -1148,7 +1198,7 @@ function renderChip(day, dutyType, row, requiresOnsite) {
     title += " \u2014 SWAP REQUESTED (" + pair + ")";
     pend = `<span class="swap-flag${review ? " review" : ""}" title="${escapeHtml(tip)}">\u21C4</span>`;
   }
-  return `<span class="${cls}${mine}${pendCls}" style="color:${tc};" data-key="${key}" title="${escapeHtml(title)}"${onclick}>${escapeHtml(label)}</span>${pend}${star}${noteDot}`;
+  return `<span class="${cls}${mine}${pendCls}" style="color:${tc};" data-key="${key}" title="${escapeHtml(title)}"${onclick}>${escapeHtml(label)}</span>`;
 }
 
 /* ---------------- Large week view (4 weeks, full screen) ---------------- */
@@ -1287,6 +1337,7 @@ function toggleSwapMode() {
   renderRota();
 }
 function cellClick(e, dateStr, dutyType) {
+  if (!(e.ctrlKey || e.metaKey || SWAP_MODE) && !canEdit()) { showCellInfo(dateStr, dutyType); if (isReadOnlyRole(PROFILE) || !isLeadPlus(PROFILE)) return; return; }
   if (isReadOnlyRole(PROFILE)) return;   // Technician roles view only
   if (e.ctrlKey || e.metaKey || SWAP_MODE) {
     e.preventDefault();
