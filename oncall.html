@@ -74,12 +74,15 @@
   /* Fixed-size tiles and rows: nothing (notes, flags, long names) may change a tile's size, so colour always runs to the borders. */
   .oncall-weekgrid{grid-template-columns:repeat(auto-fill,280px);justify-content:start;}
   @media (max-width:420px){.oncall-weekgrid{grid-template-columns:280px;justify-content:center;}}
-  .week-block{width:280px;box-sizing:border-box;}
+  .week-block{width:100%;box-sizing:border-box;}
   /* On-call rota layout: 4 weeks per row; an incomplete (partial) week sits on its own row. */
-  #rotaGrid.oncall-weekgrid{display:flex;flex-direction:column;align-items:center;gap:14px;}
-  .oncall-weekrow{display:grid;grid-template-columns:repeat(4,280px);gap:14px;justify-content:center;max-width:100%;}
-  @media (max-width:1240px){.oncall-weekrow{grid-template-columns:repeat(auto-fit,280px);}}
-  @media (max-width:420px){.oncall-weekrow{grid-template-columns:280px;justify-content:center;}}
+  #rotaGrid.oncall-weekgrid{display:flex;flex-direction:column;align-items:stretch;gap:14px;}
+  .week-block table{font-size:12.5px;}
+  .week-block th,.week-block td{height:30px;}
+  .week-block h4{height:30px;font-size:13px;}
+  .oncall-weekrow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;width:100%;max-width:100%;}
+  @media (max-width:1100px){.oncall-weekrow{grid-template-columns:repeat(2,minmax(0,1fr));}}
+  @media (max-width:560px){.oncall-weekrow{grid-template-columns:minmax(0,1fr);}}
   @media print{#rotaGrid.oncall-weekgrid{gap:6px;}.oncall-weekrow{grid-template-columns:repeat(4,1fr);gap:6px;width:100%;}}
 
   .week-block h4{height:26px;box-sizing:border-box;align-items:center;white-space:nowrap;}
@@ -160,6 +163,8 @@
   .lockpill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 12px;font-size:12.5px;font-weight:700;border:1px solid var(--border);background:var(--surface-alt);color:var(--text-muted);}
   .lockpill.open{background:#e6f6ea;border-color:#86c99a;color:#17653a;}
   .week-block td.merged{text-align:center;font-weight:800;font-size:14px;}
+  .week-block td,.week-block th{border-bottom:2px solid #fff !important;border-right:2px solid #fff;}
+  .week-block td:last-child,.week-block th:last-child{border-right:0;}
   .week-block td.os-cell{background:var(--surface) !important;color:#1f2430;text-align:center;}
   .os-pill{display:inline-block;max-width:92%;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;border-radius:6px;padding:1px 10px;font-weight:700;font-size:12px;line-height:20px;}
   .week-block td.merged .mname{display:block;overflow:hidden;text-overflow:ellipsis;}
@@ -247,6 +252,15 @@
           </div>
           <button type="submit" class="secondary">Add</button>
         </form>
+        <details style="margin-top:10px;">
+          <summary style="cursor:pointer;font-weight:600;">Add several bank holidays at once</summary>
+          <label for="bhBulk" style="margin-top:8px;">Dates (DD/MM/YYYY, one per line)</label>
+          <textarea id="bhBulk" rows="5" placeholder="01/01/2027&#10;26/03/2027&#10;29/03/2027" spellcheck="false" autocomplete="off"></textarea>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:6px;flex-wrap:wrap;">
+            <button type="button" class="secondary" id="bhBulkBtn">Add these dates</button>
+            <span class="small">Then type each name in the list below. Dates already in the list are left as they are.</span>
+          </div>
+        </details>
         <div class="holiday-rows" id="bhRows"></div>
 
         <h3 style="margin:16px 0 4px;">4. Quick build</h3>
@@ -726,13 +740,44 @@ function setupBankHolidayForm() {
   });
 }
 
+async function bulkAddBankHolidays() {
+  const msg = document.getElementById("bhMsg"), btn = document.getElementById("bhBulkBtn");
+  const parsed = parseUkDates(document.getElementById("bhBulk").value);
+  if (!parsed.dates.length) { showMsg(msg, "No valid dates found. Use DD/MM/YYYY, one per line.", "error"); return; }
+  if (parsed.bad && parsed.bad.length) { showMsg(msg, "Not recognised: " + parsed.bad.join(", "), "error"); return; }
+  const have = new Set(BANK_HOLIDAYS.map(h => h.holiday_date));
+  const fresh = parsed.dates.filter(d => !have.has(d));
+  btn.disabled = true;
+  try {
+    for (const d of fresh) {
+      const { error } = await sb.rpc("set_oncall_bank_holiday", { p_date: d, p_label: null, p_color: document.getElementById("bhColor").value });
+      if (error) throw error;
+    }
+    document.getElementById("bhBulk").value = "";
+    await loadBankHolidays();
+    renderRota();
+    showMsg(msg, `Added ${fresh.length} bank holiday${fresh.length === 1 ? "" : "s"}` + (parsed.dates.length > fresh.length ? ` (${parsed.dates.length - fresh.length} already in the list)` : "") + ". Add names below.", "ok");
+  } catch (err) { showMsg(msg, err.message, "error"); }
+  finally { btn.disabled = false; }
+}
+document.getElementById("bhBulkBtn").addEventListener("click", bulkAddBankHolidays);
+async function changeBhLabel(dateStr, label) {
+  const msg = document.getElementById("bhMsg");
+  const h = BANK_HOLIDAYS.find(x => x.holiday_date === dateStr);
+  try {
+    const { error } = await sb.rpc("set_oncall_bank_holiday", { p_date: dateStr, p_label: label.trim() || null, p_color: h ? h.color : null });
+    if (error) throw error;
+    await loadBankHolidays();
+    renderRota();
+  } catch (err) { showMsg(msg, err.message, "error"); }
+}
 function renderBankHolidayRows() {
   const wrap = document.getElementById("bhRows");
   wrap.innerHTML = BANK_HOLIDAYS.map(h => `
     <div class="holiday-row">
       <input type="color" value="${escapeHtml(h.color || DEFAULT_BH_COLOR)}" style="width:44px;height:30px;padding:2px;cursor:pointer;" title="Change colour" aria-label="Colour for ${escapeHtml(h.holiday_date)}" onchange="changeBhColor('${h.holiday_date}', this.value)">
       <strong>${fmtDate(h.holiday_date)}</strong>
-      <span class="small">${escapeHtml(h.label || "")}</span>
+      <input type="text" value="${escapeHtml(h.label || "")}" placeholder="Name (e.g. Good Friday)" maxlength="80" aria-label="Name for ${escapeHtml(h.holiday_date)}" style="flex:1;min-width:140px;max-width:260px;" onchange="changeBhLabel('${h.holiday_date}', this.value)">
       <span class="spacer"></span>
       <button class="danger" onclick="removeBankHoliday('${h.holiday_date}')">Remove</button>
     </div>`).join("") || `<p class="small">No on-call bank holidays set yet.</p>`;
@@ -1011,13 +1056,13 @@ function renderWeekBlock(weekStart) {
           : (onsiteApplies && (onsite || bh) ? renderChip(day, "onsite", onsite, !!bh) : ""))
       : onsiteApplies
       ? renderChip(day, "onsite", onsite, !!bh)
-      : `<span class="na" title="Onsite cover is only used on weekends and bank holidays">&mdash;</span>`;
+      : "";
     rows += `
       <tr class="${isToday ? "today-row" : ""}">
         <td class="daycell" ${cellStyle}>${WEEKDAY_NAMES[i]}${bh ? `<span class="bh-tag" title="${escapeHtml(bh.label || "Bank holiday")}">BH</span>` : ""}</td>
         <td class="datecell" ${cellStyle}${bh && bh.label ? ` title="${escapeHtml(bh.label)}"` : ""}>${day.getDate()} ${MONTH_SHORT[day.getMonth()]}</td>
         ${blockInfo[i] ? mergedCell(blockInfo[i]) : (inMerged(blockInfo, i) ? "" : (mergeOn && !onCall) ? `<td ${cellStyle}></td>` : `<td ${shiftStyle(onCall, cellStyle)}>${renderChip(day, "on_call", onCall)}</td>`)}
-        <td ${viewOnly ? 'class="os-cell"' : shiftStyle(onsiteApplies ? onsite : null, cellStyle)}>${onsiteCell}</td>
+        <td ${(viewOnly || !onsiteApplies) ? 'class="os-cell"' : shiftStyle(onsite, cellStyle)}>${onsiteCell}</td>
       </tr>`;
   }
   return `
@@ -1025,7 +1070,7 @@ function renderWeekBlock(weekStart) {
       <h4><span>Week ${weekNum}</span><span>${weekStart.getDate()} ${MONTH_SHORT[weekStart.getMonth()]} to ${addDays(weekStart, 6).getDate()} ${MONTH_SHORT[addDays(weekStart, 6).getMonth()]}</span></h4>
       <table>
         <colgroup><col style="width:15%"><col style="width:21%"><col style="width:32%"><col style="width:32%"></colgroup>
-        <thead><tr><th>Day</th><th>Date</th><th>On call</th><th>Onsite 11-15</th></tr></thead>
+        <thead><tr><th>Day</th><th>Date</th><th>Overnight</th><th>Onsite</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
