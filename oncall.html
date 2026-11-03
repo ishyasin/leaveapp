@@ -13,7 +13,7 @@
 // remains the source of truth and corrects this on every page load.
 (function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="shared.css?v=202610301542">
+<link rel="stylesheet" href="shared.css?v=202611031200">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <style>
   .oncall-weekgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:14px;margin-top:14px;}
@@ -155,6 +155,14 @@
   .period-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;}
   .holiday-rows{margin-top:8px;max-height:200px;overflow-y:auto;}
   .holiday-row{display:flex;align-items:center;gap:10px;padding:4px 0;border-bottom:1px solid var(--border);}
+  /* Edit lock */
+  .lockbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 0;}
+  .lockpill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 12px;font-size:12.5px;font-weight:700;border:1px solid var(--border);background:var(--surface-alt);color:var(--text-muted);}
+  .lockpill.open{background:#e6f6ea;border-color:#86c99a;color:#17653a;}
+  .week-block td.merged{text-align:center;font-weight:700;}
+  .week-block td.merged .mname{display:block;overflow:hidden;text-overflow:ellipsis;}
+  .week-block td.merged.clickable{cursor:pointer;}
+  @media print{.lockbar{display:none !important;}}
 </style>
 </head>
 <body>
@@ -186,6 +194,11 @@
         <button class="secondary" id="swapModeBtn" style="display:none;" onclick="toggleSwapMode()" title="Tap shifts to select them, without needing Ctrl/Cmd">Select shifts to swap</button>
         <button class="secondary" id="bigViewBtn" onclick="openBigView()" title="Full-screen view of four weeks at a time">Week view</button>
         <button class="secondary" onclick="window.print()">Print</button>
+      </div>
+      <div class="lockbar" id="lockBar" style="display:none;">
+        <span class="lockpill" id="lockPill">&#128274; Locked</span>
+        <button class="primary" id="unlockBtn" onclick="openUnlock()">Unlock to edit or build</button>
+        <button class="secondary" id="lockNowBtn" style="display:none;" onclick="lockNow()">Lock now</button>
       </div>
       <p class="small" id="swapHint" style="display:none;margin:8px 0 0;"><strong>Swapping a shift?</strong> Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on a Mac) and click one or more of <em>your own</em> shifts, then click one or more shifts belonging to <em>one</em> colleague, then press <strong>Request swap</strong>. You must include at least one of your own shifts. On a phone or tablet use <strong>Select shifts to swap</strong> instead.</p>
       <h1 id="rotaTitle" style="margin:10px 0 2px;"></h1>
@@ -351,6 +364,22 @@
 </div>
 
 <!-- Assign / clear / annotate a single cell -->
+<div class="overlay" id="unlockOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Unlock on-call editing</h3>
+    <p class="small">Enter your own password. Editing locks again after 10 minutes without activity.</p>
+    <div id="unlockMsg"></div>
+    <form id="unlockForm" autocomplete="off">
+      <label for="unlockPw">Your password</label>
+      <input type="password" id="unlockPw" autocomplete="current-password" required>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeUnlock()">Cancel</button>
+        <button type="submit" class="primary" id="unlockGo">Unlock</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="overlay" id="cellOverlay" style="display:none;">
   <div class="modal">
     <h3 id="cellModalTitle">Assign shift</h3>
@@ -409,7 +438,7 @@
   </div>
 </div>
 
-<script src="shared.js?v=202610301542"></script>
+<script src="shared.js?v=202611031200"></script>
 <script src="oncall-swaps.js"></script>
 <script>
 let PROFILE = null;
@@ -433,14 +462,79 @@ const DEFAULT_BH_COLOR = "#bfe3f7";
 const WEEKDAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const DEFAULT_ONCALL_COLORS = ["#a5d8ff","#b2f2bb","#ffec99","#ffc9c9","#d0bfff","#99e9f2","#ffd8a8","#fcc2d7"];
 
+/* ---------------- edit lock (enforced by the database; this is the matching UI) ---------------- */
+let EDIT_UNTIL = 0, LOCK_TICK = null;
+const LOCK_WRITE_RPCS = new Set(["create_oncall_rota_period","archive_oncall_rota_period","reopen_oncall_rota_period","complete_oncall_rota_period","set_oncall_user_color","set_oncall_bank_holiday","remove_oncall_bank_holiday","set_oncall_assignment","clear_oncall_assignment","bulk_set_oncall_assignments","annotate_oncall_assignments"]);
+function canEdit() { return isLeadPlus(PROFILE) && Date.now() < EDIT_UNTIL; }
+function fmtLeft(ms) { const t = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); }
+function applyLockState(rerender) {
+  if (!isLeadPlus(PROFILE)) return;
+  const open = canEdit();
+  document.getElementById("lockBar").style.display = "";
+  document.getElementById("buildRotaCard").style.display = open ? "" : "none";
+  document.getElementById("unlockBtn").style.display = open ? "none" : "";
+  document.getElementById("lockNowBtn").style.display = open ? "" : "none";
+  const pill = document.getElementById("lockPill");
+  pill.className = "lockpill" + (open ? " open" : "");
+  pill.innerHTML = open ? "&#128275; Editing unlocked — " + fmtLeft(EDIT_UNTIL - Date.now()) + " left" : "&#128274; Locked";
+  if (open && !LOCK_TICK) LOCK_TICK = setInterval(tickLock, 1000);
+  if (!open && LOCK_TICK) { clearInterval(LOCK_TICK); LOCK_TICK = null; }
+  if (rerender) {
+    if (!open) { clearSelection(); document.getElementById("cellOverlay").style.display = "none"; }
+    renderRota();
+  }
+}
+function tickLock() {
+  if (Date.now() >= EDIT_UNTIL) { EDIT_UNTIL = 0; applyLockState(true); return; }
+  applyLockState(false);
+}
+async function initEditLock() {
+  try {
+    const { data } = await sb.rpc("oncall_edit_status");
+    if (data) EDIT_UNTIL = new Date(data).getTime();
+  } catch (e) {}
+  applyLockState(false);
+  // Any successful write extends the window (the database does the same); a "locked" error re-locks the page.
+  const orig = sb.rpc.bind(sb);
+  sb.rpc = async (name, args, opts) => {
+    const r = await orig(name, args, opts);
+    if (LOCK_WRITE_RPCS.has(name)) {
+      if (!r.error) { EDIT_UNTIL = Date.now() + 10 * 60 * 1000; applyLockState(false); }
+      else if (/on-call editing is locked/i.test(r.error.message || "")) { EDIT_UNTIL = 0; applyLockState(true); }
+    }
+    return r;
+  };
+  document.getElementById("unlockForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("unlockGo"), msg = document.getElementById("unlockMsg");
+    btn.disabled = true; msg.innerHTML = "";
+    try {
+      const { data, error } = await sb.rpc("unlock_oncall_editing", { p_password: document.getElementById("unlockPw").value });
+      if (error) throw error;
+      if (!data) { showMsg(msg, "That password isn't right.", "error"); return; }
+      EDIT_UNTIL = new Date(data).getTime();
+      closeUnlock();
+      applyLockState(true);
+      fillBuildPersonOptions(); renderColourRows();
+    } catch (err) { showMsg(msg, err.message || "Could not unlock.", "error"); }
+    finally { btn.disabled = false; document.getElementById("unlockPw").value = ""; }
+  });
+}
+function openUnlock() { document.getElementById("unlockMsg").innerHTML = ""; document.getElementById("unlockOverlay").style.display = "flex"; setTimeout(() => document.getElementById("unlockPw").focus(), 30); }
+function closeUnlock() { document.getElementById("unlockOverlay").style.display = "none"; document.getElementById("unlockPw").value = ""; }
+async function lockNow() {
+  try { await sb.rpc("lock_oncall_editing"); } catch (e) {}
+  EDIT_UNTIL = 0; applyLockState(true);
+}
+
 (async () => {
   PROFILE = await requireAuth(null); // any authenticated, active user can view
   if (!PROFILE) return;
 
   if (isLeadPlus(PROFILE)) {
-    document.getElementById("buildRotaCard").style.display = "";
     setupBankHolidayForm();
     setupPeriodForm();
+    await initEditLock();
   }
   if (isOncallPoolMember(PROFILE)) {
     document.getElementById("tabBtn-mydates").style.display = "";
@@ -822,7 +916,9 @@ function renderRota() {
   const grid = document.getElementById("rotaGrid");
   if (!SELECTED_PERIOD) {
     document.getElementById("filterSummary").style.display = "none";
-    grid.innerHTML = `<div class="card" style="grid-column:1/-1;margin:0;"><p style="margin:0;">${isLeadPlus(PROFILE)
+    grid.innerHTML = `<div class="card" style="grid-column:1/-1;margin:0;"><p style="margin:0;">${isLeadPlus(PROFILE) && !canEdit()
+      ? "There is no rota period yet. Unlock editing above to create one."
+      : isLeadPlus(PROFILE)
       ? "There is no rota period yet. Use <strong>+ New period</strong> to create one — give it a name that includes the year (e.g. 2027) and its exact first and last dates (e.g. 1 Jan 2027 to 31 Dec 2027), then allocate the shifts."
       : "No on-call rota has been published yet."}</p></div>`;
     return;
@@ -864,6 +960,22 @@ function renderWeekBlock(weekStart) {
   // Weeks run Sunday-Saturday; the label uses the ISO week of the Monday inside the block.
   const weekNum = isoWeekNumber(addDays(weekStart, 1));
   let rows = "";
+  // Merged name per block (Sun-Tue, Wed-Sat) when one pharmacist holds the whole block and nothing needs per-day handling.
+  const mergeOn = !canEdit() && !SWAP_MODE && !SELECTED.size && !FILTER_USER;
+  const blockInfo = {};
+  if (mergeOn) {
+    for (const [from, to] of [[0, 2], [3, 6]]) {
+      let uid = null, ok = true;
+      for (let i = from; i <= to && ok; i++) {
+        const d = addDays(weekStart, i);
+        if (d < RANGE_FIRST || d > RANGE_LAST) { ok = false; break; }
+        const r = assignmentFor(d, "on_call");
+        if (!r || r.replaced_user_id || r.note || PENDING_SWAPS[r.id] || (uid && r.user_id !== uid)) ok = false;
+        else uid = r.user_id;
+      }
+      if (ok && uid && profileById(uid)) blockInfo[from] = { uid, span: to - from + 1 };
+    }
+  }
   for (let i = 0; i < 7; i++) {
     const day = addDays(weekStart, i);
     const dow = day.getDay();
@@ -887,7 +999,7 @@ function renderWeekBlock(weekStart) {
       <tr class="${isToday ? "today-row" : ""}">
         <td class="daycell" ${cellStyle}>${WEEKDAY_NAMES[i]}${bh ? `<span class="bh-tag" title="${escapeHtml(bh.label || "Bank holiday")}">BH</span>` : ""}</td>
         <td class="datecell" ${cellStyle}${bh && bh.label ? ` title="${escapeHtml(bh.label)}"` : ""}>${day.getDate()}/${day.getMonth() + 1}</td>
-        <td ${shiftStyle(onCall, cellStyle)}>${renderChip(day, "on_call", onCall)}</td>
+        ${blockInfo[i] ? mergedCell(blockInfo[i]) : (inMerged(blockInfo, i) ? "" : `<td ${shiftStyle(onCall, cellStyle)}>${renderChip(day, "on_call", onCall)}</td>`)}
         <td ${shiftStyle(onsiteApplies ? onsite : null, cellStyle)}>${onsiteCell}</td>
       </tr>`;
   }
@@ -902,6 +1014,14 @@ function renderWeekBlock(weekStart) {
     </div>`;
 }
 
+function inMerged(info, i) { return Object.keys(info).some(k => i > +k && i < +k + info[k].span); }
+function mergedCell(b) {
+  const p = profileById(b.uid), c = colorFor(p);
+  const swappable = isOncallPoolMember(PROFILE) && !isReadOnlyRole(PROFILE);
+  return `<td class="merged${swappable ? " clickable" : ""}" rowspan="${b.span}" style="background:${escapeHtml(c)};color:${textOn(c)};" title="${escapeHtml(p.full_name)}${swappable ? " \u2014 click to select shifts for a swap" : ""}"${swappable ? ` onclick="mergedClick()"` : ""}><span class="mname">${escapeHtml(p.full_name)}</span></td>`;
+}
+function mergedClick() { if (!SWAP_MODE) toggleSwapMode(); }
+
 // A filled Overnight / Onsite cell takes that pharmacist's own colour.
 function shiftStyle(row, fallback) {
   const p = row && profileById(row.user_id);
@@ -911,7 +1031,7 @@ function shiftStyle(row, fallback) {
 }
 
 function renderChip(day, dutyType, row, requiresOnsite) {
-  const editable = isLeadPlus(PROFILE) && !FILTER_USER;   // viewing one person: read-only
+  const editable = canEdit() && !FILTER_USER;   // viewing one person: read-only
   // On-call pharmacists (who are not Lead+) can select filled shifts to request a swap.
   const swappable = !editable && !FILTER_USER && isOncallPoolMember(PROFILE);
   if (FILTER_USER && (!row || row.user_id !== FILTER_USER)) return "";
@@ -1085,6 +1205,7 @@ function toggleSwapMode() {
   b.textContent = SWAP_MODE ? "Stop selecting" : "Select shifts to swap";
   b.className = SWAP_MODE ? "primary" : "secondary";
   if (!SWAP_MODE) clearSelection();
+  renderRota();
 }
 function cellClick(e, dateStr, dutyType) {
   if (isReadOnlyRole(PROFILE)) return;   // Technician roles view only
@@ -1096,7 +1217,7 @@ function cellClick(e, dateStr, dutyType) {
     updateSelBar();
     return;
   }
-  if (!isLeadPlus(PROFILE)) return;   // on-call pharmacists only select (Ctrl/Cmd or swap mode)
+  if (!canEdit()) return;   // locked, or an on-call pharmacist: only select (Ctrl/Cmd or swap mode)
   if (SELECTED.size) clearSelection();
   openCellModal(dateStr, dutyType);
 }
@@ -1108,7 +1229,7 @@ function isOnsiteDay(dateStr) {
 function updateSelBar() {
   const bar = document.getElementById("selBar");
   document.getElementById("selCount").textContent = `${SELECTED.size} shift${SELECTED.size === 1 ? "" : "s"} selected`;
-  const lead = isLeadPlus(PROFILE);
+  const lead = canEdit();
   document.getElementById("selPerson").style.display = lead ? "" : "none";
   document.getElementById("selApplyBtn").style.display = lead ? "" : "none";
   document.getElementById("selSwapBtn").style.display = isOncallPoolMember(PROFILE) ? "" : "none";
@@ -1510,7 +1631,7 @@ document.getElementById("buildForm").addEventListener("submit", async (e) => {
   try {
     const { error } = await sb.rpc("bulk_set_oncall_assignments", {
       p_site: SELECTED_SITE, p_duty_type: "on_call", p_user_id: person,
-      p_dates: parsed.dates, p_note: note, p_highlight_color: null,
+      p_dates: parsed.dates, p_note: note, p_highlight_color: null, p_fill_onsite: true,
     });
     if (error) throw error;
     const auto = parsed.dates.filter(isOnsiteDay).length;
