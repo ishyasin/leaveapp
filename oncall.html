@@ -25,8 +25,8 @@
   .week-block td{padding:3px 5px;border-bottom:1px solid var(--border);vertical-align:middle;}
   /* Fixed pastel fills with dark text in every colour mode, so the rota reads the same for everyone. */
   .week-block tr td{color:#1f2430;}
-  .week-block tr.grp-a td{background:#cdeccf;}   /* Sun-Tue: light green */
-  .week-block tr.grp-b td{background:#f8d4e1;}   /* Wed-Sat: light pink */
+  .week-block tr.grp-a td{background:#f8d4e1;}   /* Sun-Tue: light pink */
+  .week-block tr.grp-b td{background:#cdeccf;}   /* Wed-Sat: light green */
   .week-block td.na{color:#6b7280;}
   .week-block h4{padding:4px 8px;font-size:11.5px;}
   .week-block th,.week-block td{padding:2px 4px;}
@@ -159,7 +159,9 @@
   .lockbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 0;}
   .lockpill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 12px;font-size:12.5px;font-weight:700;border:1px solid var(--border);background:var(--surface-alt);color:var(--text-muted);}
   .lockpill.open{background:#e6f6ea;border-color:#86c99a;color:#17653a;}
-  .week-block td.merged{text-align:center;font-weight:700;}
+  .week-block td.merged{text-align:center;font-weight:800;font-size:14px;}
+  .week-block td.os-cell{background:var(--surface) !important;color:#1f2430;text-align:center;}
+  .os-pill{display:inline-block;max-width:92%;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;border-radius:6px;padding:1px 10px;font-weight:700;font-size:12px;line-height:20px;}
   .week-block td.merged .mname{display:block;overflow:hidden;text-overflow:ellipsis;}
   .week-block td.merged.clickable{cursor:pointer;}
   @media print{.lockbar{display:none !important;}}
@@ -459,6 +461,7 @@ const DEFAULT_BH_COLOR = "#bfe3f7";
 // Sunday-first, matching JS's own Date.getDay() (0=Sun..6=Sat) — the
 // usual pattern is one pharmacist covering Sun-Tue and a second
 // covering Wed-Sat within the same week block.
+const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const WEEKDAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const DEFAULT_ONCALL_COLORS = ["#a5d8ff","#b2f2bb","#ffec99","#ffc9c9","#d0bfff","#99e9f2","#ffd8a8","#fcc2d7"];
 
@@ -902,8 +905,8 @@ function renderLegend() {
   const wrap = document.getElementById("rotaLegend");
   const pool = poolFor(SELECTED_SITE);
   let html = `<div style="margin:6px 0;">
-    <span class="legend-sw"><i style="background:#cdeccf"></i>Sun &ndash; Tue (day)</span>
-    <span class="legend-sw"><i style="background:#f8d4e1"></i>Wed &ndash; Sat (day)</span>
+    <span class="legend-sw"><i style="background:#f8d4e1"></i>Sun &ndash; Tue (day)</span>
+    <span class="legend-sw"><i style="background:#cdeccf"></i>Wed &ndash; Sat (day)</span>
     <span class="legend-sw"><i style="background:${DEFAULT_BH_COLOR}"></i>Bank holiday (colour set per day)</span>
   </div>`;
   html += `<div class="small" style="margin:4px 0;"><span class="swap-flag">\u21C4</span> + dashed outline = a swap has been requested for that shift and is awaiting a reply &nbsp; <span class="swap-flag review">\u21C4</span> (purple) = agreed, awaiting Lead Pharmacist approval &nbsp; Hover over the symbol for details.</div>`;
@@ -964,16 +967,24 @@ function renderWeekBlock(weekStart) {
   const mergeOn = !canEdit() && !SWAP_MODE && !SELECTED.size && !FILTER_USER;
   const blockInfo = {};
   if (mergeOn) {
-    for (const [from, to] of [[0, 2], [3, 6]]) {
-      let uid = null, ok = true;
-      for (let i = from; i <= to && ok; i++) {
-        const d = addDays(weekStart, i);
-        if (d < RANGE_FIRST || d > RANGE_LAST) { ok = false; break; }
-        const r = assignmentFor(d, "on_call");
-        if (!r || r.replaced_user_id || r.note || PENDING_SWAPS[r.id] || (uid && r.user_id !== uid)) ok = false;
-        else uid = r.user_id;
+    // Consecutive days held by the same pharmacist form one block; a different person in the middle interrupts it.
+    let i = 0;
+    while (i < 7) {
+      const d = addDays(weekStart, i), r = (d < RANGE_FIRST || d > RANGE_LAST) ? null : assignmentFor(d, "on_call");
+      const okRow = x => x && !PENDING_SWAPS[x.id] && profileById(x.user_id);
+      if (!okRow(r)) { i++; continue; }
+      let n = 1;
+      while (i + n < 7) {
+        const d2 = addDays(weekStart, i + n);
+        if (d2 < RANGE_FIRST || d2 > RANGE_LAST) break;
+        const r2 = assignmentFor(d2, "on_call");
+        if (!okRow(r2) || r2.user_id !== r.user_id) break;
+        n++;
       }
-      if (ok && uid && profileById(uid)) blockInfo[from] = { uid, span: to - from + 1 };
+      const rs = []; for (let k = 0; k < n; k++) rs.push([ymd(addDays(weekStart, i + k)), assignmentFor(addDays(weekStart, i + k), "on_call")]);
+      const sw = rs.find(x => x[1].replaced_user_id), nt = rs.find(x => x[1].note);
+      blockInfo[i] = { uid: r.user_id, span: n, swapDate: sw && sw[0], noteDate: nt && !sw ? nt[0] : null };
+      i += n;
     }
   }
   for (let i = 0; i < 7; i++) {
@@ -990,35 +1001,58 @@ function renderWeekBlock(weekStart) {
       rows += `<tr class="outside"><td class="daycell na" colspan="4">&nbsp;</td></tr>`;
       continue;
     }
-    const bg = bh ? (bh.color || DEFAULT_BH_COLOR) : (dow <= 2 ? "#cdeccf" : "#f8d4e1");
+    const bg = bh ? (bh.color || DEFAULT_BH_COLOR) : (dow <= 2 ? "#f8d4e1" : "#cdeccf");
     const cellStyle = `style="background:${escapeHtml(bg)};"`;
-    const onsiteCell = onsiteApplies
+    const viewOnly = mergeOn;   // read-only sheet look: onsite as a name pill on white
+    const osP = onsite && profileById(onsite.user_id);
+    const onsiteCell = viewOnly
+      ? (onsiteApplies && osP && !PENDING_SWAPS[onsite.id]
+          ? `<span class="os-pill" title="${escapeHtml(osP.full_name)}" style="background:${escapeHtml(colorFor(osP))};color:${textOn(colorFor(osP))};">${escapeHtml(shortName(osP))}</span>${flagFor(day, "onsite", onsite)}`
+          : (onsiteApplies && (onsite || bh) ? renderChip(day, "onsite", onsite, !!bh) : ""))
+      : onsiteApplies
       ? renderChip(day, "onsite", onsite, !!bh)
       : `<span class="na" title="Onsite cover is only used on weekends and bank holidays">&mdash;</span>`;
     rows += `
       <tr class="${isToday ? "today-row" : ""}">
         <td class="daycell" ${cellStyle}>${WEEKDAY_NAMES[i]}${bh ? `<span class="bh-tag" title="${escapeHtml(bh.label || "Bank holiday")}">BH</span>` : ""}</td>
-        <td class="datecell" ${cellStyle}${bh && bh.label ? ` title="${escapeHtml(bh.label)}"` : ""}>${day.getDate()}/${day.getMonth() + 1}</td>
-        ${blockInfo[i] ? mergedCell(blockInfo[i]) : (inMerged(blockInfo, i) ? "" : `<td ${shiftStyle(onCall, cellStyle)}>${renderChip(day, "on_call", onCall)}</td>`)}
-        <td ${shiftStyle(onsiteApplies ? onsite : null, cellStyle)}>${onsiteCell}</td>
+        <td class="datecell" ${cellStyle}${bh && bh.label ? ` title="${escapeHtml(bh.label)}"` : ""}>${day.getDate()} ${MONTH_SHORT[day.getMonth()]}</td>
+        ${blockInfo[i] ? mergedCell(blockInfo[i]) : (inMerged(blockInfo, i) ? "" : (mergeOn && !onCall) ? `<td ${cellStyle}></td>` : `<td ${shiftStyle(onCall, cellStyle)}>${renderChip(day, "on_call", onCall)}</td>`)}
+        <td ${viewOnly ? 'class="os-cell"' : shiftStyle(onsiteApplies ? onsite : null, cellStyle)}>${onsiteCell}</td>
       </tr>`;
   }
   return `
     <div class="week-block">
-      <h4><span>Week ${weekNum}</span><span>${weekStart.getDate()}/${weekStart.getMonth() + 1} &ndash; ${addDays(weekStart, 6).getDate()}/${addDays(weekStart, 6).getMonth() + 1}</span></h4>
+      <h4><span>Week ${weekNum}</span><span>${weekStart.getDate()} ${MONTH_SHORT[weekStart.getMonth()]} to ${addDays(weekStart, 6).getDate()} ${MONTH_SHORT[addDays(weekStart, 6).getMonth()]}</span></h4>
       <table>
-        <colgroup><col style="width:15%"><col style="width:16%"><col style="width:29%"><col style="width:40%"></colgroup>
-        <thead><tr><th>Day</th><th>Date</th><th>Overnight</th><th>Onsite</th></tr></thead>
+        <colgroup><col style="width:15%"><col style="width:21%"><col style="width:32%"><col style="width:32%"></colgroup>
+        <thead><tr><th>Day</th><th>Date</th><th>On call</th><th>Onsite 11-15</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
 }
 
+// First name only; people who share a first name get the first initial of their surname too (both of them).
+function shortName(p) {
+  const first = (p.full_name || "").trim().split(/\s+/)[0] || p.initials || "?";
+  const dup = PROFILES.filter(q => ((q.full_name || "").trim().split(/\s+/)[0] || "").toLowerCase() === first.toLowerCase()).length > 1;
+  if (!dup) return first;
+  const parts = (p.full_name || "").trim().split(/\s+/);
+  return parts.length > 1 ? first + " " + parts[parts.length - 1][0].toUpperCase() + "." : first;
+}
+// Swap star / note dot for the sheet look (same detail popups as the per-day chips).
+function flagFor(dayOrStr, duty, row, byDate) {
+  const ds = typeof dayOrStr === "string" ? dayOrStr : ymd(dayOrStr);
+  const r = row || assignmentFor(new Date(ds + "T00:00:00"), duty);
+  if (!r) return "";
+  if (r.replaced_user_id) return `<span class="swap-star" role="button" tabindex="0" title="Swapped \u2014 click for details" onclick="event.stopPropagation();showSwapDetail(event,'${ds}','${duty}')">*</span>`;
+  if (r.note) return `<span class="note-dot" role="button" tabindex="0" title="${escapeHtml(r.note)}" onclick="event.stopPropagation();showNoteDetail(event,'${ds}','${duty}')">&bull;</span>`;
+  return "";
+}
 function inMerged(info, i) { return Object.keys(info).some(k => i > +k && i < +k + info[k].span); }
 function mergedCell(b) {
   const p = profileById(b.uid), c = colorFor(p);
   const swappable = isOncallPoolMember(PROFILE) && !isReadOnlyRole(PROFILE);
-  return `<td class="merged${swappable ? " clickable" : ""}" rowspan="${b.span}" style="background:${escapeHtml(c)};color:${textOn(c)};" title="${escapeHtml(p.full_name)}${swappable ? " \u2014 click to select shifts for a swap" : ""}"${swappable ? ` onclick="mergedClick()"` : ""}><span class="mname">${escapeHtml(p.full_name)}</span></td>`;
+  return `<td class="merged${swappable ? " clickable" : ""}" rowspan="${b.span}" style="background:${escapeHtml(c)};color:${textOn(c)};" title="${escapeHtml(p.full_name)}${swappable ? " \u2014 click to select shifts for a swap" : ""}"${swappable ? ` onclick="mergedClick()"` : ""}><span class="mname">${escapeHtml(shortName(p))}${b.swapDate ? flagFor(b.swapDate, "on_call", null, true) : (b.noteDate ? flagFor(b.noteDate, "on_call", null, true) : "")}</span></td>`;
 }
 function mergedClick() { if (!SWAP_MODE) toggleSwapMode(); }
 
@@ -1046,7 +1080,7 @@ function renderChip(day, dutyType, row, requiresOnsite) {
       : `<span class="${cls}">${label}</span>`;
   }
   const p = profileById(row.user_id);
-  const label = p ? p.initials : "?";
+  const label = p ? shortName(p) : "?";
   let title = row.note ? `${p ? p.full_name : "Unknown"} \u2014 ${row.note}` : (p ? p.full_name : "Unknown");
   if (swappable) title += " \u2014 Ctrl/Cmd-click to select for a swap";
   const cls = "person-chip" + ((editable || swappable) ? " clickable" : "") + selCls;
@@ -1137,7 +1171,7 @@ function renderBigView(notice) {
   const nowWeek = bigThisWeek(), todayS = ymd(new Date());
   const onThis = ymd(BIG_START) === ymd(nowWeek);
   const endDay = addDays(BIG_START, 27);
-  const f = (d) => `${d.getDate()}/${d.getMonth() + 1}`;
+  const f = (d) => `${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`;
   let weeks = "";
   for (let w = 0; w < 4; w++) {
     const ws = addDays(BIG_START, w * 7), cur = ymd(ws) === ymd(nowWeek);
@@ -1147,7 +1181,7 @@ function renderBigView(notice) {
       const out = day < RANGE_FIRST || day > RANGE_LAST;
       if (out) { days += `<div class="bv-day out" aria-hidden="true"></div>`; continue; }
       const bh = bankHolidayFor(day);
-      const bg = bh ? (bh.color || DEFAULT_BH_COLOR) : (dow <= 2 ? "#cdeccf" : "#f8d4e1");
+      const bg = bh ? (bh.color || DEFAULT_BH_COLOR) : (dow <= 2 ? "#f8d4e1" : "#cdeccf");
       const oc = assignmentFor(day, "on_call"), os = assignmentFor(day, "onsite");
       const needs = dow === 0 || dow === 6 || !!bh;
       const osHtml = needs ? (bigPill(os) || (os || FILTER_USER ? "" : `<span class="bv-need">Onsite needed</span>`)) : `<span class="bv-na">\u2014</span>`;
@@ -1156,10 +1190,10 @@ function renderBigView(notice) {
         <div class="hd" style="background:${escapeHtml(bg)};"><span>${WEEKDAY_NAMES[i]}${bh ? ` <small title="${escapeHtml(bh.label || "Bank holiday")}">BH</small>` : ""}</span>${today ? '<span class="bv-tag">Today</span>' : ""}<em>${f(day)}</em></div>
         <div class="bd"><div><div class="lab">Overnight</div>${bigPill(oc) || (FILTER_USER ? "" : '<span class="bv-na">\u2014</span>')}</div>${needs ? `<div><div class="lab">Onsite</div>${osHtml}</div>` : ""}</div></div>`;
     }
-    weeks += `<section class="bv-wk${cur ? " cur" : ""}"><h3><span>Week ${isoWeekNumber(addDays(ws, 1))}${cur ? " \u2014 this week" : ""}</span><span>${f(ws)} \u2013 ${f(addDays(ws, 6))}</span></h3><div class="bv-days">${days}</div></section>`;
+    weeks += `<section class="bv-wk${cur ? " cur" : ""}"><h3><span>Week ${isoWeekNumber(addDays(ws, 1))}${cur ? " \u2014 this week" : ""}</span><span>${f(ws)} to ${f(addDays(ws, 6))}</span></h3><div class="bv-days">${days}</div></section>`;
   }
   const filt = FILTER_USER ? profileById(FILTER_USER) : null;
-  ov.innerHTML = `<div class="bv-top"><h2>On-call rota</h2><span class="sub">${escapeHtml(SITE_LABEL[SELECTED_SITE] || "")} \u00B7 ${f(BIG_START)} \u2013 ${f(endDay)}${filt ? " \u00B7 " + escapeHtml(filt.full_name) + " only" : ""}</span><span class="spacer"></span>
+  ov.innerHTML = `<div class="bv-top"><h2>On-call rota</h2><span class="sub">${escapeHtml(SITE_LABEL[SELECTED_SITE] || "")} \u00B7 ${f(BIG_START)} to ${f(endDay)}${filt ? " \u00B7 " + escapeHtml(filt.full_name) + " only" : ""}</span><span class="spacer"></span>
       <button class="secondary" data-bv="prev" aria-label="Previous four weeks">\u2190 Previous</button><button class="${onThis ? "primary" : "secondary"}" data-bv="today">This week</button><button class="secondary" data-bv="next" aria-label="Next four weeks">Next \u2192</button><button class="secondary" data-bv="close">Close</button></div>
     ${onThis ? (notice ? `<div class="bv-banner" role="status">${escapeHtml(notice)}</div>` : "") : `<div class="bv-banner" role="status">Not showing this week. <button class="primary" data-bv="today">Back to this week</button></div>`}
     <div class="bv-body" style="overflow:auto;">${weeks}</div>
