@@ -103,14 +103,22 @@ function gen(){
   else{var n=type,sp=rnd(80,98);pit=Math.round(n*STW+(n+1)*sp);
    for(var q=0;q<n;q++){stones.push({x:x+sp*(q+1)+STW*q,y:GY-(q%2?rnd(48,62):rnd(70,86)),w:STW,stone:true})}}
   var a=x+pit;
-  if(a>L-1100){GS.push({a:a,b:L+500});break}
-  var l=rnd(340,700);GS.push({a:a,b:a+l});
+  // coins, stepping tiles and helper platforms go in before the end-of-level check, so the last gap is crossable too
   if(type===0){for(var ci=1;ci<=5;ci++)CO.push({x:x+ci*pit/6,y:GY-48-52*Math.sin(Math.PI*ci/6)})}
   else{for(var cx2=x+20;cx2<a-20;cx2+=38)CO.push({x:cx2,y:GY-112+14*Math.sin(cx2*.04)})}
   stones.forEach(function(s){PL.push(s);if(Math.random()<.5)AM.push({x:s.x+s.w/2-11,y:s.y-34})});
   // one-jump pits sometimes get a helper platform too
   if(type===0&&Math.random()<.45){var hy=GY-rnd(70,92);PL.push({x:x+pit/2-35,y:hy,w:70});if(Math.random()<.6)AM.push({x:x+pit/2-11,y:hy-34})}
+  if(a>L-1100){GS.push({a:a,b:L+500});break}
+  var l=rnd(340,700);GS.push({a:a,b:a+l});
   x=a+l}
+ // safety: every gap wider than one jump must be crossable, whatever happened above
+ for(var gi=0;gi<GS.length-1;gi++){var ga=GS[gi].b,gb=GS[gi+1].a,gw=gb-ga;if(gw<=150)continue;
+  var inG=PL.filter(function(p){return p.stone&&p.x>=ga-2&&p.x+p.w<=gb+2}).sort(function(p,q){return p.x-q.x}),cur=ga,worst=0;
+  inG.forEach(function(p){worst=Math.max(worst,p.x-cur);cur=p.x+p.w});worst=Math.max(worst,gb-cur);
+  if(worst>112){PL=PL.filter(function(p){return inG.indexOf(p)<0});
+   var n2=Math.max(1,Math.ceil((gw-100)/172)),sp2=(gw-n2*72)/(n2+1);
+   for(var q2=0;q2<n2;q2++)PL.push({x:ga+sp2*(q2+1)+72*q2,y:GY-(q2%2?rnd(48,62):rnd(70,86)),w:72,stone:true})}}
  // populate
  GS.forEach(function(s,i){
   var len=s.b-s.a;if(i<1||s.a>L-1100)return;
