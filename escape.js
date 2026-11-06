@@ -253,7 +253,7 @@ function step(d){
   if(!cpHit&&P.x>cpX){cpHit=true;sfx.cp();msgs.push({x:P.x,y:P.y-14,txt:'CHECKPOINT',l:1.2,m:1.2})}
   if(P.x+P.w/2>gx+50){st='arrive';arriveT=0;K.l=K.r=K.j=K.f=0;BL=[];P.vy=0;P.y=GY-P.h;P.on=true}
   // camera
-  var tx=Math.min(P.x-320,gx+500-W);if(tx>camX)camX+=(tx-camX)*Math.min(1,d*9);
+  var tx=Math.max(0,Math.min(P.x-320,gx+500-W));camX+=(tx-camX)*Math.min(1,d*9);
   // thruster puff
   if(!P.on&&Math.random()<.6)parts.push({x:P.x+P.w/2-P.face*(pink?30:8),y:P.y+P.h,vx:rnd(-30,30),vy:rnd(60,140),l:.25,m:.25,r:rnd(2,3.5),col:pink?'#ffb3df':'#7fe3ff'});
   if(pink&&P.on&&Math.abs(P.vx)>60&&Math.random()<.5)parts.push({x:P.x+2,y:P.y+P.h-10,vx:rnd(-90,-30),vy:rnd(-40,-5),l:.35,m:.35,r:rnd(1.5,3),col:'#ffc6e8'})
