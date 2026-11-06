@@ -565,6 +565,23 @@
         <div style="margin-top:14px;"><button type="submit" class="primary" id="egg4SaveBtn">Save new code</button></div>
       </form>
     </div>
+    <div class="card">
+      <h2>GRAEMe Escape: developer cheat code</h2>
+      <p class="small">Developer only. Type this code inside the game (press the <strong>`</strong> key, enter the code, press Enter) and enemies, spikes and other hazards can no longer hurt you. A fall into a waterfall still ends the run. It stays on until you close the game. It only works on a Developer account, even if someone else learns the code, and it must differ from the codes for Easter Eggs 1 to 4.</p>
+      <div id="egg5Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg5Status">loading…</span><br><span class="small" id="egg5Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg5OnBtn" onclick="eggSwitch(5, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg5OffBtn" onclick="eggSwitch(5, false)" style="display:none;">Switch off</button>
+      </div>
+      <form id="egg5Form" autocomplete="off" style="margin-top:14px;">
+        <label for="egg5Code">New cheat code</label>
+        <input type="text" id="egg5Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg5Code2">
+        <input type="checkbox" id="egg5Show" style="display:none;">
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg5SaveBtn">Save new code</button></div>
+      </form>
+    </div>
   </div>
 
   <!-- PRIVACY NOTICE (Developer) -->
@@ -2244,11 +2261,11 @@ async function removeCapacityOverride(site, date) {
 /* ---------------- easter eggs (Developer) ---------------- */
 // Four eggs share one set of functions: n = 1 (Portal Defence), 2 (Tile Defence), 3 (Portal Defence: Payback) or 4 (GRAEMe Escape).
 // Element ids are "egg..." for egg 1, "egg2..." for egg 2, "egg3..." for egg 3 and "egg4..." for egg 4.
-const EGG_STATE = { 1: { on: false, set: false }, 2: { on: false, set: false }, 3: { on: false, set: false }, 4: { on: false, set: false } };
+const EGG_STATE = { 1: { on: false, set: false }, 2: { on: false, set: false }, 3: { on: false, set: false }, 4: { on: false, set: false }, 5: { on: false, set: false } };
 const eggId = (n, name) => (n === 1 ? "egg" : "egg" + n) + name;
 const eggEl = (n, name) => document.getElementById(eggId(n, name));
 function setupEggTab() {
-  [1, 2, 3, 4].forEach(n => {
+  [1, 2, 3, 4, 5].forEach(n => {
     eggEl(n, "Show").addEventListener("change", e => {
       eggEl(n, "Code").type = e.target.checked ? "text" : "password";
       eggEl(n, "Code2").type = e.target.checked ? "text" : "password";
@@ -2296,7 +2313,7 @@ async function eggCall(n, enabled, code, okText) {
 }
 function eggSwitch(n, on) {
   if (on && !EGG_STATE[n].set) return showMsg(eggEl(n, "Msg"), "Set a code first, then switch the easter egg on.", "error");
-  eggCall(n, on, null, on ? "Easter egg " + n + " is ON. People can open it by typing its code on the home page." : "Easter egg " + n + " is OFF.");
+  eggCall(n, on, null, n === 5 ? (on ? "The cheat code is ON." : "The cheat code is OFF.") : on ? "Easter egg " + n + " is ON. People can open it by typing its code on the home page." : "Easter egg " + n + " is OFF.");
 }
 
 /* ---------------- automatic backup on/off + manual download ---------------- */
