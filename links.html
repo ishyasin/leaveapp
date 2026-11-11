@@ -35,6 +35,18 @@
   @keyframes qlFade{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
   @media (prefers-reduced-motion:reduce){.ql-tile.open .ql-note{animation:none}.ql-chev{transition:none}}
   .ql-grid.editing .ql-tile{outline:2px dashed var(--teal);outline-offset:2px;cursor:default;}
+  /* edit mode: tiles wobble and can be dragged into a new position */
+  .ql-grid.editing .ql-tile-wrap{position:relative;animation:qlWob .24s ease-in-out infinite alternate;animation-delay:var(--wd,0s);cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none;}
+  .ql-grid.editing .ql-tile-wrap:nth-child(even){animation-name:qlWob2;}
+  .ql-grid.editing .ql-tile-wrap.dragging{animation:none;z-index:50;cursor:grabbing;}
+  .ql-grid.editing .ql-tile-wrap.dragging .ql-tile{box-shadow:0 16px 32px rgba(0,0,0,.3);}
+  .ql-grid.editing .ql-tile-wrap.dragging .ql-tile:hover{transform:none;}
+  .ql-grid.editing .ql-tile img{-webkit-user-drag:none;pointer-events:none;}
+  .ql-hint{display:none;margin:0 0 12px;}
+  .ql-grid.editing ~ .ql-hint{display:block;}
+  @keyframes qlWob{from{transform:rotate(-1.2deg)}to{transform:rotate(1.2deg)}}
+  @keyframes qlWob2{from{transform:rotate(1.2deg)}to{transform:rotate(-1.2deg)}}
+  @media (prefers-reduced-motion:reduce){.ql-grid.editing .ql-tile-wrap{animation:none}}
   .ql-admin{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;justify-content:center;}
   .ql-admin button{padding:3px 8px;font-size:11px;}
   .logo-preview{width:64px;height:64px;border:1px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;margin:6px 0;}
@@ -53,6 +65,7 @@
   </div>
   <div id="msg"></div>
   <div id="grid" class="ql-grid"></div>
+  <p class="small ql-hint">Drag a tile to move it. The arrows still work too.</p>
 </div>
 
 <div class="overlay" id="overlay" style="display:none;">
@@ -100,6 +113,7 @@ let CURRENT_LOGO = null;  // logo already stored on the link being edited
   });
   document.getElementById("form").addEventListener("submit", onSubmit);
   document.getElementById("grid").addEventListener("click", onGridClick);
+  initDrag();
   await load();
 })();
 
@@ -134,7 +148,7 @@ function render() {
     return;
   }
   grid.innerHTML = LINKS.map((l, i) => `
-    <div class="ql-tile-wrap">
+    <div class="ql-tile-wrap" data-id="${l.id}" style="--wd:${-((i * 37) % 24) / 100}s">
       <a class="ql-tile${l.note ? " has-note" : ""}" href="${escapeHtml(safeUrl(l.url))}" target="_blank" rel="noopener noreferrer"${l.note ? ` data-note="1" aria-expanded="false" aria-controls="qn-${l.id}"` : ""}>
         ${l.note ? `<span class="ql-chev" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>` : ""}
         <div class="ql-logo">${l.logo_data
@@ -160,6 +174,65 @@ function collapseAllTiles(except) {
 // Click outside any tile, or Escape, folds an open tile back up.
 document.addEventListener("click", (e) => { if (!e.target.closest(".ql-tile")) collapseAllTiles(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") collapseAllTiles(); });
+
+// ---- drag and drop (mouse, pen and touch) ----
+// Dragging a tile reorders the grid live; on release the tile's new place is saved
+// by stepping it with the existing move_quick_link function (no schema change).
+let DRAG = null, SAVING = false;
+function initDrag() {
+  const grid = document.getElementById("grid");
+  grid.addEventListener("dragstart", (e) => e.preventDefault());
+  grid.addEventListener("pointerdown", (e) => {
+    if (!EDITING || SAVING || (e.pointerType === "mouse" && e.button !== 0)) return;
+    if (e.target.closest("button")) return;
+    const w = e.target.closest(".ql-tile-wrap");
+    if (!w) return;
+    const r = w.getBoundingClientRect();
+    DRAG = { w, id: w.dataset.id, sx: e.clientX, sy: e.clientY, gx: e.clientX - r.left, gy: e.clientY - r.top, on: false, pid: e.pointerId };
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!DRAG || e.pointerId !== DRAG.pid) return;
+    if (!DRAG.on) {
+      if (Math.hypot(e.clientX - DRAG.sx, e.clientY - DRAG.sy) < 6) return;
+      DRAG.on = true; DRAG.w.classList.add("dragging"); DRAG.w.style.pointerEvents = "none";
+      collapseAllTiles();
+    }
+    e.preventDefault();
+    const w = DRAG.w;
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const target = under && under.closest(".ql-tile-wrap");
+    if (target && target !== w && target.parentNode === grid) {
+      const kids = Array.from(grid.children);
+      if (kids.indexOf(target) > kids.indexOf(w)) target.after(w); else target.before(w);
+    }
+    w.style.transform = "none";                       // measure where the tile sits in the grid now
+    const r = w.getBoundingClientRect();
+    w.style.transform = `translate(${e.clientX - DRAG.gx - r.left}px, ${e.clientY - DRAG.gy - r.top}px) scale(1.04)`;
+    if (e.clientY < 70) window.scrollBy(0, -14); else if (e.clientY > window.innerHeight - 70) window.scrollBy(0, 14);
+  }, { passive: false });
+  const end = async (e) => {
+    if (!DRAG || (e.pointerId !== undefined && e.pointerId !== DRAG.pid)) return;
+    const d = DRAG; DRAG = null;
+    if (!d.on) return;
+    d.w.classList.remove("dragging"); d.w.style.transform = ""; d.w.style.pointerEvents = "";
+    if (e.type === "pointercancel") { render(); return; }
+    const order = Array.from(grid.children).map((x) => x.dataset.id);
+    const from = LINKS.findIndex((l) => l.id === d.id), to = order.indexOf(d.id);
+    if (from < 0 || to < 0 || from === to) return;
+    SAVING = true;
+    const msg = document.getElementById("msg");
+    try {
+      for (let n = Math.abs(to - from); n > 0; n--) {
+        const { error } = await sb.rpc("move_quick_link", { p_id: d.id, p_direction: to < from ? "up" : "down" });
+        if (error) throw error;
+      }
+    } catch (err) { showMsg(msg, err.message, "error"); }
+    SAVING = false;
+    await load();
+  };
+  window.addEventListener("pointerup", end);
+  window.addEventListener("pointercancel", end);
+}
 
 async function onGridClick(e) {
   const b = e.target.closest("button[data-act]");
