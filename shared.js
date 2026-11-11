@@ -147,6 +147,7 @@ const THEMES = {
   aurora: "Northern Lights",
   retropharm: "Retro Pharmacy",
   portalvi: "Pharmacy Portal VI",
+  womenshealth: "Women\u2019s Health",
 };
 const COLOR_MODES = {
   light:    "Light",
@@ -1595,6 +1596,35 @@ Object.assign(THEME_SCENES, {
       b += SBX("", SCN.alien, "left:56%;bottom:6px;--w:20") + SBX("", SCN.alien, "left:60%;bottom:6px;--w:16;transform:scaleX(-1)");
       b += SBX("bbob", SCN.saucer("#5a4a7a"), "left:74%;top:4px;--w:46;animation-duration:5s;animation-delay:-1s") + SBX("bbob", SCN.saucer("#46526e"), "left:88%;top:10px;--w:36;animation-duration:6s;animation-delay:-2s");
       b += SBX("btw", `<svg viewBox="0 0 30 30"><circle cx="15" cy="15" r="11" fill="#e9f3ff"/><circle cx="11" cy="12" r="2" fill="#c8d6ea"/><circle cx="19" cy="18" r="2.4" fill="#c8d6ea"/></svg>`, "left:93%;top:2px;--w:20");
+      return b;
+    },
+  },
+});
+
+/* Women's Health: plum and berry theme with a ribbon, oestrogen molecule, blossom, venus symbol, heart and capsule (original artwork). */
+Object.assign(SCN, {
+  wh_ribbon: `<svg viewBox="0 0 34 46"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21C7 11 8 3 17 3c9 0 10 8 0 18zM17 21C14 28 10 36 6 43M17 21c3 7 7 15 11 22" stroke="#f08ab4" stroke-width="5"/><path d="M17 21C7 11 8 3 17 3c9 0 10 8 0 18zM17 21C14 28 10 36 6 43M17 21c3 7 7 15 11 22" stroke="#fff" stroke-width="1.3" opacity=".55"/></g></svg>`,
+  wh_venus: `<svg viewBox="0 0 36 46"><circle cx="18" cy="14" r="10" fill="none" stroke="#fff" stroke-width="3.6"/><path d="M18 24v18M10 34h16" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/><circle cx="18" cy="14" r="4" fill="#f08ab4" opacity=".7"/></svg>`,
+  wh_blossom: `<svg viewBox="0 0 44 44"><g fill="#f8b4d0" stroke="#fff0f6" stroke-width="1.2"><ellipse cx="22" cy="10" rx="7" ry="9"/><ellipse cx="22" cy="10" rx="7" ry="9" transform="rotate(72 22 22)"/><ellipse cx="22" cy="10" rx="7" ry="9" transform="rotate(144 22 22)"/><ellipse cx="22" cy="10" rx="7" ry="9" transform="rotate(216 22 22)"/><ellipse cx="22" cy="10" rx="7" ry="9" transform="rotate(288 22 22)"/></g><circle cx="22" cy="22" r="5" fill="#f4a261" stroke="#fff0f6" stroke-width="1.2"/></svg>`,
+  wh_pulse: `<svg viewBox="0 0 46 42"><path d="M23 38S3 26 3 14C3 8 7.5 4 13 4c4 0 7 2 10 6 3-4 6-6 10-6 5.500 0 10 4 10 10 0 12-20 24-20 24z" fill="#b57be0" stroke="#ecd9fb" stroke-width="1.6" stroke-linejoin="round"/><path d="M7 20h9l3-7 5 14 3-7h12" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  wh_capsule: `<svg viewBox="0 0 52 22"><rect x="1" y="1" width="50" height="20" rx="10" fill="#fff" stroke="#f6d6e6" stroke-width="1.2"/><path d="M26 1h15a10 10 0 0 1 0 20H26z" fill="#b57be0"/><ellipse cx="14" cy="7" rx="7" ry="2" fill="#fbd5e6" opacity=".9"/></svg>`,
+  wh_estrogen: `<svg viewBox="0 0 84 60"><g transform="translate(10 6)" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 22l8.66 5v10L14 42l-8.66-5V27z"/><circle cx="14" cy="32" r="5" stroke-width="1.6" opacity=".8"/><path d="M22.66 27h8.66l8.66 5v10"/><path d="M22.66 37l8.66 5 8.66-5"/><path d="M31.34 22l8.66-5 8.66 5v10l-8.66 5"/><path d="M48.66 12l7.34-3 7 7.5-5 8.5-9.34-2"/><path d="M5.34 37L-1 46M56 9l4-8"/></g><g fill="#f08ab4" font-family="system-ui,sans-serif" font-weight="700" font-size="9"><text x="0" y="59">HO</text><text x="64" y="7">OH</text></g></svg>`,
+});
+Object.assign(THEME_SCENES, {
+  womenshealth: {
+    layer() {
+      const ks = ["wh_ribbon", "wh_blossom", "wh_venus", "wh_pulse", "wh_estrogen", "wh_capsule"];
+      let h = "";
+      for (let i = 0; i < 8; i++) h += `<span class="xing" style="top:${(8 + i * 11) % 92}%;animation-duration:${(90 + i * 17)}s;animation-delay:${(-i * 23)}s;--w:${ks[i % 6] === "wh_estrogen" ? 80 : 38};opacity:.14">${SCN[ks[i % 6]]}</span>`;
+      return h;
+    },
+    banner() {
+      const order = ["wh_ribbon", "wh_estrogen", "wh_blossom", "wh_venus", "wh_pulse", "wh_capsule", "wh_estrogen", "wh_ribbon", "wh_blossom"];
+      let b = "";
+      order.forEach((k, i) => {
+        const w = k === "wh_estrogen" ? 72 : k === "wh_capsule" ? 38 : 34;
+        b += SBX("bcross", SCN[k], `top:${k === "wh_estrogen" ? 3 : 4 + (i * 7) % 20}px;--still:${6 + i * 10}%;--w:${w};animation-duration:${34 + (i % 4) * 6}s;animation-delay:${-i * 5.2}s`);
+      });
       return b;
     },
   },

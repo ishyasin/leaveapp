@@ -65,7 +65,7 @@
   </div>
   <div id="msg"></div>
   <div id="grid" class="ql-grid"></div>
-  <p class="small ql-hint">Drag a tile to move it. The arrows still work too.</p>
+  <p class="small ql-hint">Drag a tile to move it.</p>
 </div>
 
 <div class="overlay" id="overlay" style="display:none;">
@@ -157,10 +157,8 @@ function render() {
         <div class="ql-title">${escapeHtml(l.title)}</div>
         ${l.note ? `<div class="ql-note" id="qn-${l.id}">${escapeHtml(l.note)}<span class="ql-go">Click again to open the link &rsaquo;</span></div>` : ""}
         ${dev ? `<div class="ql-admin" data-id="${l.id}">
-          <button type="button" class="secondary" data-act="left" ${i === 0 ? "disabled" : ""} aria-label="Move earlier">&larr;</button>
           <button type="button" class="secondary" data-act="edit">Edit</button>
           <button type="button" class="danger" data-act="delete">Delete</button>
-          <button type="button" class="secondary" data-act="right" ${i === LINKS.length - 1 ? "disabled" : ""} aria-label="Move later">&rarr;</button>
         </div>` : ""}
       </a>
     </div>`).join("");
