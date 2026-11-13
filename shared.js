@@ -14,7 +14,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Pharmacy Admin is a read-only role. The database refuses every write for it; this guard
 // additionally stops the browser even trying (friendlier message) except for harmless reads and
 // the person's own colour/theme preference.
-const RO_ADMIN_RPC_OK = new Set(["get_profile_directory", "get_oncall_people", "get_oncall_pending_swaps", "get_oncall_audit", "get_name_directory", "get_backup_schedule", "get_backup_auto_status", "search_huddle_posts", "set_own_theme", "set_own_color_mode", "set_own_show_dashboard", "set_own_dashboard_layout", "add_personal_task", "update_personal_task", "toggle_personal_task", "delete_personal_task", "carry_over_personal_tasks", "toggle_assigned_task", "get_assigned_tasks", "mark_notifications_read", "clear_notifications"]);
+const RO_ADMIN_RPC_OK = new Set(["get_profile_directory", "get_oncall_people", "get_oncall_pending_swaps", "get_oncall_audit", "get_name_directory", "get_backup_schedule", "get_backup_auto_status", "search_huddle_posts", "set_own_theme", "set_own_color_mode", "set_own_show_dashboard", "set_own_dashboard_layout", "add_personal_task", "update_personal_task", "toggle_personal_task", "delete_personal_task", "carry_over_personal_tasks", "toggle_assigned_task", "get_assigned_tasks", "chat_directory", "chat_start_direct", "chat_create_group", "chat_add_members", "chat_remove_member", "chat_make_owner", "chat_leave", "chat_rename_group", "chat_send", "chat_edit_message", "chat_delete_message", "chat_mark_read", "chat_list", "chat_unread_total", "mark_notifications_read", "clear_notifications"]);
 const RO_ADMIN_MSG = "Pharmacy Admin accounts are read-only: you can view everything but cannot make changes.";
 (function () {
   const rpc0 = sb.rpc.bind(sb);
@@ -25,7 +25,7 @@ const RO_ADMIN_MSG = "Pharmacy Admin accounts are read-only: you can view everyt
 function applyPharmacyAdminMode() {
   window.__RO_ADMIN = true;
   // My Tasks holds only the person's own private lists, so it stays fully usable.
-  if (window.location.pathname.split("/").pop() === "tasks.html") return;
+  if (["tasks.html", "chat.html"].includes(window.location.pathname.split("/").pop())) return;
   document.body.classList.add("ro-padmin");
   if (!document.getElementById("roAdminBanner")) {
     const bar = document.createElement("div");
@@ -2647,7 +2647,7 @@ function isReadOnlyRole(profile) { return profile.role === "technician" || profi
 // request, amend, approve or delete anything. Enforced in the database; the UI also hides write controls.
 function isPharmacyAdmin(profile) { return !!profile && profile.role === "pharmacy_admin"; }
 function canPostHuddle(profile) { return ["lead_pharmacist", "superuser", "developer", "senior_technician"].includes(profile.role); }
-const VIEWER_PAGES = ["portal.html", "huddle.html", "links.html", "tasks.html", "reset-password.html", "login.html", "index.html", ""];
+const VIEWER_PAGES = ["portal.html", "huddle.html", "links.html", "tasks.html", "chat.html", "reset-password.html", "login.html", "index.html", ""];
 // In the on-call pool for at least one site — governs whether "My
 // On-Call Dates" and "Swaps" are shown on oncall.html.
 function isOncallPoolMember(profile) { return !!(profile.oncall_worthing || profile.oncall_st_richards); }
@@ -2799,6 +2799,17 @@ function autoOpenDashboard(profile) {
   setTimeout(go, 600);
 }
 
+// Messages: unread count shown on the side-nav link (checked now and every minute; stays quiet if Messages is not set up yet).
+async function refreshChatBadge() {
+  const b = document.getElementById("navChatBadge");
+  if (!b || window.location.pathname.split("/").pop() === "chat.html") return;
+  try {
+    const { data, error } = await sb.rpc("chat_unread_total");
+    if (error) return;
+    const n = Number(data) || 0;
+    b.textContent = n > 99 ? "99+" : String(n); b.hidden = n < 1;
+  } catch (e) {}
+}
 function renderTopbar(profile) {
   const el = document.getElementById("topbar");
   if (!el) return;
@@ -2816,6 +2827,7 @@ function renderTopbar(profile) {
     ["links.html", "Quick Links", page === "links.html"],
     ["oncall.html", "On-Call Rota", page === "oncall.html"],
     ["tasks.html", "My Tasks", page === "tasks.html"],
+    ["chat.html", "Messages", page === "chat.html"],
   ];
   if (isTechnicianRole(profile)) {
     // Technician: only Home, Huddle Board and Quick Links.
@@ -2878,6 +2890,8 @@ function renderTopbar(profile) {
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) close(true); });
   })();
   buildSideNav(links, subLinks, page);
+  refreshChatBadge();
+  if (!window.__chatBadgeTimer) window.__chatBadgeTimer = setInterval(refreshChatBadge, 60000);
   document.getElementById("privacyBtn").addEventListener("click", viewPrivacyNotice);
   document.getElementById("colorModeSelect").addEventListener("change", (e) => setOwnColorMode(e.target.value));
   const ownThemeSel = document.getElementById("themeSelectOwn");
@@ -2929,6 +2943,7 @@ const NAV_ICONS = {
   "links.html": '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   "oncall.html": '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
   "tasks.html": '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 9l2 2 4-4M8 16h8"/>',
+  "chat.html": '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.5-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11h7M8.5 14.5h4"/>',
   "admin.html": '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
   "audit.html": '<path d="M9 4H5v16h4M16 8l4 4-4 4M20 12H9"/>'
 };
@@ -2937,7 +2952,7 @@ function buildSideNav(links, subLinks, page) {
   const icon = (href) => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICONS[href] || ""}</svg>`;
   const items = links.map(([href, label, active]) => {
     const sep = href === "admin.html" ? '<hr>' : "";
-    let html = `${sep}<a href="${href}"${active ? ' aria-current="page"' : ""}>${icon(href)}<span>${label}</span></a>`;
+    let html = `${sep}<a href="${href}"${active ? ' aria-current="page"' : ""}>${icon(href)}<span>${label}</span>${href === "chat.html" ? '<b class="sn-badge" id="navChatBadge" hidden></b>' : ""}</a>`;
     if (href === "calendar.html") {
       html += subLinks.map(([h, l]) => `<a class="sn-sub" href="${h}"${page === h ? ' aria-current="page"' : ""}><span>${l}</span></a>`).join("");
     }
