@@ -9,9 +9,9 @@
 // Applies the last-known colour theme/mode before first paint (see shared.js).
 (function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="shared.css?v=202611131700">
+<link rel="stylesheet" href="shared.css?v=202611131800">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
-<script src="shared.js?v=202611131700"></script>
+<script src="shared.js?v=202611131800"></script>
 <style>
   body.embed{background:var(--surface);margin:0;}
   body.embed .wrap{padding:0;margin:0;}
@@ -212,6 +212,8 @@ const fmtBody = (t) => esc(t).replace(/(https?:\/\/[^\s<]*[^\s<.,;:!?)\]'"])/g, 
 
 /* ------------------------------------------------------------ start up */
 const EMBED = new URLSearchParams(location.search).get('embed') === '1';
+let SHOWN = !EMBED;   // in the pop-up window: only counts as "seen" while the window is actually open
+const seen = () => document.visibilityState === "visible" && SHOWN;
 if (EMBED) { document.body.classList.add('embed'); const tb = document.getElementById('topbar'); if (tb) tb.remove(); }
 (async () => {
   PROFILE = await requireAuth();
@@ -225,7 +227,7 @@ if (EMBED) { document.body.classList.add('embed'); const tb = document.getElemen
   }
   $("chSearch").addEventListener("input", renderList);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("chModal").hidden) closeModal(); });
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && CUR) markRead(); });
+  document.addEventListener("visibilitychange", () => { if (seen() && CUR) markRead(); });
   renderMain();
   const r = await sb.rpc("chat_directory");
   if (r.error) { toast(/chat_directory/.test(r.error.message) ? "ED&G Echo is not set up yet. Run the latest schema.sql in Supabase." : r.error.message); return; }
@@ -237,8 +239,9 @@ if (EMBED) { document.body.classList.add('embed'); const tb = document.getElemen
   if (want && LIST.some((c) => c.id === want)) openConv(want);
   else if (last && LIST.some((c) => c.id === last) && window.innerWidth > 820) openConv(last);
   subscribe();
-  setInterval(poll, 20000);
-  window.addEventListener('message', (e) => { if (e.origin === location.origin && e.data && e.data.type === 'lm-chat-open') { loadList().then(() => { if (LIST.some((c) => c.id === e.data.conv)) openConv(e.data.conv); }); } });
+  setInterval(poll, 5000);
+  window.addEventListener('message', (e) => { if (e.origin === location.origin && e.data && e.data.type === 'lm-chat-shown') { SHOWN = !!e.data.v; sizeChat(); if (SHOWN && CUR) markRead(); reportUnread(); renderList(); return; }
+    if (e.origin === location.origin && e.data && e.data.type === 'lm-chat-open') { SHOWN = true; loadList().then(() => { if (LIST.some((c) => c.id === e.data.conv)) openConv(e.data.conv); }); } });
 })();
 
 function sizeChat() {
@@ -265,6 +268,7 @@ function onRead(r) {
   if (!l.some((x) => x.profile_id === r.profile_id)) { l.push({ message_id: r.message_id, profile_id: r.profile_id, read_at: r.read_at }); if (!EDIT_ID) renderThread(false); }
 }
 function ticksHtml(m) {
+  if (m._pending) return '<span class="ch-tk">Sending&hellip;</span>';
   const t = hhmm(m.created_at), others = MEMBERS.filter((x) => x.profile_id !== PROFILE.id).length || 1;
   const rd = READS[m.id] || [];
   const tick = '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 8.5l3.2 3L11 4.5"/>';
@@ -291,11 +295,12 @@ async function poll() {
 function onMessage(m, type) {
   if (m.conversation_id === CUR) {
     const i = MSGS.findIndex((x) => x.id === m.id);
+    if (i < 0 && m.sender_id === PROFILE.id) { const p = MSGS.findIndex((x) => x._pending && x.body === m.body); if (p >= 0) MSGS.splice(p, 1); }
     if (i >= 0) MSGS[i] = m; else if (type === "INSERT") MSGS.push(m); else return;
     QUOTES.set(m.id, m);
     if (m.reply_to && !QUOTES.has(m.reply_to)) { loadExtras(CUR).then(() => { if (!EDIT_ID) renderThread(false); }); }
     if (!EDIT_ID) renderThread(i < 0 && m.sender_id !== PROFILE.id);
-    if (type === "INSERT" && m.sender_id !== PROFILE.id && document.visibilityState === "visible") markRead();
+    if (type === "INSERT" && m.sender_id !== PROFILE.id && seen()) markRead();
   }
   loadListSoon();
 }
@@ -303,7 +308,7 @@ function onMessage(m, type) {
 /* ------------------------------------------------------------ conversation list */
 // How many chats (people or groups) have something you have not opened: shown on the chat button, side nav, Home tile and tab title.
 function reportUnread() {
-  const total = LIST.filter((c) => c.unread && !(c.id === CUR && document.visibilityState === "visible")).length;
+  const total = LIST.filter((c) => c.unread && !(c.id === CUR && seen())).length;
   if (!EMBED) document.title = (total ? "(" + total + ") " : "") + "ED&G Echo — Pharmacy Portal";
   if (EMBED) { try { parent.postMessage({ type: "lm-chat-unread", n: total }, location.origin); } catch (e) {} }
   else if (typeof setChatUnread === "function") setChatUnread(total);
@@ -329,7 +334,7 @@ function renderList() {
       else if (c.last_deleted) pv = "Message deleted";
       else pv = (c.last_sender === PROFILE.id ? "You: " : (c.kind === "group" ? nameOf(c.last_sender).split(" ")[0] + ": " : "")) + c.last_body;
     }
-    const un = c.id === CUR && document.visibilityState === "visible" ? 0 : c.unread;
+    const un = c.id === CUR && seen() ? 0 : c.unread;
     return `<button type="button" class="ch-item${c.id === CUR ? " on" : ""}${un ? " unread" : ""}" data-id="${c.id}" role="listitem">
       ${avatar(c)}<span class="mid"><span class="nm">${esc(convName(c))}</span><span class="pv">${esc(pv)}</span></span>
       <span class="rt"><span>${listTime(c.last_message_at)}</span>${un ? `<span class="ch-badge" aria-label="${un} unread">${un > 99 ? "99+" : un}</span>` : ""}</span></button>`;
@@ -383,7 +388,7 @@ async function loadEarlier() {
   renderThread(false); th.scrollTop = th.scrollHeight - prevH;
 }
 async function markRead() {
-  if (!CUR) return;
+  if (!CUR || !seen()) return;
   const c = LIST.find((x) => x.id === CUR);
   if (c && c.unread) { c.unread = 0; renderList(); reportUnread(); }
   await sb.rpc("chat_mark_read", { p_conv: CUR });
@@ -479,11 +484,11 @@ function renderThread(stick) {
     let body;
     if (EDIT_ID === m.id) body = `<div class="ch-edit"><textarea id="edTxt" maxlength="4000">${esc(m.body)}</textarea><div><button type="button" class="secondary ch-mini" data-a="cancel">Cancel</button><button type="button" class="primary ch-mini" data-a="save" data-id="${m.id}">Save</button></div></div>`;
     else body = del ? '<div class="ch-bub del">This message was deleted</div>' : `<div class="ch-bub" data-a="sel" data-id="${m.id}">${quoteHtml(m)}${fmtBody(m.body)}</div>`;
-    const bw = EDIT_ID === m.id || del ? body : `<div class="ch-bw">${toolsHtml(m)}${body}</div>`;
+    const bw = EDIT_ID === m.id || del || m._pending ? body : `<div class="ch-bw">${toolsHtml(m)}${body}</div>`;
     html += `<div class="ch-row ${own ? "own" : "other"}${run ? "" : " first"}${SEL_ID === m.id ? " sel" : ""}" data-id="${m.id}">
       ${!own && group ? (run ? '<span class="sp"></span>' : avatar(m.sender_id, true)) : ""}
       <div class="ch-col">${!own && group && !run ? `<div class="ch-from">${esc(nameOf(m.sender_id))}</div>` : ""}${bw}${del ? "" : reactionsHtml(m)}
-        <div class="ch-meta">${own && !del && m.kind === "text" ? ticksHtml(m) : `<span>${hhmm(m.created_at)}</span>`}${m.edited_at && !del ? "<span>edited</span>" : ""}${own && !del && EDIT_ID !== m.id ? `<span class="ch-act">${canEdit(m) ? `<button type="button" data-a="edit" data-id="${m.id}">Edit</button>` : ""}</span>` : ""}</div></div></div>`;
+        <div class="ch-meta">${own && !del && m.kind === "text" ? ticksHtml(m) : `<span>${hhmm(m.created_at)}</span>`}${m.edited_at && !del ? "<span>edited</span>" : ""}${own && !del && EDIT_ID !== m.id ? `<span class="ch-act">${canEdit(m) && !m._pending ? `<button type="button" data-a="edit" data-id="${m.id}">Edit</button>` : ""}</span>` : ""}</div></div></div>`;
     prev = m;
   });
   if (!MSGS.length) html += '<div class="ch-sys" style="margin-top:30px">No messages yet. Say hello.</div>';
@@ -541,15 +546,28 @@ async function wipeAll() {
   toast("All messages wiped.");
 }
 async function send() {
-  if (SENDING) return;
-  const ta = $("chText"), body = ta.value.trim(); if (!body) return;
-  SENDING = true; $("chSend").disabled = true;
-  const r = await sb.rpc("chat_send", { p_conv: CUR, p_body: body, p_reply_to: REPLY ? REPLY.id : null });
-  SENDING = false; if ($("chSend")) $("chSend").disabled = false;
-  if (r.error) { toast(r.error.message); return; }
-  ta.value = ""; DRAFTS[CUR] = ""; ta.style.height = "auto"; $("chCount").hidden = true; REPLY = null; drawReplyBar();
-  const m = r.data; if (m && !MSGS.some((x) => x.id === m.id)) { MSGS.push(m); }
-  renderThread(true); loadListSoon(); ta.focus();
+  const ta = $("chText"), body = ta.value.trim(); if (!body || !CUR) return;
+  const conv = CUR, reply = REPLY;
+  // Show the message straight away; the server copy replaces it a moment later.
+  const tmp = { id: "tmp-" + Date.now() + Math.random().toString(36).slice(2, 6), conversation_id: conv, sender_id: PROFILE.id, kind: "text", body,
+    created_at: new Date().toISOString(), reply_to: reply ? reply.id : null, edited_at: null, deleted_at: null, _pending: true };
+  MSGS.push(tmp); if (reply) QUOTES.set(reply.id, reply);
+  ta.value = ""; DRAFTS[conv] = ""; ta.style.height = "auto"; $("chCount").hidden = true; REPLY = null; drawReplyBar();
+  renderThread(true); ta.focus();
+  const r = await sb.rpc("chat_send", { p_conv: conv, p_body: body, p_reply_to: reply ? reply.id : null });
+  const i = MSGS.findIndex((x) => x.id === tmp.id);
+  if (r.error) {
+    if (i >= 0) MSGS.splice(i, 1);
+    if (CUR === conv) { toast(r.error.message); if ($("chText") && !$("chText").value) $("chText").value = body; renderThread(false); }
+    return;
+  }
+  const m = r.data;
+  if (CUR === conv && m) {
+    if (MSGS.some((x) => x.id === m.id)) { if (i >= 0) MSGS.splice(i, 1); }   // realtime got there first
+    else if (i >= 0) MSGS[i] = m; else MSGS.push(m);
+    QUOTES.set(m.id, m); renderThread(false);
+  }
+  loadListSoon();
 }
 
 /* ------------------------------------------------------------ dialogs */

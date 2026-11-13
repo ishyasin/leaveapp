@@ -2824,10 +2824,25 @@ function chatLive(profile) {
   try {
     sb.channel("chatlive-" + profile.id).on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (p) => {
       const m = p.new; if (!m || m.kind !== "text" || m.sender_id === profile.id) return;
-      clearTimeout(t); t = setTimeout(refreshChatBadge, 300);
-      if (window.__chatDock) window.__chatDock.pop(m.conversation_id);   // pop the chat window open on the new message
-    }).subscribe();
+      if (window.__chatDock) window.__chatDock.pop(m.conversation_id);   // pop the chat window open on the new message, straight away
+      const panel = document.getElementById("cdPanel");
+      if (!panel || panel.hidden) setChatUnread((window.__chatUnread || 0) + 1);   // count it now; the server count corrects it a moment later
+      clearTimeout(t); t = setTimeout(refreshChatBadge, 400);
+    }).subscribe((status) => {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") setTimeout(() => { window.__chatLive = false; chatLive(profile); }, 3000);
+    });
   } catch (e) {}
+  // Safety net if the live connection is down: check every 5 seconds and pop the window for anything new.
+  if (!window.__chatFast) window.__chatFast = setInterval(async () => {
+    if (document.visibilityState !== "visible") return;
+    const panel = document.getElementById("cdPanel"); if (panel && !panel.hidden) return;
+    try {
+      const { data, error } = await sb.rpc("chat_list"); if (error || !Array.isArray(data)) return;
+      const un = data.filter((c) => Number(c.unread) > 0);
+      if (un.length > (window.__chatUnread || 0) && window.__chatDock) window.__chatDock.pop(un[0].id);
+      if (window.location.pathname.split("/").pop() !== "chat.html") setChatUnread(un.length);
+    } catch (e) {}
+  }, 5000);
 }
 function initChatDock() {
   if (document.getElementById("chatDock") || window.self !== window.top || window.innerWidth < 900) return;
@@ -2846,12 +2861,16 @@ function initChatDock() {
   const setOpen = (v) => {
     panel.hidden = !v; fab.setAttribute("aria-expanded", String(v));
     try { localStorage.setItem("chat_dock_open", v ? "1" : "0"); } catch (e) {}
-    if (v) {
-      if (!panel.querySelector("iframe")) {
-        const f = document.createElement("iframe"); f.title = "ED&G Echo"; f.id = "cdFrame"; f.src = "chat.html?embed=1"; panel.appendChild(f);
-      }
-    }
+    if (v && !panel.querySelector("iframe")) mkFrame("chat.html?embed=1");
+    tellFrame(v);
   };
+  // The chat window is loaded in the background so it is ready the instant a message arrives.
+  const mkFrame = (src) => {
+    const f = document.createElement("iframe"); f.title = "ED&G Echo"; f.id = "cdFrame"; f.src = src;
+    f.addEventListener("load", () => tellFrame(!panel.hidden)); panel.appendChild(f); return f;
+  };
+  const tellFrame = (v) => { const f = panel.querySelector("iframe"); if (f && f.contentWindow) f.contentWindow.postMessage({ type: "lm-chat-shown", v }, window.location.origin); };
+  setTimeout(() => { if (!panel.querySelector("iframe")) mkFrame("chat.html?embed=1"); }, 1200);
   fab.addEventListener("click", () => setOpen(panel.hidden));
   document.getElementById("cdMin").addEventListener("click", () => { setOpen(false); fab.focus(); });
   // A new message pops the window open on that chat (unless it is already open, so it never changes what you are reading).
@@ -2862,8 +2881,8 @@ function initChatDock() {
       panel.hidden = false; fab.setAttribute("aria-expanded", "true");
       try { localStorage.setItem("chat_dock_open", "1"); } catch (e) {}
       let f = panel.querySelector("iframe");
-      if (!f) { f = document.createElement("iframe"); f.title = "ED&G Echo"; f.id = "cdFrame"; f.src = "chat.html?embed=1&open=" + encodeURIComponent(conv); panel.appendChild(f); }
-      else if (f.contentWindow) f.contentWindow.postMessage({ type: "lm-chat-open", conv }, window.location.origin);
+      if (!f) mkFrame("chat.html?embed=1&open=" + encodeURIComponent(conv));
+      else if (f.contentWindow) { tellFrame(true); f.contentWindow.postMessage({ type: "lm-chat-open", conv }, window.location.origin); }
     },
   };
   // The chat window tells the page how many messages are unread.
