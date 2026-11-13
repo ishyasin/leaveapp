@@ -9,10 +9,16 @@
 // Applies the last-known colour theme/mode before first paint (see shared.js).
 (function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="shared.css?v=202611131000">
+<link rel="stylesheet" href="shared.css?v=202611131100">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
-<script src="shared.js?v=202611131000"></script>
+<script src="shared.js?v=202611131100"></script>
 <style>
+  body.embed{background:var(--surface);margin:0;}
+  body.embed .wrap{padding:0;margin:0;}
+  body.embed .ch{border:0;border-radius:0;}
+  body.embed .ch-side-head h1{display:none;}
+  body.embed .ch-side-head{padding-top:10px;}
+  body.embed #chMsg{position:absolute;left:8px;right:8px;top:8px;z-index:30;}
   .ch{display:grid;grid-template-columns:340px minmax(0,1fr);height:640px;min-height:440px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface);}
   .ch-side{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--border);background:var(--surface-alt);}
   .ch-side-head{padding:14px 14px 10px;display:flex;flex-direction:column;gap:10px;}
@@ -176,6 +182,8 @@ const convName = (c) => (c.kind === "group" ? c.name : nameOf(c.other_id));
 const fmtBody = (t) => esc(t).replace(/(https?:\/\/[^\s<]*[^\s<.,;:!?)\]'"])/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
 
 /* ------------------------------------------------------------ start up */
+const EMBED = new URLSearchParams(location.search).get('embed') === '1';
+if (EMBED) { document.body.classList.add('embed'); const tb = document.getElementById('topbar'); if (tb) tb.remove(); }
 (async () => {
   PROFILE = await requireAuth();
   if (!PROFILE) return;
@@ -195,10 +203,12 @@ const fmtBody = (t) => esc(t).replace(/(https?:\/\/[^\s<]*[^\s<.,;:!?)\]'"])/g, 
   if (last && LIST.some((c) => c.id === last) && window.innerWidth > 820) openConv(last);
   subscribe();
   setInterval(poll, 20000);
+  window.addEventListener('message', (e) => { if (e.origin === location.origin && e.data && e.data.type === 'lm-chat-open' && LIST.some((c) => c.id === e.data.conv)) openConv(e.data.conv); });
 })();
 
 function sizeChat() {
   const el = $("ch");
+  if (EMBED) { el.style.height = window.innerHeight + "px"; return; }
   if (window.innerWidth <= 820) { el.style.height = Math.max(420, window.innerHeight - el.getBoundingClientRect().top - 12) + "px"; return; }
   el.style.height = Math.max(440, window.innerHeight - el.getBoundingClientRect().top - 24) + "px";
 }
@@ -234,7 +244,9 @@ async function loadList() {
   if (r.error) { toast(r.error.message); return; }
   LIST = r.data || [];
   const total = LIST.reduce((a, c) => a + (c.id === CUR && document.visibilityState === "visible" ? 0 : c.unread), 0);
-  document.title = (total ? "(" + total + ") " : "") + "Messages — Pharmacy Portal";
+  if (!EMBED) document.title = (total ? "(" + total + ") " : "") + "Messages — Pharmacy Portal";
+  if (EMBED) { try { parent.postMessage({ type: "lm-chat-unread", n: total }, location.origin); } catch (e) {} }
+  else if (typeof setChatUnread === "function") setChatUnread(total);
   renderList();
   if (CUR && !LIST.some((c) => c.id === CUR)) { CUR = null; renderMain(); }
 }

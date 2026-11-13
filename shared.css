@@ -1067,3 +1067,24 @@ body.dash-open{overflow:hidden;}
 
 /* Messages: unread count on the side-nav link */
 .side-nav .sn-badge{margin-left:auto;min-width:19px;height:19px;padding:0 6px;border-radius:10px;background:var(--honey);color:#1c2230;font-size:11px;font-weight:700;line-height:19px;text-align:center;}
+
+/* Messages: pop-up chat window (desktop), chat button, toast and Home tile badge */
+.chat-dock{position:fixed;right:20px;bottom:20px;z-index:900;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none;}
+.chat-dock>*{pointer-events:auto;}
+.cd-fab{position:relative;width:56px;height:56px;border-radius:50%;border:0;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);padding:0;}
+.cd-fab:hover{filter:brightness(1.08);}
+.cd-badge{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:#e11d48;color:#fff;font-size:11px;font-weight:700;line-height:20px;text-align:center;box-shadow:0 0 0 2px var(--surface);}
+.cd-panel{width:380px;height:min(560px,calc(100vh - 110px));display:flex;flex-direction:column;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 10px 36px rgba(0,0,0,.38);}
+.cd-panel[hidden]{display:none;}
+.cd-panel header{display:flex;align-items:center;gap:6px;padding:8px 10px 8px 14px;background:var(--navy);color:#fff;}
+.cd-panel header b{flex:1;font-size:14.5px;}
+.cd-ic{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;border:0;background:transparent;color:#fff;cursor:pointer;padding:0;}
+.cd-ic:hover{background:rgba(255,255,255,.18);}
+.cd-panel iframe{flex:1;width:100%;border:0;background:var(--surface);min-height:0;}
+.cd-toast{max-width:300px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-left:4px solid var(--teal);border-radius:10px;padding:9px 12px;box-shadow:0 6px 20px rgba(0,0,0,.3);cursor:pointer;display:flex;flex-direction:column;gap:2px;font-size:13px;}
+.cd-toast[hidden]{display:none;}
+.cd-toast span{color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.portal-tile{position:relative;}
+.tile-badge{position:absolute;top:10px;right:10px;min-width:24px;height:24px;padding:0 7px;border-radius:12px;background:#e11d48;color:#fff;font-size:12.5px;font-weight:700;line-height:24px;text-align:center;box-shadow:0 0 0 2px rgba(255,255,255,.85);z-index:2;}
+.tile-badge[hidden]{display:none;}
+@media print{.chat-dock{display:none;}}

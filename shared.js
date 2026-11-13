@@ -2799,16 +2799,92 @@ function autoOpenDashboard(profile) {
   setTimeout(go, 600);
 }
 
-// Messages: unread count shown on the side-nav link (checked now and every minute; stays quiet if Messages is not set up yet).
+// ---- Messages: unread counts (side-nav link, Home tile, chat button), live toast and the pop-up chat window ----
+let CHAT_ME = null;
+function setChatUnread(n) {
+  window.__chatUnread = n;
+  const t = n > 99 ? "99+" : String(n);
+  ["navChatBadge", "dockBadge", "tileChatBadge"].forEach((id) => { const b = document.getElementById(id); if (b) { b.textContent = t; b.hidden = n < 1; } });
+  const fab = document.getElementById("cdFab"); if (fab) fab.setAttribute("aria-label", n ? `Messages, ${n} unread` : "Messages");
+}
 async function refreshChatBadge() {
-  const b = document.getElementById("navChatBadge");
-  if (!b || window.location.pathname.split("/").pop() === "chat.html") return;
   try {
     const { data, error } = await sb.rpc("chat_unread_total");
-    if (error) return;
-    const n = Number(data) || 0;
-    b.textContent = n > 99 ? "99+" : String(n); b.hidden = n < 1;
+    if (error) return false;
+    if (window.location.pathname.split("/").pop() !== "chat.html") setChatUnread(Number(data) || 0);
+    return true;
+  } catch (e) { return false; }
+}
+const CHAT_NAMES = new Map();
+async function chatNameOf(id) {
+  if (!CHAT_NAMES.size) { try { const r = await sb.rpc("chat_directory"); (r.data || []).forEach((p) => CHAT_NAMES.set(p.id, p.full_name)); } catch (e) {} }
+  return CHAT_NAMES.get(id) || "A colleague";
+}
+function chatLive(profile) {
+  if (window.__chatLive || window.self !== window.top) return;
+  window.__chatLive = true; CHAT_ME = profile;
+  let t = null;
+  try {
+    sb.channel("chatlive-" + profile.id).on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (p) => {
+      const m = p.new; if (!m || m.kind !== "text" || m.sender_id === profile.id) return;
+      clearTimeout(t); t = setTimeout(refreshChatBadge, 300);
+      chatToast(m);
+    }).subscribe();
   } catch (e) {}
+}
+async function chatToast(m) {
+  const box = document.getElementById("cdToast"), panel = document.getElementById("cdPanel");
+  if (!box || (panel && !panel.hidden)) return;
+  const name = await chatNameOf(m.sender_id);
+  box.innerHTML = `<b></b><span></span>`;
+  box.firstChild.textContent = name; box.lastChild.textContent = String(m.body || "").slice(0, 90);
+  box.hidden = false; box.dataset.conv = m.conversation_id;
+  clearTimeout(chatToast.t); chatToast.t = setTimeout(() => { box.hidden = true; }, 7000);
+}
+function initChatDock() {
+  if (document.getElementById("chatDock") || window.self !== window.top || window.innerWidth < 900) return;
+  if (window.location.pathname.split("/").pop() === "chat.html") return;
+  const dock = document.createElement("div");
+  dock.id = "chatDock"; dock.className = "chat-dock";
+  dock.innerHTML = `<div class="cd-toast" id="cdToast" hidden role="status"></div>
+    <section class="cd-panel" id="cdPanel" hidden aria-label="Messages">
+      <header><b>Messages</b>
+        <a href="chat.html" class="cd-ic" title="Open Messages as a full page" aria-label="Open Messages as a full page"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+        <button type="button" class="cd-ic" id="cdMin" title="Minimise" aria-label="Minimise Messages"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+      </header>
+    </section>
+    <button type="button" class="cd-fab" id="cdFab" aria-label="Messages" aria-expanded="false" aria-controls="cdPanel"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.5-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11h7M8.5 14.5h4"/></svg><b class="cd-badge" id="dockBadge" hidden></b></button>`;
+  document.body.appendChild(dock);
+  const panel = document.getElementById("cdPanel"), fab = document.getElementById("cdFab");
+  const setOpen = (v) => {
+    panel.hidden = !v; fab.setAttribute("aria-expanded", String(v));
+    try { localStorage.setItem("chat_dock_open", v ? "1" : "0"); } catch (e) {}
+    if (v) {
+      document.getElementById("cdToast").hidden = true;
+      if (!panel.querySelector("iframe")) {
+        const f = document.createElement("iframe"); f.title = "Messages"; f.src = "chat.html?embed=1"; panel.appendChild(f);
+      }
+    }
+  };
+  fab.addEventListener("click", () => setOpen(panel.hidden));
+  document.getElementById("cdMin").addEventListener("click", () => { setOpen(false); fab.focus(); });
+  document.getElementById("cdToast").addEventListener("click", (e) => {
+    const c = e.currentTarget.dataset.conv; try { if (c) localStorage.setItem("ch_last", c); } catch (x) {}
+    setOpen(true);
+    const f = panel.querySelector("iframe"); if (f && f.contentWindow) f.contentWindow.postMessage({ type: "lm-chat-open", conv: c }, window.location.origin);
+  });
+  // The chat window tells the page how many messages are unread.
+  window.addEventListener("message", (e) => {
+    if (e.origin !== window.location.origin || !e.data || e.data.type !== "lm-chat-unread") return;
+    setChatUnread(Number(e.data.n) || 0);
+  });
+  try { if (localStorage.getItem("chat_dock_open") === "1") setOpen(true); } catch (e) {}
+}
+async function startChat(profile) {
+  const ok = await refreshChatBadge();
+  if (!ok && window.location.pathname.split("/").pop() !== "chat.html") return;   // Messages not set up yet: stay quiet
+  initChatDock(); chatLive(profile);
+  if (!window.__chatBadgeTimer) window.__chatBadgeTimer = setInterval(refreshChatBadge, 60000);
 }
 function renderTopbar(profile) {
   const el = document.getElementById("topbar");
@@ -2890,8 +2966,7 @@ function renderTopbar(profile) {
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) close(true); });
   })();
   buildSideNav(links, subLinks, page);
-  refreshChatBadge();
-  if (!window.__chatBadgeTimer) window.__chatBadgeTimer = setInterval(refreshChatBadge, 60000);
+  startChat(profile);
   document.getElementById("privacyBtn").addEventListener("click", viewPrivacyNotice);
   document.getElementById("colorModeSelect").addEventListener("change", (e) => setOwnColorMode(e.target.value));
   const ownThemeSel = document.getElementById("themeSelectOwn");
