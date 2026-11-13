@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
-<title>ED&amp;G Echo — Pharmacy Portal</title>
+<title>ED&amp;G Echo™ — Pharmacy Portal</title>
 <script>
 // Applies the last-known colour theme/mode before first paint (see shared.js).
 (function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="shared.css?v=202611131800">
+<link rel="stylesheet" href="shared.css?v=202611132000">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
-<script src="shared.js?v=202611131800"></script>
+<script src="shared.js?v=202611132000"></script>
 <style>
   body.embed{background:var(--surface);margin:0;}
   body.embed .wrap{padding:0;margin:0;}
@@ -147,7 +147,7 @@
   <div class="ch" id="ch">
     <aside class="ch-side" aria-label="Conversations">
       <div class="ch-side-head">
-        <h1>ED&amp;G Echo</h1>
+        <h1>ED&amp;G Echo™</h1>
         <div class="ch-btns">
           <button type="button" class="primary" id="btnNewChat">New chat</button>
           <button type="button" class="secondary" id="btnNewGroup">New group</button>
@@ -221,10 +221,6 @@ if (EMBED) { document.body.classList.add('embed'); const tb = document.getElemen
   sizeChat(); window.addEventListener("resize", sizeChat);
   $("btnNewChat").onclick = openNewChat;
   $("btnNewGroup").onclick = openNewGroup;
-  if (PROFILE.role === "developer") {
-    const w = document.createElement("button"); w.type = "button"; w.className = "secondary"; w.id = "btnWipe"; w.textContent = "Wipe all messages";
-    $("btnNewGroup").parentNode.appendChild(w); w.onclick = wipeAll;
-  }
   $("chSearch").addEventListener("input", renderList);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("chModal").hidden) closeModal(); });
   document.addEventListener("visibilitychange", () => { if (seen() && CUR) markRead(); });
@@ -309,7 +305,7 @@ function onMessage(m, type) {
 // How many chats (people or groups) have something you have not opened: shown on the chat button, side nav, Home tile and tab title.
 function reportUnread() {
   const total = LIST.filter((c) => c.unread && !(c.id === CUR && seen())).length;
-  if (!EMBED) document.title = (total ? "(" + total + ") " : "") + "ED&G Echo — Pharmacy Portal";
+  if (!EMBED) document.title = (total ? "(" + total + ") " : "") + "ED&G Echo™ — Pharmacy Portal";
   if (EMBED) { try { parent.postMessage({ type: "lm-chat-unread", n: total }, location.origin); } catch (e) {} }
   else if (typeof setChatUnread === "function") setChatUnread(total);
   return total;
@@ -537,13 +533,6 @@ async function onThreadClick(e) {
     const m = MSGS.find((x) => x.id === id); if (m) { m.body = v; m.edited_at = new Date().toISOString(); }
     EDIT_ID = null; renderThread(false);
   }
-}
-async function wipeAll() {
-  const v = prompt("Developer wipe: this permanently deletes EVERY message and reaction in ED&G Echo for everyone. Type WIPE to confirm.");
-  if (v !== "WIPE") return;
-  const r = await sb.rpc("chat_dev_wipe"); if (r.error) { toast(r.error.message); return; }
-  MSGS = []; REACT = {}; REPLY = null; SEL_ID = null; EDIT_ID = null; drawReplyBar(); renderThread(false); loadList();
-  toast("All messages wiped.");
 }
 async function send() {
   const ta = $("chText"), body = ta.value.trim(); if (!body || !CUR) return;

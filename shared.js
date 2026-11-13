@@ -2850,7 +2850,7 @@ function initChatDock() {
   const dock = document.createElement("div");
   dock.id = "chatDock"; dock.className = "chat-dock";
   dock.innerHTML = `<section class="cd-panel" id="cdPanel" hidden aria-label="ED&G Echo">
-      <header><b>ED&G Echo</b>
+      <header><b>ED&G Echo™</b>
         <a href="chat.html" class="cd-ic" title="Open ED&G Echo as a full page" aria-label="Open ED&G Echo as a full page"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
         <button type="button" class="cd-ic" id="cdMin" title="Minimise" aria-label="Minimise ED&G Echo"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
       </header>
@@ -2915,7 +2915,7 @@ function renderTopbar(profile) {
     ["links.html", "Quick Links", page === "links.html"],
     ["oncall.html", "On-Call Rota", page === "oncall.html"],
     ["tasks.html", "My Tasks", page === "tasks.html"],
-    ["chat.html", "ED&G Echo", page === "chat.html"],
+    ["chat.html", "ED&G Echo™", page === "chat.html"],
   ];
   if (isTechnicianRole(profile)) {
     // Technician: only Home, Huddle Board and Quick Links.

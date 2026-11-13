@@ -13,7 +13,7 @@
 // remains the source of truth and corrects this on every page load.
 (function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="shared.css?v=202611131800">
+<link rel="stylesheet" href="shared.css?v=202611132000">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -464,6 +464,11 @@
       <p class="small">Developer only. Permanently deletes every <strong>on-call shift</strong>, <strong>swap request</strong>, <strong>on-call bank holiday</strong> and <strong>rota period</strong> so the rota can be built again from scratch. <strong>Leave data, user accounts, who is in each site's on-call pool, swap-approval settings, the Huddle Board and Quick Links are not touched</strong>, and the audit trail keeps a record of the reset. This cannot be undone — the daily backup email is your safety net.</p>
       <button class="danger" onclick="openResetOncallModal()">Reset On-Call Rota</button>
     </div>
+    <div class="card">
+      <h2>Wipe all ED&amp;G Echo messages</h2>
+      <p class="small">Developer only. Permanently deletes <strong>every message, reaction and read receipt</strong> in ED&amp;G Echo for everyone. Chats and groups stay, only their messages go. Users cannot delete messages themselves, so this is the only way to remove them.</p>
+      <button class="danger" onclick="openWipeEchoModal()">Wipe all messages</button>
+    </div>
   </div>
 
   <!-- EASTER EGG (Developer only) -->
@@ -717,6 +722,22 @@
   </div>
 </div>
 
+<div class="overlay" id="wipeEchoOverlay" style="display:none;">
+  <div class="modal">
+    <h3>Confirm: wipe all ED&amp;G Echo messages</h3>
+    <p class="small">This permanently deletes every message in every chat. There is no way to undo this. Enter your password to confirm.</p>
+    <div id="wipeEchoMsg"></div>
+    <form id="wipeEchoForm">
+      <label>Password</label>
+      <input type="password" id="wipeEchoPassword" required autocomplete="current-password">
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeWipeEchoModal()">Cancel</button>
+        <button type="submit" class="danger" id="wipeEchoSubmitBtn">Permanently wipe all messages</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Edit site modal -->
 <div class="overlay" id="siteOverlay" style="display:none;">
   <div class="modal">
@@ -831,7 +852,7 @@
   </div>
 </div>
 
-<script src="shared.js?v=202611131800"></script>
+<script src="shared.js?v=202611132000"></script>
 <script>
 let PROFILE = null;
 let PROFILES = [];
@@ -1508,6 +1529,36 @@ document.getElementById("resetOncallForm").addEventListener("submit", async (e) 
     showMsg(msg, err.message || "Could not reset the on-call rota.", "error");
   } finally {
     btn.disabled = false; btn.textContent = "Permanently reset on-call rota";
+  }
+});
+
+/* ---------------- wipe all ED&G Echo messages (developer) ---------------- */
+function openWipeEchoModal() {
+  document.getElementById("wipeEchoMsg").innerHTML = "";
+  document.getElementById("wipeEchoPassword").value = "";
+  document.getElementById("wipeEchoOverlay").style.display = "flex";
+}
+function closeWipeEchoModal() { document.getElementById("wipeEchoOverlay").style.display = "none"; }
+document.getElementById("wipeEchoForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("wipeEchoMsg");
+  const btn = document.getElementById("wipeEchoSubmitBtn");
+  btn.disabled = true; btn.textContent = "Verifying password…";
+  try {
+    const session = await getSession();
+    const { error: authErr } = await sb.auth.signInWithPassword({
+      email: session.user.email, password: document.getElementById("wipeEchoPassword").value,
+    });
+    if (authErr) { showMsg(msg, "Incorrect password.", "error"); return; }
+    btn.textContent = "Wiping…";
+    const { error } = await sb.rpc("chat_dev_wipe");
+    if (error) throw error;
+    closeWipeEchoModal();
+    await uiAlert("All ED&G Echo messages have been wiped. Chats and groups were not affected.", "Wipe complete");
+  } catch (err) {
+    showMsg(msg, err.message || "Could not wipe the messages.", "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Permanently wipe all messages";
   }
 });
 
