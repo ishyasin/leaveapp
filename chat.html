@@ -9,9 +9,9 @@
 // Applies the last-known colour theme/mode before first paint (see shared.js).
 (function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="shared.css?v=202611131500">
+<link rel="stylesheet" href="shared.css?v=202611131700">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
-<script src="shared.js?v=202611131500"></script>
+<script src="shared.js?v=202611131700"></script>
 <style>
   body.embed{background:var(--surface);margin:0;}
   body.embed .wrap{padding:0;margin:0;}
@@ -68,7 +68,7 @@
   .ch-row.own .ch-bub.del{color:var(--text-muted);background:transparent;border-color:var(--border);}
   .ch-meta{font-size:11px;color:var(--text-muted);margin:2px 4px 0;display:flex;gap:8px;align-items:center;}
   .ch-act{display:none;gap:6px;}
-  .ch-row:hover .ch-act,.ch-row:focus-within .ch-act{display:inline-flex;}
+  .ch-row.sel .ch-act{display:inline-flex;}
   .ch-act button{background:none;border:0;padding:0;color:var(--text-muted);font-size:11px;text-decoration:underline;cursor:pointer;}
   .ch-edit{display:flex;flex-direction:column;gap:6px;width:min(480px,70vw);}
   .ch-edit textarea{width:100%;box-sizing:border-box;min-height:60px;resize:vertical;}
@@ -78,11 +78,14 @@
   .ch-tools{display:none;position:absolute;bottom:100%;margin-bottom:2px;z-index:5;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:2px 4px;box-shadow:0 3px 10px rgba(0,0,0,.2);gap:1px;white-space:nowrap;}
   .ch-row.other .ch-tools{left:0;}
   .ch-row.own .ch-tools{right:0;}
-  .ch-row:hover .ch-tools,.ch-row.sel .ch-tools,.ch-row:focus-within .ch-tools{display:inline-flex;}
+  .ch-row.sel .ch-tools{display:inline-flex;}
+  .ch-bub{cursor:pointer;}
   .ch-tools button{background:none;border:0;cursor:pointer;font-size:17px;line-height:1;padding:4px 5px;border-radius:12px;color:var(--text);}
   .ch-tools button:hover{background:var(--surface-alt);}
   .ch-tools button.rp{font-size:12px;font-weight:600;padding:4px 9px;color:var(--text-muted);}
   .ch-quote{display:block;text-align:left;width:100%;margin:0 0 6px;padding:4px 8px;border-left:3px solid var(--teal);border-radius:6px;background:rgba(127,127,127,.15);font-size:12.5px;line-height:1.3;cursor:pointer;color:inherit;border-top:0;border-right:0;border-bottom:0;font-family:inherit;}
+  .ch-tk{display:inline-flex;align-items:center;gap:4px;color:var(--text-muted);}
+  .ch-tk.read{color:#1f9d55;}
   .ch-row.own .ch-quote{border-left-color:#fff;background:rgba(255,255,255,.2);}
   .ch-quote b{display:block;font-size:12px;}
   .ch-quote span{display:block;opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;}
@@ -97,7 +100,6 @@
   .ch-replybar[hidden]{display:none;}
   .ch-replybar span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-muted);}
   .ch-replybar button{background:none;border:0;cursor:pointer;font-size:18px;line-height:1;color:var(--text-muted);}
-  @media (hover:none){.ch-act{display:inline-flex;}}
   .ch-more{align-self:center;margin:4px 0 8px;padding:5px 12px;font-size:12px;}
   .ch-jump{position:absolute;left:50%;transform:translateX(-50%);bottom:84px;padding:6px 14px;border-radius:16px;font-size:12.5px;box-shadow:0 2px 8px rgba(0,0,0,.25);}
   .ch-comp{display:flex;gap:8px;align-items:flex-end;padding:10px 12px;border-top:1px solid var(--border);background:var(--surface);}
@@ -161,7 +163,7 @@
 
 <script>
 let PROFILE = null, DIR = new Map(), LIST = [], CUR = null, MSGS = [], MEMBERS = [], MORE = false;
-let REACT = {}, QUOTES = new Map(), REPLY = null, SEL_ID = null;
+let READS = {}, REACT = {}, QUOTES = new Map(), REPLY = null, SEL_ID = null;
 const EMOJI = ["\u{1F44D}", "\u2764\uFE0F", "\u{1F602}", "\u{1F62E}", "\u{1F622}", "\u{1F64F}", "\u2705"];
 let EDIT_ID = null, RT = false, SENDING = false, UNREAD_LIVE = 0, LISTT = null;
 const DRAFTS = {};
@@ -217,6 +219,10 @@ if (EMBED) { document.body.classList.add('embed'); const tb = document.getElemen
   sizeChat(); window.addEventListener("resize", sizeChat);
   $("btnNewChat").onclick = openNewChat;
   $("btnNewGroup").onclick = openNewGroup;
+  if (PROFILE.role === "developer") {
+    const w = document.createElement("button"); w.type = "button"; w.className = "secondary"; w.id = "btnWipe"; w.textContent = "Wipe all messages";
+    $("btnNewGroup").parentNode.appendChild(w); w.onclick = wipeAll;
+  }
   $("chSearch").addEventListener("input", renderList);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("chModal").hidden) closeModal(); });
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && CUR) markRead(); });
@@ -248,9 +254,25 @@ function subscribe() {
     sb.channel("chat-" + PROFILE.id)
       .on("postgres_changes", { event: "*", schema: "public", table: "chat_messages" }, (p) => { if (p.new && p.new.id) onMessage(p.new, p.eventType); })
       .on("postgres_changes", { event: "*", schema: "public", table: "chat_reactions" }, (p) => onReaction(p))
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_reads" }, (p) => onRead(p.new))
       .on("postgres_changes", { event: "*", schema: "public", table: "chat_members" }, () => loadListSoon())
       .subscribe((s) => { RT = s === "SUBSCRIBED"; });
   } catch (e) { RT = false; }
+}
+function onRead(r) {
+  if (!r || !MSGS.some((m) => m.id === r.message_id)) return;
+  const l = (READS[r.message_id] = READS[r.message_id] || []);
+  if (!l.some((x) => x.profile_id === r.profile_id)) { l.push({ message_id: r.message_id, profile_id: r.profile_id, read_at: r.read_at }); if (!EDIT_ID) renderThread(false); }
+}
+function ticksHtml(m) {
+  const t = hhmm(m.created_at), others = MEMBERS.filter((x) => x.profile_id !== PROFILE.id).length || 1;
+  const rd = READS[m.id] || [];
+  const tick = '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 8.5l3.2 3L11 4.5"/>';
+  if (rd.length >= others) {
+    const last = rd.reduce((a, b) => (a.read_at > b.read_at ? a : b)).read_at;
+    return `<span class="ch-tk read" title="Sent ${t}, read ${hhmm(last)}">${tick}<path d="M8 11.5l.6.5L14 4.5"/></svg> Sent ${t} &middot; Read ${hhmm(last)}</span>`;
+  }
+  return `<span class="ch-tk" title="Sent ${t}">${tick}</svg> Sent ${t}${rd.length ? ` &middot; Read by ${rd.length} of ${others}` : ""}</span>`;
 }
 function onReaction(p) {
   const row = p.eventType === "DELETE" ? p.old : p.new;
@@ -318,7 +340,7 @@ function renderList() {
 /* ------------------------------------------------------------ open a conversation */
 async function openConv(id) {
   if (CUR) DRAFTS[CUR] = ($("chText") || {}).value || "";
-  CUR = id; MSGS = []; MEMBERS = []; MORE = false; EDIT_ID = null; REACT = {}; QUOTES = new Map(); REPLY = null; SEL_ID = null;
+  CUR = id; MSGS = []; MEMBERS = []; MORE = false; EDIT_ID = null; REACT = {}; READS = {}; QUOTES = new Map(); REPLY = null; SEL_ID = null;
   try { localStorage.setItem("ch_last", id); } catch (e) {}
   $("ch").classList.add("show-thread");
   renderMain(); renderList();
@@ -339,9 +361,10 @@ async function refreshThread() {
   const r = await sb.from("chat_messages").select("*").eq("conversation_id", id).order("created_at", { ascending: false }).limit(30);
   if (CUR !== id || r.error) return;
   const fresh = (r.data || []).reverse(); let changed = false, added = false;
-  const before = JSON.stringify(REACT);
+  if (!fresh.length && MSGS.length) { MSGS = []; REACT = {}; renderThread(false); return; }
+  const before = JSON.stringify(REACT) + JSON.stringify(READS);
   await loadExtras(id, fresh); if (CUR !== id) return;
-  if (JSON.stringify(REACT) !== before) changed = true;
+  if (JSON.stringify(REACT) + JSON.stringify(READS) !== before) changed = true;
   fresh.forEach((m) => {
     const i = MSGS.findIndex((x) => x.id === m.id);
     if (i < 0) { MSGS.push(m); changed = added = true; }
@@ -407,6 +430,8 @@ function renderHead() {
 async function loadExtras(id, extra) {
   const rx = await sb.from("chat_reactions").select("message_id, profile_id, emoji").eq("conversation_id", id);
   if (!rx.error && CUR === id) { REACT = {}; (rx.data || []).forEach((x) => { (REACT[x.message_id] = REACT[x.message_id] || []).push(x); }); }
+  const rr = await sb.from("chat_reads").select("message_id, profile_id, read_at").eq("conversation_id", id);
+  if (!rr.error && CUR === id) { READS = {}; (rr.data || []).forEach((x) => { (READS[x.message_id] = READS[x.message_id] || []).push(x); }); }
   const all = MSGS.concat(extra || []);
   all.forEach((m) => QUOTES.set(m.id, m));
   const missing = [...new Set(all.map((m) => m.reply_to).filter((x) => x && !QUOTES.has(x)))];
@@ -458,7 +483,7 @@ function renderThread(stick) {
     html += `<div class="ch-row ${own ? "own" : "other"}${run ? "" : " first"}${SEL_ID === m.id ? " sel" : ""}" data-id="${m.id}">
       ${!own && group ? (run ? '<span class="sp"></span>' : avatar(m.sender_id, true)) : ""}
       <div class="ch-col">${!own && group && !run ? `<div class="ch-from">${esc(nameOf(m.sender_id))}</div>` : ""}${bw}${del ? "" : reactionsHtml(m)}
-        <div class="ch-meta"><span>${hhmm(m.created_at)}</span>${m.edited_at && !del ? "<span>edited</span>" : ""}${own && !del && EDIT_ID !== m.id ? `<span class="ch-act">${canEdit(m) ? `<button type="button" data-a="edit" data-id="${m.id}">Edit</button>` : ""}<button type="button" data-a="del" data-id="${m.id}">Delete</button></span>` : ""}</div></div></div>`;
+        <div class="ch-meta">${own && !del && m.kind === "text" ? ticksHtml(m) : `<span>${hhmm(m.created_at)}</span>`}${m.edited_at && !del ? "<span>edited</span>" : ""}${own && !del && EDIT_ID !== m.id ? `<span class="ch-act">${canEdit(m) ? `<button type="button" data-a="edit" data-id="${m.id}">Edit</button>` : ""}</span>` : ""}</div></div></div>`;
     prev = m;
   });
   if (!MSGS.length) html += '<div class="ch-sys" style="margin-top:30px">No messages yet. Say hello.</div>';
@@ -474,7 +499,7 @@ function renderThread(stick) {
 async function onThreadClick(e) {
   const b = e.target.closest("[data-a]"); if (!b) { if (SEL_ID) { SEL_ID = null; renderThread(false); } return; }
   const a = b.dataset.a, id = b.dataset.id;
-  if (a === "sel") { if (!window.matchMedia("(hover:none)").matches) return; SEL_ID = SEL_ID === id ? null : id; renderThread(false); return; }
+  if (a === "sel") { SEL_ID = SEL_ID === id ? null : id; renderThread(false); return; }
   if (a === "reply") {
     REPLY = MSGS.find((x) => x.id === id) || null; SEL_ID = null; drawReplyBar(); renderThread(false); if ($("chText")) $("chText").focus(); return;
   }
@@ -506,13 +531,14 @@ async function onThreadClick(e) {
     if (r.error) { toast(r.error.message); b.disabled = false; EDIT_ID = null; renderThread(false); return; }
     const m = MSGS.find((x) => x.id === id); if (m) { m.body = v; m.edited_at = new Date().toISOString(); }
     EDIT_ID = null; renderThread(false);
-  } else if (a === "del") {
-    if (!confirm("Delete this message for everyone in the chat?")) return;
-    const r = await sb.rpc("chat_delete_message", { p_id: id });
-    if (r.error) { toast(r.error.message); return; }
-    const m = MSGS.find((x) => x.id === id); if (m) { m.body = ""; m.deleted_at = new Date().toISOString(); }
-    renderThread(false); loadListSoon();
   }
+}
+async function wipeAll() {
+  const v = prompt("Developer wipe: this permanently deletes EVERY message and reaction in ED&G Echo for everyone. Type WIPE to confirm.");
+  if (v !== "WIPE") return;
+  const r = await sb.rpc("chat_dev_wipe"); if (r.error) { toast(r.error.message); return; }
+  MSGS = []; REACT = {}; REPLY = null; SEL_ID = null; EDIT_ID = null; drawReplyBar(); renderThread(false); loadList();
+  toast("All messages wiped.");
 }
 async function send() {
   if (SENDING) return;
