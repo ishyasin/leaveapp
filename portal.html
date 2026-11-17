@@ -833,15 +833,15 @@ async function saveBanner(e) {
       if (code.replace(/\s/g, "").length >= 4) (on ? Promise.resolve() : refreshOn()).then(() => { if (on) tryCode(code); });
     });
   }
-  function isBlank(t) {
-    if (!t || t.nodeType !== 1) return false;
-    if (t === document.body || t === document.documentElement) return true;
-    if (t.closest("a,button,input,textarea,select,label,table,svg,img,iframe,[role=button],.modal,dialog")) return false;
-    return ![...t.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
-  }
+  // Three quick clicks anywhere that isn't a control (own counter, so small mouse movement doesn't break it).
+  let clicks = 0, clickTimer = null;
   document.addEventListener("click", e => {
-    if (e.detail === 3 && isBlank(e.target)) openBox();
-  });
+    const t = e.target;
+    if (!t || t.nodeType !== 1 || t.closest("a,button,input,textarea,select,label,summary,svg,img,iframe,[role=button],[onclick],[contenteditable]") || (box && box.contains(t))) { clicks = 0; return; }
+    clicks++;
+    clearTimeout(clickTimer); clickTimer = setTimeout(() => { clicks = 0; }, 700);
+    if (clicks >= 3) { clicks = 0; openBox(); }
+  }, true);
 })();
 </script>
 </body>
