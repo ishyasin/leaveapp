@@ -13,7 +13,7 @@
 // remains the source of truth and corrects this on every page load.
 (function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="shared.css?v=202611132000">
+<link rel="stylesheet" href="shared.css?v=202611132100">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -53,6 +53,7 @@
     <button id="tabBtn-egg2" onclick="showTab('egg2')" style="display:none;">Easter Egg 2</button>
     <button id="tabBtn-egg3" onclick="showTab('egg3')" style="display:none;">Easter Egg 3</button>
     <button id="tabBtn-egg4" onclick="showTab('egg4')" style="display:none;">Easter Egg 4</button>
+    <button id="tabBtn-egg6" onclick="showTab('egg6')" style="display:none;">Easter Egg 5</button>
   </nav>
 
   <!-- USERS -->
@@ -548,6 +549,30 @@
   </div>
 
   <!-- EASTER EGG 4 (Developer only) -->
+  <div id="tab-egg6" style="display:none;">
+    <div class="card">
+      <h2>Easter egg 5: GRAEMe&rsquo;s Emergency Drop</h2>
+      <p class="small">Developer only. A hidden top-down driving game: GRAEMe races the antidotes to Worthing, St Richard&rsquo;s, Princess Royal and Royal Sussex County hospitals against the clock, dodging traffic and roadworks and picking up antidote vials for extra time. Arrow keys only. Weekly high scores are shared between staff. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, typing its code on the home page and pressing Enter opens it.</p>
+      <div id="egg6Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg6Status">loading…</span><br><span class="small" id="egg6Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg6OnBtn" onclick="eggSwitch(6, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg6OffBtn" onclick="eggSwitch(6, false)" style="display:none;">Switch off</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Secret code</h2>
+      <form id="egg6Form" autocomplete="off">
+        <label for="egg6Code">New code</label>
+        <input type="text" id="egg6Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg6Code2">
+        <input type="checkbox" id="egg6Show" style="display:none;">
+        <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for the other easter eggs (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg6SaveBtn">Save new code</button></div>
+      </form>
+    </div>
+  </div>
+
   <div id="tab-egg4" style="display:none;">
     <div class="card">
       <h2>Easter egg 4: GRAEMe Escape</h2>
@@ -852,7 +877,7 @@
   </div>
 </div>
 
-<script src="shared.js?v=202611132000"></script>
+<script src="shared.js?v=202611132100"></script>
 <script>
 let PROFILE = null;
 let PROFILES = [];
@@ -867,6 +892,7 @@ let PROFILES = [];
     document.getElementById("tabBtn-egg2").style.display = "";
     document.getElementById("tabBtn-egg3").style.display = "";
     document.getElementById("tabBtn-egg4").style.display = "";
+    document.getElementById("tabBtn-egg6").style.display = "";
     setupEggTab();
     document.getElementById("tabBtn-privacy").style.display = "";
     setupPrivacyTab();
@@ -906,7 +932,7 @@ function syncNavHeads() {
 }
 function showTab(name) {
   syncNavHeads();
-  ["users","holidays","restricted","capacity","oncall","backup","leave","import","reset","appearance","egg","egg2","egg3","egg4","privacy"].forEach(t => {
+  ["users","holidays","restricted","capacity","oncall","backup","leave","import","reset","appearance","egg","egg2","egg3","egg4","egg6","privacy"].forEach(t => {
     document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
     document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);
   });
@@ -2312,11 +2338,12 @@ async function removeCapacityOverride(site, date) {
 /* ---------------- easter eggs (Developer) ---------------- */
 // Four eggs share one set of functions: n = 1 (Portal Defence), 2 (Tile Defence), 3 (Portal Defence: Payback) or 4 (GRAEMe Escape).
 // Element ids are "egg..." for egg 1, "egg2..." for egg 2, "egg3..." for egg 3 and "egg4..." for egg 4.
-const EGG_STATE = { 1: { on: false, set: false }, 2: { on: false, set: false }, 3: { on: false, set: false }, 4: { on: false, set: false }, 5: { on: false, set: false } };
+const EGG_STATE = { 1: { on: false, set: false }, 2: { on: false, set: false }, 3: { on: false, set: false }, 4: { on: false, set: false }, 5: { on: false, set: false }, 6: { on: false, set: false } };
+const eggLabel = n => (n === 6 ? 5 : n);   // egg 6 in the database is shown as "Easter egg 5" (egg 5 is the Escape cheat code)
 const eggId = (n, name) => (n === 1 ? "egg" : "egg" + n) + name;
 const eggEl = (n, name) => document.getElementById(eggId(n, name));
 function setupEggTab() {
-  [1, 2, 3, 4, 5].forEach(n => {
+  [1, 2, 3, 4, 5, 6].forEach(n => {
     eggEl(n, "Show").addEventListener("change", e => {
       eggEl(n, "Code").type = e.target.checked ? "text" : "password";
       eggEl(n, "Code2").type = e.target.checked ? "text" : "password";
@@ -2364,7 +2391,7 @@ async function eggCall(n, enabled, code, okText) {
 }
 function eggSwitch(n, on) {
   if (on && !EGG_STATE[n].set) return showMsg(eggEl(n, "Msg"), "Set a code first, then switch the easter egg on.", "error");
-  eggCall(n, on, null, n === 5 ? (on ? "The cheat code is ON." : "The cheat code is OFF.") : on ? "Easter egg " + n + " is ON. People can open it by typing its code on the home page." : "Easter egg " + n + " is OFF.");
+  eggCall(n, on, null, n === 5 ? (on ? "The cheat code is ON." : "The cheat code is OFF.") : on ? "Easter egg " + eggLabel(n) + " is ON. People can open it by typing its code on the home page." : "Easter egg " + eggLabel(n) + " is OFF.");
 }
 
 /* ---------------- automatic backup on/off + manual download ---------------- */

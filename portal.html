@@ -9,7 +9,7 @@
 // Applies the last-known colour theme/mode before first paint (see shared.js).
 (function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="shared.css?v=202611132000">
+<link rel="stylesheet" href="shared.css?v=202611132100">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <style>
   /* ---- Animated background (same triangles / orbs / particles / light beams as the sign-in page).
@@ -336,7 +336,7 @@
   <div class="bot-fig"><div class="g-rig" id="graemeRig"></div></div>
 </div>
 
-<script src="shared.js?v=202611132000"></script>
+<script src="shared.js?v=202611132100"></script>
 <script>
 // GRAEMe sticker-sheet poses. Each pose is an opaque body picture (eyes painted out), two separate glowing eyes,
 // optional extras (lightbulb, question mark, cheer sparks) and an antenna light, so they can be animated.
@@ -781,18 +781,18 @@ async function saveBanner(e) {
 }
 </script>
 <script>
-// Hidden easter eggs. Nothing happens at all unless the Developer has switched at least one on (Admin -> Easter Egg 1 / 2 / 3 / 4).
+// Hidden easter eggs. Nothing happens at all unless the Developer has switched at least one on (Admin -> Easter Egg 1 / 2 / 3 / 4 / Emergency Drop).
 // When one is on, typing a secret code on this page and pressing Enter asks the server which game (if any) that code opens
 // (the codes themselves are never in this file). If it is right, that game's file is fetched and opened.
 (() => {
   let on = false, buf = "", timer = null, busy = false;
-  const GAMES = { 1: { file: "portal-defence.js", global: "PortalDefence" }, 2: { file: "tile-defence.js", global: "TileDefence" }, 3: { file: "payback.js", global: "PortalPayback" }, 4: { file: "escape.js", global: "PortalEscape" } };
+  const GAMES = { 1: { file: "portal-defence.js", global: "PortalDefence" }, 2: { file: "tile-defence.js", global: "TileDefence" }, 3: { file: "payback.js", global: "PortalPayback" }, 4: { file: "escape.js", global: "PortalEscape" }, 6: { file: "emergency-drop.js", global: "PortalDrop" } };
   (async () => {
     try {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) return;
       const { data, error } = await sb.rpc("easter_egg_states");
-      on = !error && !!data && (data["1"] === true || data["2"] === true || data["3"] === true || data["4"] === true);
+      on = !error && !!data && (data["1"] === true || data["2"] === true || data["3"] === true || data["4"] === true || data["6"] === true);
     } catch (e) { on = false; }
   })();
   function loadGame(g) {

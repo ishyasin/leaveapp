@@ -9,9 +9,9 @@
 // Applies the last-known colour theme/mode before first paint (see shared.js).
 (function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="shared.css?v=202611132000">
+<link rel="stylesheet" href="shared.css?v=202611132100">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
-<script src="shared.js?v=202611132000"></script>
+<script src="shared.js?v=202611132100"></script>
 <style>
   body.embed{background:var(--surface);margin:0;}
   body.embed .wrap{padding:0;margin:0;}
@@ -23,6 +23,9 @@
   .ch-side{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--border);background:var(--surface-alt);}
   .ch-side-head{padding:14px 14px 10px;display:flex;flex-direction:column;gap:10px;}
   .ch-side-head h1{margin:0;font-size:19px;}
+  .ch-push{padding:10px 14px;border-top:1px solid var(--border);font-size:12.5px;color:var(--text-muted);display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .ch-push span{flex:1;min-width:140px;}
+  body.embed .ch-push{display:none;}
   .ch-btns{display:flex;gap:8px;}
   .ch-btns button{flex:1;padding:8px 10px;font-size:13px;}
   .ch-search{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit;font-size:13.5px;}
@@ -155,6 +158,7 @@
         <input type="text" class="ch-search" id="chSearch" placeholder="Search chats" aria-label="Search chats" autocomplete="off">
       </div>
       <div class="ch-list" id="chList" role="list"></div>
+      <div class="ch-push" id="chPush" hidden></div>
     </aside>
     <section class="ch-main" id="chMain" aria-label="Conversation"></section>
   </div>
@@ -235,6 +239,7 @@ if (EMBED) { document.body.classList.add('embed'); const tb = document.getElemen
   if (want && LIST.some((c) => c.id === want)) openConv(want);
   else if (last && LIST.some((c) => c.id === last) && window.innerWidth > 820) openConv(last);
   subscribe();
+  drawPush();
   setInterval(poll, 5000);
   window.addEventListener('message', (e) => { if (e.origin === location.origin && e.data && e.data.type === 'lm-chat-shown') { SHOWN = !!e.data.v; sizeChat(); if (SHOWN && CUR) markRead(); reportUnread(); renderList(); return; }
     if (e.origin === location.origin && e.data && e.data.type === 'lm-chat-open') { SHOWN = true; loadList().then(() => { if (LIST.some((c) => c.id === e.data.conv)) openConv(e.data.conv); }); } });
@@ -281,6 +286,16 @@ function onReaction(p) {
   const i = list.findIndex((x) => x.profile_id === row.profile_id && x.emoji === row.emoji);
   if (p.eventType === "DELETE") { if (i >= 0) list.splice(i, 1); } else if (i < 0) list.push({ message_id: row.message_id, profile_id: row.profile_id, emoji: row.emoji });
   if (!EDIT_ID) renderThread(false);
+}
+async function drawPush() {
+  const el = $("chPush"); if (!el || EMBED) return;
+  const st = await echoPushState();
+  if (st === "unsupported") { el.hidden = true; return; }
+  el.hidden = false;
+  if (st === "on") el.innerHTML = '<span>Browser notifications are on, even when the portal is closed.</span><button type="button" class="secondary ch-mini" id="pushBtn">Turn off</button>';
+  else if (st === "blocked") el.innerHTML = '<span>Notifications are blocked. Allow them for this site in your browser settings to be told about new messages when the portal is closed.</span>';
+  else el.innerHTML = '<span>Get a notification when someone messages you, even when the portal is closed.</span><button type="button" class="primary ch-mini" id="pushBtn">Turn on</button>';
+  const b = $("pushBtn"); if (b) b.onclick = async () => { b.disabled = true; if (st === "on") await echoPushDisable(); else await echoPushEnable(); drawPush(); };
 }
 function loadListSoon() { clearTimeout(LISTT); LISTT = setTimeout(loadList, 250); }
 async function poll() {

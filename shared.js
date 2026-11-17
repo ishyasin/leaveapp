@@ -2543,6 +2543,7 @@ async function getCurrentProfile() {
 }
 
 async function signOut() {
+  try { await echoPushDisable(); } catch (e) {}   // this browser stops getting Echo notifications for the account
   try { localStorage.removeItem("lm_dash_seen"); } catch (e) {}
   try {
     // 'local' scope only clears THIS browser's session — it doesn't
@@ -2799,6 +2800,46 @@ function autoOpenDashboard(profile) {
   setTimeout(go, 600);
 }
 
+// ---- ED&G Echo browser notifications (Web Push) ----
+// Public VAPID key (safe to publish). The matching private key lives only in the echo-push edge function's secrets.
+const ECHO_VAPID_PUBLIC = "BJ014MuhGEZaZqPCqS-9wDtc_m_jhxkHsVsUlqjQtv_P_qmyj8wzrCzaRRKxKzEtG4MTDYOqhXZQaJkIdbzI4EQ";
+function echoPushSupported() { return !!ECHO_VAPID_PUBLIC && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window; }
+function echoKey(b64) { const p = "=".repeat((4 - (b64.length % 4)) % 4), r = atob((b64 + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(r, (c) => c.charCodeAt(0)); }
+async function echoPushReg() { try { return await navigator.serviceWorker.register("sw.js"); } catch (e) { return null; } }
+async function echoPushState() {   // "unsupported" | "blocked" | "off" | "on"
+  if (!echoPushSupported()) return "unsupported";
+  if (Notification.permission === "denied") return "blocked";
+  if (Notification.permission !== "granted") return "off";
+  try { const reg = await navigator.serviceWorker.getRegistration(); const s = reg && await reg.pushManager.getSubscription(); return s ? "on" : "off"; } catch (e) { return "off"; }
+}
+async function echoPushSync() {   // make sure this browser is subscribed and the server knows about it
+  if (!echoPushSupported() || Notification.permission !== "granted") return false;
+  try {
+    await echoPushReg(); const reg = await navigator.serviceWorker.ready;
+    const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: echoKey(ECHO_VAPID_PUBLIC) }));
+    const j = sub.toJSON();
+    const { error } = await sb.rpc("echo_push_subscribe", { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth });
+    return !error;
+  } catch (e) { return false; }
+}
+async function echoPushEnable() {   // must be called from a click
+  if (!echoPushSupported()) return "unsupported";
+  const perm = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+  if (perm !== "granted") return perm === "denied" ? "blocked" : "off";
+  return (await echoPushSync()) ? "on" : "off";
+}
+async function echoPushDisable() {
+  try {
+    const reg = await navigator.serviceWorker.getRegistration(); const s = reg && await reg.pushManager.getSubscription();
+    if (s) { try { await sb.rpc("echo_push_unsubscribe", { p_endpoint: s.endpoint }); } catch (e) {} await s.unsubscribe(); }
+  } catch (e) {}
+}
+if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => {   // a notification was clicked while the portal was open
+  if (!e.data || e.data.type !== "echo-open" || !e.data.conv) return;
+  if (typeof openConv === "function" && window.location.pathname.split("/").pop() === "chat.html") openConv(e.data.conv);
+  else if (window.__chatDock) window.__chatDock.pop(e.data.conv);
+});
+
 // ---- Messages: unread counts (side-nav link, Home tile, chat button), live toast and the pop-up chat window ----
 let CHAT_ME = null;
 function setChatUnread(n) {
@@ -2852,6 +2893,7 @@ function initChatDock() {
   dock.innerHTML = `<section class="cd-panel" id="cdPanel" hidden aria-label="ED&G Echo">
       <header><b>ED&G Echo™</b>
         <a href="chat.html" class="cd-ic" title="Open ED&G Echo as a full page" aria-label="Open ED&G Echo as a full page"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+        <button type="button" class="cd-ic" id="cdBell" hidden></button>
         <button type="button" class="cd-ic" id="cdMin" title="Minimise" aria-label="Minimise ED&G Echo"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
       </header>
     </section>
@@ -2872,6 +2914,20 @@ function initChatDock() {
   const tellFrame = (v) => { const f = panel.querySelector("iframe"); if (f && f.contentWindow) f.contentWindow.postMessage({ type: "lm-chat-shown", v }, window.location.origin); };
   setTimeout(() => { if (!panel.querySelector("iframe")) mkFrame("chat.html?embed=1"); }, 1200);
   fab.addEventListener("click", () => setOpen(panel.hidden));
+  const bell = document.getElementById("cdBell");
+  const drawBell = async () => {
+    const st = await echoPushState(); if (st === "unsupported") { bell.hidden = true; return; }
+    bell.hidden = false; bell.dataset.st = st;
+    const on = st === "on";
+    bell.title = bell.ariaLabel = on ? "Browser notifications are on. Click to turn off" : st === "blocked" ? "Notifications are blocked in your browser settings" : "Get notified when the portal is closed";
+    bell.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/>${st === "blocked" ? '<path d="M3 3l18 18"/>' : ""}</svg>`;
+  };
+  bell.addEventListener("click", async () => {
+    const st = bell.dataset.st;
+    if (st === "on") await echoPushDisable(); else if (st !== "blocked") await echoPushEnable();
+    drawBell();
+  });
+  drawBell();
   document.getElementById("cdMin").addEventListener("click", () => { setOpen(false); fab.focus(); });
   // A new message pops the window open on that chat (unless it is already open, so it never changes what you are reading).
   window.__chatDock = {
@@ -2896,6 +2952,7 @@ async function startChat(profile) {
   const ok = await refreshChatBadge();
   if (!ok && window.location.pathname.split("/").pop() !== "chat.html") return;   // Messages not set up yet: stay quiet
   initChatDock(); chatLive(profile); setChatUnread(window.__chatUnread || 0);
+  echoPushSync();   // keep this browser's notification subscription current (only if already allowed)
   if (!window.__chatBadgeTimer) window.__chatBadgeTimer = setInterval(refreshChatBadge, 60000);
 }
 function renderTopbar(profile) {
