@@ -54,6 +54,7 @@
     <button id="tabBtn-egg3" onclick="showTab('egg3')" style="display:none;">Easter Egg 3</button>
     <button id="tabBtn-egg4" onclick="showTab('egg4')" style="display:none;">Easter Egg 4</button>
     <button id="tabBtn-egg6" onclick="showTab('egg6')" style="display:none;">Easter Egg 5</button>
+    <button id="tabBtn-egg7" onclick="showTab('egg7')" style="display:none;">Easter Egg 6</button>
   </nav>
 
   <!-- USERS -->
@@ -573,6 +574,30 @@
     </div>
   </div>
 
+  <div id="tab-egg7" style="display:none;">
+    <div class="card">
+      <h2>Easter egg 6: Dispensary Dash</h2>
+      <p class="small">Developer only. A hidden sorting game: prescription slips ride a conveyor and you send each one to the Fridge, the Shelf or the CD cupboard before the queue backs up, with look-alike drug names in the later levels. GRAEMe watches from behind the counter. Arrow keys only. Weekly high scores are shared between staff. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, typing its code on the home page and pressing Enter opens it.</p>
+      <div id="egg7Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg7Status">loading…</span><br><span class="small" id="egg7Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg7OnBtn" onclick="eggSwitch(7, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg7OffBtn" onclick="eggSwitch(7, false)" style="display:none;">Switch off</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Secret code</h2>
+      <form id="egg7Form" autocomplete="off">
+        <label for="egg7Code">New code</label>
+        <input type="text" id="egg7Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg7Code2">
+        <input type="checkbox" id="egg7Show" style="display:none;">
+        <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for the other easter eggs (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg7SaveBtn">Save new code</button></div>
+      </form>
+    </div>
+  </div>
+
   <div id="tab-egg4" style="display:none;">
     <div class="card">
       <h2>Easter egg 4: GRAEMe Escape</h2>
@@ -893,6 +918,7 @@ let PROFILES = [];
     document.getElementById("tabBtn-egg3").style.display = "";
     document.getElementById("tabBtn-egg4").style.display = "";
     document.getElementById("tabBtn-egg6").style.display = "";
+    document.getElementById("tabBtn-egg7").style.display = "";
     setupEggTab();
     document.getElementById("tabBtn-privacy").style.display = "";
     setupPrivacyTab();
@@ -932,7 +958,7 @@ function syncNavHeads() {
 }
 function showTab(name) {
   syncNavHeads();
-  ["users","holidays","restricted","capacity","oncall","backup","leave","import","reset","appearance","egg","egg2","egg3","egg4","egg6","privacy"].forEach(t => {
+  ["users","holidays","restricted","capacity","oncall","backup","leave","import","reset","appearance","egg","egg2","egg3","egg4","egg6","egg7","privacy"].forEach(t => {
     document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
     document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);
   });
@@ -2338,12 +2364,12 @@ async function removeCapacityOverride(site, date) {
 /* ---------------- easter eggs (Developer) ---------------- */
 // Four eggs share one set of functions: n = 1 (Portal Defence), 2 (Tile Defence), 3 (Portal Defence: Payback) or 4 (GRAEMe Escape).
 // Element ids are "egg..." for egg 1, "egg2..." for egg 2, "egg3..." for egg 3 and "egg4..." for egg 4.
-const EGG_STATE = { 1: { on: false, set: false }, 2: { on: false, set: false }, 3: { on: false, set: false }, 4: { on: false, set: false }, 5: { on: false, set: false }, 6: { on: false, set: false } };
-const eggLabel = n => (n === 6 ? 5 : n);   // egg 6 in the database is shown as "Easter egg 5" (egg 5 is the Escape cheat code)
+const EGG_STATE = { 1: { on: false, set: false }, 2: { on: false, set: false }, 3: { on: false, set: false }, 4: { on: false, set: false }, 5: { on: false, set: false }, 6: { on: false, set: false }, 7: { on: false, set: false } };
+const eggLabel = n => (n === 7 ? 6 : n === 6 ? 5 : n);   // egg 6 in the database is shown as "Easter egg 5" (egg 5 is the Escape cheat code)
 const eggId = (n, name) => (n === 1 ? "egg" : "egg" + n) + name;
 const eggEl = (n, name) => document.getElementById(eggId(n, name));
 function setupEggTab() {
-  [1, 2, 3, 4, 5, 6].forEach(n => {
+  [1, 2, 3, 4, 5, 6, 7].forEach(n => {
     eggEl(n, "Show").addEventListener("change", e => {
       eggEl(n, "Code").type = e.target.checked ? "text" : "password";
       eggEl(n, "Code2").type = e.target.checked ? "text" : "password";

@@ -786,13 +786,13 @@ async function saveBanner(e) {
 // (the codes themselves are never in this file). If it is right, that game's file is fetched and opened.
 (() => {
   let on = false, buf = "", timer = null, busy = false;
-  const GAMES = { 1: { file: "portal-defence.js", global: "PortalDefence" }, 2: { file: "tile-defence.js", global: "TileDefence" }, 3: { file: "payback.js", global: "PortalPayback" }, 4: { file: "escape.js", global: "PortalEscape" }, 6: { file: "emergency-drop.js", global: "PortalDrop" } };
+  const GAMES = { 1: { file: "portal-defence.js", global: "PortalDefence" }, 2: { file: "tile-defence.js", global: "TileDefence" }, 3: { file: "payback.js", global: "PortalPayback" }, 4: { file: "escape.js", global: "PortalEscape" }, 6: { file: "emergency-drop.js", global: "PortalDrop" }, 7: { file: "dispensary-dash.js", global: "PortalDash" } };
   (async () => {
     try {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) return;
       const { data, error } = await sb.rpc("easter_egg_states");
-      on = !error && !!data && (data["1"] === true || data["2"] === true || data["3"] === true || data["4"] === true || data["6"] === true);
+      on = !error && !!data && (data["1"] === true || data["2"] === true || data["3"] === true || data["4"] === true || data["6"] === true || data["7"] === true);
     } catch (e) { on = false; }
   })();
   function loadGame(g) {
