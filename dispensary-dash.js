@@ -14,7 +14,7 @@ const KEY={ArrowLeft:0,ArrowDown:1,ArrowRight:2};
 const EASY=[
  ["Insulin glargine","100 units/mL pen",0],["Insulin aspart","100 units/mL FlexPen",0],["Rocuronium","50 mg/5 mL injection",0],["Adalimumab","40 mg pen",0],["Octreotide","100 mcg/mL injection",0],["Latanoprost","50 mcg/mL eye drops",0],
  ["Morphine sulfate","10 mg/mL injection",2],["Pethidine","50 mg/mL injection",2],["Temazepam","10 mg tablets",2],["Buprenorphine","400 mcg SL tablets",2],["Oxycodone","5 mg capsules",2],["Methadone","1 mg/mL oral solution",2],
- ["Paracetamol","500 mg tablets",1],["Amoxicillin","500 mg capsules",1],["Ramipril","5 mg capsules",1],["Omeprazole","20 mg capsules",1],["Salbutamol","100 mcg inhaler",1],["Clopidogrel","75 mg tablets",1],["Co-amoxiclav","625 mg tablets",1],["Gliclazide","80 mg tablets",1],["Warfarin","3 mg tablets",1],["Furosemide","40 mg tablets",1],["Prednisolone","5 mg tablets",1],["Enoxaparin","40 mg/0.4 mL syringe",1]];
+ ["Paracetamol","500 mg tablets",1],["Amoxicillin","500 mg capsules",1],["Ramipril","5 mg capsules",1],["Omeprazole","20 mg capsules",1],["Salbutamol","100 mcg inhaler",1],["Clopidogrel","75 mg tablets",1],["Co-amoxiclav","625 mg tablets",1],["Gliclazide","80 mg tablets",1],["Warfarin","3 mg tablets",1],["Furosemide","40 mg tablets",1],["Prednisolone","5 mg tablets",1],["Enoxaparin","40 mg/0.4 mL syringe",1],["Apixaban","5 mg tablets",1],["Rivaroxaban","20 mg tablets",1],["Edoxaban","60 mg tablets",1],["Dabigatran","150 mg capsules",1],["Levetiracetam","500 mg tablets",1],["Lamotrigine","100 mg tablets",1],["Carbamazepine","200 mg tablets",1],["Sodium valproate","500 mg EC tablets",1],["Phenytoin","100 mg capsules",1],["Topiramate","50 mg tablets",1],["Pregabalin","75 mg capsules",1],["Co-careldopa","25/100 mg tablets",1],["Co-beneldopa","12.5/50 mg capsules",1],["Pramipexole","0.7 mg tablets",1],["Ropinirole","2 mg tablets",1],["Rasagiline","1 mg tablets",1],["Amantadine","100 mg capsules",1],["Rotigotine","4 mg/24 h patch",1],["Trihexyphenidyl","2 mg tablets",1]];
 const LASA=[
  [["Buprenorphine","400 mcg SL tablets",2],["Bupropion","150 mg MR tablets",1]],
  [["Ketamine","200 mg/20 mL injection",2],["Ketorolac","30 mg/mL injection",1]],
@@ -63,11 +63,11 @@ function update(dt){
   const v=speed();
   // belt: slips queue up behind the one at the end
   const order=S.slips.slice().sort((a,b)=>b.x-a.x);
-  order.forEach((s,i)=>{const lim=STOP-i*(SW+6);s.x=Math.min(s.x+v*dt,lim)});
+  let prev=null;order.forEach((s,i)=>{let lim=STOP-i*(SW+6);if(prev)lim=Math.min(lim,prev.x-SW-6);s.x=Math.min(s.x+v*dt,lim);prev=s});
   S.spawn-=dt;
   if(S.spawn<=0){
     if(S.slips.length>=5){end("The queue backed up","The belt is full and nothing else can come through.")}
-    else{newSlip();S.spawn=gap()}
+    else if(!S.slips.some(q=>q.x<2)){newSlip();S.spawn=gap()}
   }
   S.fx.forEach(f=>f.t+=dt/.26);S.fx=S.fx.filter(f=>f.t<1);
 }
@@ -75,30 +75,53 @@ function update(dt){
 function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r)}
 function text(t,x,y,font,col,al){ctx.font=font;ctx.fillStyle=col;ctx.textAlign=al||"left";ctx.fillText(t,x,y)}
 function graeme(){
-  const cx=566,cy=82,bob=Math.sin(S.t*2.2)*1.3,fr=front();
+  const cx=566,cy=80,bob=Math.sin(S.t*2.2)*1.3,fr=front();
   const mood=S.mode==="play"&&S.slips.length>=4&&S.moodT<=0?"panic":(S.moodT>0?S.mood:"idle");
   const lean=mood==="panic"?Math.sin(S.t*18)*1.2:0;
-  ctx.save();ctx.translate(lean,bob);
-  // shoulders and chest (the belt hides the rest: he is standing behind the counter)
-  ctx.fillStyle="#e4ebf1";ctx.beginPath();ctx.ellipse(cx,126,40,22,0,0,7);ctx.fill();
-  ctx.fillStyle="#19c3e6";ctx.fillRect(cx-14,104,28,3);ctx.beginPath();ctx.arc(cx,110,2.6,0,7);ctx.fill();
-  // head
-  ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(cx,cy,21,0,7);ctx.fill();ctx.strokeStyle="#c9d4dc";ctx.lineWidth=1.2;ctx.stroke();
-  // ear lights and antenna
-  [-1,1].forEach(sx=>{ctx.fillStyle="#0a0e14";ctx.beginPath();ctx.arc(cx+sx*22,cy+1,5.4,0,7);ctx.fill();ctx.fillStyle="#19c3e6";ctx.beginPath();ctx.arc(cx+sx*22,cy+1,3.6,0,7);ctx.fill()});
-  ctx.strokeStyle="#aebbc6";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx,cy-21);ctx.lineTo(cx,cy-27);ctx.stroke();
-  const pulse=.5+.5*Math.sin(S.t*4);ctx.fillStyle="rgba(25,195,230,"+(.25+.25*pulse)+")";ctx.beginPath();ctx.arc(cx,cy-29,6,0,7);ctx.fill();ctx.fillStyle="#19c3e6";ctx.beginPath();ctx.arc(cx,cy-29,3.2,0,7);ctx.fill();
-  // visor and eyes
-  ctx.fillStyle="#0a0e14";rr(cx-16,cy-9,32,17,8);ctx.fill();
-  const look=fr?Math.max(-2.5,Math.min(2.5,(fr.x+SW/2-cx)/90*2.5)):0,blink=(S.t%4.2)>4.05;
-  ctx.strokeStyle="#19c3e6";ctx.fillStyle="#19c3e6";ctx.lineWidth=2.2;ctx.lineCap="round";
-  [-6.5,6.5].forEach(ex=>{const x=cx+ex+look*(mood==="idle"?1:0),y=cy-1;
-    if(mood==="happy"){ctx.beginPath();ctx.moveTo(x-3.4,y+1.5);ctx.quadraticCurveTo(x,y-4,x+3.4,y+1.5);ctx.stroke()}
-    else if(mood==="oops"){ctx.beginPath();ctx.moveTo(x-3.2,y-2.5);ctx.lineTo(x+3.2,y+2.5);ctx.moveTo(x+3.2,y-2.5);ctx.lineTo(x-3.2,y+2.5);ctx.stroke()}
-    else if(mood==="panic"){ctx.beginPath();ctx.ellipse(x,y,3.4,4.6,0,0,7);ctx.fill()}
-    else if(blink){ctx.beginPath();ctx.moveTo(x-3,y);ctx.lineTo(x+3,y);ctx.stroke()}
-    else{ctx.beginPath();ctx.ellipse(x,y,2.8,3.6,0,0,7);ctx.fill()}});
-  if(mood==="panic"){ctx.fillStyle="#7fd8ff";ctx.beginPath();ctx.moveTo(cx+24,cy-14);ctx.quadraticCurveTo(cx+28,cy-8,cx+24,cy-5);ctx.quadraticCurveTo(cx+20,cy-8,cx+24,cy-14);ctx.fill()}
+  const NAVY="#0b1630",NAVY2="#1d2f58",CY="#2fe0ff",W1="#ffffff",W2="#dfe8f1";
+  ctx.save();ctx.translate(lean,bob);ctx.lineCap="round";ctx.lineJoin="round";
+  // waving arm (his right, our left): upper arm, shoulder ring, hand
+  const wave=(mood==="happy")?Math.sin(S.t*9)*.38:((S.t%7)<1.6?Math.sin(S.t*9)*.3:0);
+  const body=()=>{ctx.fillStyle=W1;ctx.strokeStyle=W2;ctx.lineWidth=1.2;ctx.beginPath();ctx.ellipse(cx,cy+44,37,22,0,0,7);ctx.fill();ctx.stroke()};
+  ctx.save();ctx.translate(cx-36,cy+34);ctx.rotate(-.55);
+  ctx.fillStyle=W1;ctx.strokeStyle=W2;rr(-6,-26,12,28,6);ctx.fill();ctx.stroke();
+  ctx.fillStyle=CY;ctx.fillRect(-6,-8,12,2);
+  ctx.translate(0,-27);ctx.rotate(.55+wave);
+  ctx.fillStyle=W1;rr(-8,-17,16,17,6);ctx.fill();ctx.stroke();
+  ctx.fillStyle=NAVY;[-6,-2,2,6].forEach((fx,i)=>{rr(fx-1.6,-22+Math.abs(fx)*.35,3.2,6.5,1.6);ctx.fill()});
+  ctx.fillStyle=NAVY;rr(7,-12,3.4,7,1.7);ctx.fill();
+  ctx.restore();
+  body();
+  // shoulder joints
+  [-1,1].forEach(sx=>{ctx.fillStyle=NAVY;ctx.beginPath();ctx.arc(cx+sx*34,cy+32,7,0,7);ctx.fill();ctx.strokeStyle=CY;ctx.lineWidth=1.6;ctx.beginPath();ctx.arc(cx+sx*34,cy+32,4.4,0,7);ctx.stroke()});
+  // chest badge with cross
+  ctx.fillStyle=NAVY;rr(cx-13,cy+30,26,17,5);ctx.fill();ctx.strokeStyle=NAVY2;ctx.lineWidth=1;ctx.stroke();
+  ctx.fillStyle=CY;ctx.shadowColor=CY;ctx.shadowBlur=6;ctx.fillRect(cx-1.8,cy+33,3.6,11);ctx.fillRect(cx-5.4,cy+36.6,10.8,3.6);ctx.shadowBlur=0;
+  // neck
+  ctx.fillStyle=NAVY;rr(cx-7,cy+17,14,9,3);ctx.fill();
+  // antenna
+  ctx.strokeStyle=NAVY;ctx.lineWidth=2.4;ctx.beginPath();ctx.moveTo(cx+1,cy-18);ctx.lineTo(cx+2,cy-28);ctx.stroke();
+  const pulse=.5+.5*Math.sin(S.t*4);ctx.fillStyle="rgba(47,224,255,"+(.22+.22*pulse)+")";ctx.beginPath();ctx.arc(cx+2,cy-31,7,0,7);ctx.fill();ctx.fillStyle=CY;ctx.beginPath();ctx.arc(cx+2,cy-31,3.8,0,7);ctx.fill();
+  // ear cups
+  [-1,1].forEach(sx=>{const ex=cx+sx*26;ctx.fillStyle=W1;ctx.strokeStyle=W2;ctx.lineWidth=1.2;ctx.beginPath();ctx.ellipse(ex,cy+1,6.5,11,0,0,7);ctx.fill();ctx.stroke();
+    ctx.strokeStyle=NAVY;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(ex,cy+1,4.2,8,0,-1.2,1.2+Math.PI*(sx<0?0:0));ctx.stroke();
+    ctx.strokeStyle=CY;ctx.lineWidth=1.8;ctx.beginPath();ctx.ellipse(ex+sx*-.4,cy+1,4.2,8,0,Math.PI*(sx<0?-.55:-.45),Math.PI*(sx<0?.55:.45),sx>0?false:false);ctx.stroke()});
+  // head shell
+  ctx.fillStyle=W1;ctx.strokeStyle=W2;ctx.lineWidth=1.3;ctx.beginPath();ctx.ellipse(cx,cy,25,21.5,0,0,7);ctx.fill();ctx.stroke();
+  ctx.fillStyle=NAVY;rr(cx-10,cy-20,20,5,2.5);ctx.fill();ctx.fillStyle=CY;rr(cx-5,cy-18.2,10,1.6,.8);ctx.fill();
+  // visor
+  ctx.fillStyle=NAVY;rr(cx-20,cy-13,40,25,11);ctx.fill();ctx.strokeStyle=NAVY2;ctx.lineWidth=1.2;ctx.stroke();
+  ctx.fillStyle="rgba(255,255,255,.07)";ctx.beginPath();ctx.ellipse(cx-8,cy-7,9,3,-.3,0,7);ctx.fill();
+  // eyes
+  const look=fr?Math.max(-3,Math.min(3,(fr.x+SW/2-cx)/90*3)):0,blink=(S.t%4.2)>4.05;
+  ctx.strokeStyle=CY;ctx.fillStyle=CY;ctx.lineWidth=2.6;ctx.shadowColor=CY;ctx.shadowBlur=7;
+  [-1,1].forEach(sx=>{const x=cx+sx*9.5+(mood==="idle"?look:0),y=cy+1;
+    if(mood==="oops"){ctx.beginPath();ctx.moveTo(x-4.6,y-1.5);ctx.quadraticCurveTo(x,y+5,x+4.6,y-1.5);ctx.stroke()}
+    else if(mood==="panic"){ctx.beginPath();ctx.ellipse(x,y,3.4,4.8,0,0,7);ctx.fill()}
+    else if(blink){ctx.beginPath();ctx.moveTo(x-4.6,y+1.5);ctx.lineTo(x+4.6,y+1.5);ctx.stroke()}
+    else{const h=mood==="happy"?6:4.6;ctx.beginPath();ctx.moveTo(x-5,y+2.2);ctx.quadraticCurveTo(x,y+2.2-h*1.9,x+5,y+2.2);ctx.stroke()}});
+  ctx.shadowBlur=0;
+  if(mood==="panic"){ctx.fillStyle="#7fd8ff";ctx.beginPath();ctx.moveTo(cx+30,cy-14);ctx.quadraticCurveTo(cx+34,cy-8,cx+30,cy-4);ctx.quadraticCurveTo(cx+26,cy-8,cx+30,cy-14);ctx.fill()}
   ctx.restore();
 }
 function room(){
@@ -115,7 +138,7 @@ function belt(){
   ctx.restore();
   ctx.fillStyle="#3b4658";ctx.beginPath();ctx.arc(20,BY+BH/2,10,0,7);ctx.arc(W-20,BY+BH/2,10,0,7);ctx.fill();
   // pick-up marker at the end of the belt
-  ctx.strokeStyle="rgba(25,195,230,.55)";ctx.setLineDash([6,5]);ctx.lineWidth=2;rr(STOP-4,BY+2,SW+8,BH-4,8);ctx.stroke();ctx.setLineDash([]);
+  
 }
 function slip(s,x,y,sc,a,front){
   ctx.save();ctx.translate(x+SW/2,y+SH/2);ctx.scale(sc,sc);ctx.globalAlpha=a;ctx.translate(-SW/2,-SH/2);
