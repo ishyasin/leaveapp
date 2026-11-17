@@ -52,10 +52,10 @@ function hit(o){
 function update(dt){
   const L=LEGS[S.leg];S.t+=dt;
   const gas=keys.gas||keys.up,brake=keys.brake;
-  const target=brake?40:(keys.boost?450:330);
+  let target=brake?40:(keys.boost?450:330);
+  if(S.dist>L.len-700)target=Math.min(target,45+Math.max(0,L.len-S.dist)/700*285);   // ease off into the arrival bay
   const acc=(target>S.speed?(keys.boost?260:200):420);
   S.speed+=Math.sign(target-S.speed)*Math.min(Math.abs(target-S.speed),acc*dt);
-  if(S.dist>L.len-700)S.speed=Math.max(0,S.speed-(S.speed>60?380:0)*dt*(S.dist-(L.len-700))/700*2);
   const steer=(keys.right?1:0)-(keys.left?1:0);
   S.vx+=(steer*230-S.vx)*Math.min(1,dt*9);S.x+=S.vx*dt;
   S.x=Math.max(RL+17,Math.min(RR-17,S.x));
@@ -74,7 +74,7 @@ function update(dt){
     }
   }
   if(S.time<=0){S.time=0;S.mode="fail";msg("Too late","The antidotes did not reach "+L.place+" in time. Score "+S.score+".","Try again")}
-  else if(S.dist>=L.len&&S.speed<5){
+  else if(S.dist>=L.len){S.speed=0;
     const bank=Math.round(S.time*10);S.score+=bank;
     if(S.leg<LEGS.length-1){S.mode="done";msg("Antidotes delivered to "+L.place,"+"+bank+" for "+S.time.toFixed(1)+"s left. Total "+S.score+".","Next delivery")}
     else{S.mode="won";msg("All antidotes on site","Final score "+S.score+" with "+S.boxes+" vials collected.","Run it again")}
