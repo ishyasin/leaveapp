@@ -41,12 +41,12 @@ function build(i){
     }
   }
 }
-function startLeg(i){S.leg=i;S.dist=0;S.speed=0;S.x=LANE[1];S.vx=0;S.time=LEGS[i].time;S.inv=0;S.legScore=0;build(i);S.mode="play"}
+function startLeg(i){AU.level(i);AU.go();S.leg=i;S.dist=0;S.speed=0;S.x=LANE[1];S.vx=0;S.time=LEGS[i].time;S.inv=0;S.legScore=0;build(i);S.mode="play"}
 function rect(ax,ay,aw,ah,bx,by,bw,bh){return Math.abs(ax-bx)<(aw+bw)/2&&Math.abs(ay-by)<(ah+bh)/2}
 function hit(o){
   if(S.inv>0)return;
-  if(o.t==="cone"){o.dead=1;S.speed*=.65;S.shake=.2;return}
-  S.speed=Math.min(S.speed,70);S.time=Math.max(0,S.time-2);S.inv=1.1;S.shake=.4;S.flash=.25;
+  if(o.t==="cone"){o.dead=1;S.speed*=.65;S.shake=.2;AU.cone();return}
+  AU.crash();S.speed=Math.min(S.speed,70);S.time=Math.max(0,S.time-2);S.inv=1.1;S.shake=.4;S.flash=.25;
   S.x+=(S.x<o.x?-1:1)*14;
 }
 function update(dt){
@@ -70,7 +70,7 @@ function update(dt){
     }
     const sy=VY-(o.y-S.dist);if(sy<-80||sy>H+80)continue;
     if(rect(S.x,VY,26,50,o.x,sy,o.w,o.h)){
-      if(o.t==="box"){o.dead=1;S.time+=3;S.boxes++;S.score+=50;S.legScore+=50;S.flash=.12}else hit(o);
+      if(o.t==="box"){o.dead=1;S.time+=3;S.boxes++;S.score+=50;S.legScore+=50;S.flash=.12;AU.vial()}else hit(o);
     }
   }
   if(S.time<=0){S.time=0;S.mode="fail";msg("Too late","The antidotes did not reach "+L.place+" in time. Score "+S.score+".","Try again")}
@@ -80,7 +80,7 @@ function update(dt){
     else{S.mode="won";msg("All antidotes on site","Final score "+S.score+" with "+S.boxes+" vials collected.","Run it again")}
   }
 }
-function msg(t,p){$("#mT").textContent=t;$("#mP").textContent=p;$("#ovMsg").hidden=false;board($("#mBoard"));if(S.mode==="fail"||S.mode==="won")sendScore()}
+function msg(t,p){AU[S.mode==="fail"?"fail":S.mode==="won"?"win":"done"]();$("#mT").textContent=t;$("#mP").textContent=p;$("#ovMsg").hidden=false;board($("#mBoard"));if(S.mode==="fail"||S.mode==="won")sendScore()}
 
 /* ---------- drawing ---------- */
 function scenery(L){
@@ -223,8 +223,65 @@ function loop(ts){
   if(closed)return;
   const dt=Math.min(.05,(ts-last)/1000||0);last=ts;
   if(S.mode==="play")update(dt);else S.t+=dt;
+  AU.tick(S.mode,S.speed,keys);if(S.mode==="play"&&keys.brake&&S.speed>150&&!S.bk){S.bk=1;AU.brake()}if(!keys.brake)S.bk=0;
   draw();raf=requestAnimationFrame(loop);
 }
+/* ---------- sound (all synthesised in the browser, no files) ---------- */
+const AU=(function(){
+  let ac=null,master,eng,engG,engF,sir,sirG,wind,windG,nz=null,timer=0,step=0,nextT=0,muted=false,on=false,bpm=140,root=0;
+  try{muted=localStorage.getItem("edSound")==="0"}catch(e){}
+  const hz=m=>440*Math.pow(2,(m-69)/12);
+  function noiseBuf(){if(nz)return nz;const n=ac.sampleRate,b=ac.createBuffer(1,n,ac.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;return (nz=b)}
+  function tone(type,f,t,dur,vol,to){const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.008);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.02)}
+  function burst(t,dur,vol,f0,f1){const s=ac.createBufferSource(),fl=ac.createBiquadFilter(),g=ac.createGain();s.buffer=noiseBuf();fl.type="lowpass";fl.frequency.setValueAtTime(f0,t);fl.frequency.exponentialRampToValueAtTime(f1,t+dur);g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);s.connect(fl);fl.connect(g);g.connect(master);s.start(t);s.stop(t+dur+.02)}
+  // music: a driving minor-key loop (kick, hat, bass, arpeggio), tempo and key rise with each level
+  const BASS=[0,0,0,0,0,0,7,0, 5,5,5,5,5,5,3,5, 0,0,0,0,0,0,7,0, 7,7,7,7,5,5,3,3];
+  const ARP=[0,3,7,12,7,3,0,3, 5,8,12,17,12,8,5,8, 0,3,7,12,7,3,0,3, 7,10,14,19,14,10,7,10];
+  function sched(){
+    if(!ac||!on)return;
+    while(nextT<ac.currentTime+.25){
+      const i=step%32,t=nextT,q=60/bpm/4;
+      if(i%4===0){tone("sine",120,t,.14,.55,42)}                                   // kick
+      if(i%4===2)burst(t,.04,.10,9000,5000);                                       // hat
+      const b=BASS[i];if(i%2===0||i%8===7)tone("sawtooth",hz(33+root+b),t,q*1.8,.17);
+      if(i%2===0||i%4===3)tone("square",hz(57+root+ARP[i]),t,q*1.4,.045);
+      nextT+=q;step++;
+    }
+  }
+  return{
+    start(){
+      if(ac)return;
+      try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){ac=null;return}
+      master=ac.createGain();master.gain.value=muted?0:.5;master.connect(ac.destination);
+      eng=ac.createOscillator();eng.type="sawtooth";engF=ac.createBiquadFilter();engF.type="lowpass";engF.frequency.value=420;engG=ac.createGain();engG.gain.value=0;eng.connect(engF);engF.connect(engG);engG.connect(master);eng.start();
+      sir=ac.createOscillator();sir.type="square";sirG=ac.createGain();sirG.gain.value=0;sir.connect(sirG);sirG.connect(master);sir.start();
+      wind=ac.createBufferSource();wind.buffer=noiseBuf();wind.loop=true;const wf=ac.createBiquadFilter();wf.type="bandpass";wf.frequency.value=900;windG=ac.createGain();windG.gain.value=0;wind.connect(wf);wf.connect(windG);windG.connect(master);wind.start();
+      if(ac.state==="suspended")ac.resume().catch(()=>{});
+      on=true;nextT=ac.currentTime+.1;step=0;timer=setInterval(sched,40);
+    },
+    stop(){on=false;clearInterval(timer);try{if(ac)ac.close()}catch(e){}ac=null;nz=null},
+    resume(){if(ac&&ac.state==="suspended")ac.resume().catch(()=>{})},
+    setMuted(m){muted=m;try{localStorage.setItem("edSound",m?"0":"1")}catch(e){}if(ac)master.gain.setTargetAtTime(m?0:.5,ac.currentTime,.03)},
+    isMuted(){return muted},
+    level(l){bpm=140+l*8;root=[0,5,7,3][l]||0},
+    tick(mode,speed,k){   // called every frame: engine pitch, siren, wind and brake noise follow the car
+      if(!ac)return;const t=ac.currentTime,play=mode==="play",v=Math.min(1,speed/450);
+      eng.frequency.setTargetAtTime(48+v*130,t,.06);engF.frequency.setTargetAtTime(260+v*900,t,.08);
+      engG.gain.setTargetAtTime(play?.10+v*.07:0,t,.08);
+      windG.gain.setTargetAtTime(play?v*v*.12+(k.boost?.04:0):0,t,.1);
+      sir.frequency.setValueAtTime(Math.floor(t*1.6)%2?960:740,t);sirG.gain.setTargetAtTime(play?.022:0,t,.05);
+    },
+    crash(){if(!ac)return;const t=ac.currentTime;burst(t,.4,.9,5000,200);tone("sine",150,t,.3,.7,38);tone("square",90,t,.18,.25,50)},
+    cone(){if(!ac)return;const t=ac.currentTime;burst(t,.1,.5,3500,600);tone("triangle",420,t,.08,.2,240)},
+    vial(){if(!ac)return;const t=ac.currentTime;tone("triangle",hz(84),t,.12,.3);tone("triangle",hz(91),t+.07,.2,.3)},
+    go(){if(!ac)return;const t=ac.currentTime;[0,.14,.28].forEach((d,i)=>tone("square",hz(69+i*4),t+d,.12,.12));tone("square",hz(81),t+.42,.3,.14)},
+    done(){if(!ac)return;const t=ac.currentTime;[72,76,79,84].forEach((n,i)=>tone("triangle",hz(n),t+i*.11,.28,.28))},
+    win(){if(!ac)return;const t=ac.currentTime;[72,76,79,84,79,84,88,91].forEach((n,i)=>tone("triangle",hz(n),t+i*.13,.4,.3))},
+    fail(){if(!ac)return;const t=ac.currentTime;[67,64,60,55].forEach((n,i)=>tone("sawtooth",hz(n),t+i*.2,.35,.18));burst(t+.6,.5,.25,800,120)},
+    brake(){if(!ac)return;burst(ac.currentTime,.25,.14,6000,2500)},
+  };
+})();
+
 /* ---------- shared weekly high scores ---------- */
 function sendScore(){
   if(S.score>0&&typeof sb!=="undefined"){try{Promise.resolve(sb.rpc("submit_drop_score",{p_score:S.score,p_level:S.leg+(S.mode==="won"?1:0)||1,p_vials:S.boxes})).then(()=>{if(root&&!$("#ovMsg").hidden)board($("#mBoard"))}).catch(()=>{})}catch(e){}}
@@ -243,6 +300,7 @@ function board(el){
 /* ---------- input: arrow keys only (Esc leaves the game) ---------- */
 const KM={ArrowLeft:"left",ArrowRight:"right",ArrowUp:"boost",ArrowDown:"brake"};
 function advance(){
+  AU.resume();
   if(S.mode==="menu"){S.score=0;S.boxes=0;$("#ovStart").hidden=true;startLeg(0)}
   else if(S.mode==="done"){$("#ovMsg").hidden=true;startLeg(S.leg+1)}
   else if(S.mode==="fail"||S.mode==="won"){$("#ovMsg").hidden=true;S.score=0;S.boxes=0;startLeg(S.mode==="won"?0:S.leg)}
@@ -260,6 +318,7 @@ function stopMouse(e){e.preventDefault();e.stopPropagation()}
 
 const CSS=`#edRoot{position:fixed;inset:0;z-index:100000;background:radial-gradient(ellipse at 50% 30%,#0d1c30 0,#050a14 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Segoe UI',Arial,sans-serif;color:#f2f7fb}
 #edRoot .edx{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.08);color:#cfe9f2;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:8px 14px;font:600 14px 'Segoe UI',Arial,sans-serif;cursor:pointer}
+#edRoot .eds{right:92px}
 #edRoot .edx:hover{background:rgba(255,255,255,.16)}
 #edRoot .edg{position:relative;height:min(94vh,calc(94vw*600/360));aspect-ratio:360/600;max-width:94vw;background:#000;border-radius:14px;overflow:hidden;border:2px solid #173048;box-shadow:0 0 0 1px #000,0 0 40px rgba(25,195,230,.2);cursor:none;user-select:none;-webkit-user-select:none}
 #edRoot canvas{display:block;width:100%;height:100%;pointer-events:none}
@@ -279,7 +338,7 @@ function open(){
   Object.assign(S,{mode:"menu",leg:0,dist:0,speed:0,x:LANE[1],vx:0,time:0,score:0,boxes:0,inv:0,shake:0,flash:0,objs:[],t:0});
   const st=document.createElement("style");st.id="edStyle";st.textContent=CSS;document.head.appendChild(st);
   root=document.createElement("div");root.id="edRoot";root.setAttribute("role","dialog");root.setAttribute("aria-modal","true");root.setAttribute("aria-label","GRAEMe's Emergency Drop");
-  root.innerHTML='<button class="edx" type="button">Exit</button><div class="edg"><canvas width="360" height="600"></canvas>'
+  root.innerHTML='<button class="edx" type="button">Exit</button><button class="edx eds" type="button">Sound on</button><div class="edg"><canvas width="360" height="600"></canvas>'
     +'<div class="edo" id="ovStart"><h3><span style="text-transform:none">GRAEMe</span>&rsquo;s<br>Emergency Drop</h3><p>The antidotes are needed on site. Fast.</p><div class="edb" id="sBoard"></div><p class="hint">Press an arrow key</p></div>'
     +'<div class="edo" id="ovMsg" hidden><h3 id="mT"></h3><p id="mP"></p><div class="edb" id="mBoard"></div><p class="hint">Press an arrow key</p></div></div>';
   const prevOverflow=document.body.style.overflow;document.body.style.overflow="hidden";
@@ -287,14 +346,16 @@ function open(){
   root._prev=prevOverflow;root._st=st;
   cv=root.querySelector("canvas");ctx=cv.getContext("2d");
   dpr=Math.min(window.devicePixelRatio||1,2);cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+  const mb=root.querySelector(".eds");mb.textContent=AU.isMuted()?"Sound off":"Sound on";mb.addEventListener("click",()=>{AU.setMuted(!AU.isMuted());mb.textContent=AU.isMuted()?"Sound off":"Sound on";mb.blur()});
   root.querySelector(".edx").addEventListener("click",closeGame);
   ["mousedown","click","contextmenu","wheel","touchstart"].forEach(ev=>root.querySelector(".edg").addEventListener(ev,stopMouse,{passive:false}));
   document.addEventListener("keydown",kd,true);document.addEventListener("keyup",ku,true);window.addEventListener("blur",onBlur);
+  AU.level(0);AU.start();   // music starts as soon as the game opens
   board($("#sBoard"));
   last=performance.now();raf=requestAnimationFrame(loop);
 }
 function closeGame(){
-  if(closed)return;closed=true;cancelAnimationFrame(raf);
+  if(closed)return;closed=true;cancelAnimationFrame(raf);AU.stop();
   document.removeEventListener("keydown",kd,true);document.removeEventListener("keyup",ku,true);window.removeEventListener("blur",onBlur);
   if(root){document.body.style.overflow=root._prev||"";root._st.remove();root.remove();root=null}
   window.__pdOpen=false;
