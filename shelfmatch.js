@@ -1,5 +1,5 @@
 /* Shelf Match (easter egg 9, ED&G Pharmacy Portal). Self-contained: a memory game played on a photographed shelving unit.
-   Arrow keys move the cursor, Space or Enter turns a card over. Esc or Exit leaves.
+   Click a card to turn it over; matched pairs disappear. Esc or Exit leaves.
    Only the weekly best scores are shared (submit_shelf_score / get_shelf_weekly). */
 (function(){
 "use strict";
@@ -60,25 +60,29 @@ function build(){cardsEl.innerHTML="";
     const rg=el("smmx smring",cl);rg.style.width=(k.w+8)+"px";rg.style.height=(k.h+8)+"px";rg.style.transform=mat(k.H,k.tau,k.vp)+" translate("+(k.px-8)+"px,"+(k.py-8)+"px)";
     const cd=el("smmx smcd",cl);cd.style.width=k.w+"px";cd.style.height=k.h+"px";cd.style.transform=mat(k.H,k.tau,k.vp)+" translate("+k.px+"px,"+k.py+"px)";cd.style.visibility="hidden";
     cd.innerHTML='<div class="smdp"><div class="smin"><div class="smf"><i>'+deck[i]+'</i></div><div class="smb"><img src="'+BACK+'" alt=""></div></div></div>';
-    return{k,sym:deck[i],cl,cd,ws,fs,rg,inn:cd.querySelector(".smin"),up:false,done:false}});
-  G.left=n/2;G.first=null;G.cur=Math.floor(n/2);G.lock=true;ring();
+    const poly=[[0,0],[k.w,0],[k.w,k.h],[0,k.h]].map(([x,y])=>proj(k.H,k.tau,k.px+x,k.py+y,k.vp));
+    return{k,sym:deck[i],cl,cd,ws,fs,rg,poly,inn:cd.querySelector(".smin"),up:false,done:false}});
+  G.left=n/2;G.first=null;G.cur=-1;G.lock=true;ring();
   const ord=G.cards.map((_,i)=>i).sort(()=>Math.random()-.5);
   ord.forEach((i,j)=>later(()=>{const c=G.cards[i];c.cd.style.visibility="visible";c.cd.classList.add("up");c.up=true;c.ws.style.opacity=1;c.fs.style.opacity=1;AU.drop()},120+j*55));
   const t0=120+ord.length*55+500;
   later(()=>{G.cards.forEach((c,j)=>later(()=>setFace(c,false),j*28));later(()=>{G.lock=false},G.cards.length*28+260)},t0+PEEK[Math.min(G.lv,3)])}
 function setFace(c,up,cb){c.inn.classList.add("sq");later(()=>{c.cd.classList.toggle("up",up);c.up=up;c.inn.classList.remove("sq");if(cb)later(cb,150)},140)}
-function ring(){G.cards.forEach((c,i)=>c.rg.classList.toggle("on",i===G.cur&&G.mode==="play"))}
-function move(dir){if(G.mode!=="play")return;const a=G.cards[G.cur].k.ctr;let best=-1,bs=1e9;
-  G.cards.forEach((c,i)=>{if(i===G.cur)return;const d=[c.k.ctr[0]-a[0],c.k.ctr[1]-a[1]];let p,q;
-    if(dir==="ArrowRight"){p=d[0];q=d[1]}else if(dir==="ArrowLeft"){p=-d[0];q=d[1]}else if(dir==="ArrowDown"){p=d[1];q=d[0]}else{p=-d[1];q=d[0]}
-    if(p<12)return;const s=p+2.4*Math.abs(q);if(s<bs){bs=s;best=i}});
-  if(best>=0){G.cur=best;ring();AU.flip()}}
-function pick(){if(G.mode!=="play"||G.lock)return;const c=G.cards[G.cur];if(c.up||c.done)return;AU.flip();
+function ring(){G.cards.forEach((c,i)=>c.rg.classList.toggle("on",i===G.cur&&G.mode==="play"&&!c.done&&!c.up&&!G.lock))}
+function hit(e){if(!st)return -1;const r=st.getBoundingClientRect(),k=r.width/1448,x=(e.clientX-r.left)/k,y=(e.clientY-r.top)/k;
+  for(let i=G.cards.length-1;i>=0;i--){const c=G.cards[i];if(c.done||!c.cd||c.cd.style.visibility==="hidden")continue;const p=c.poly;let ins=false;
+    for(let a=0,b=p.length-1;a<p.length;b=a++){if(((p[a][1]>y)!==(p[b][1]>y))&&(x<(p[b][0]-p[a][0])*(y-p[a][1])/(p[b][1]-p[a][1])+p[a][0]))ins=!ins}
+    if(ins)return i}
+  return -1}
+function onMove(e){if(G.mode!=="play")return;const i=hit(e);if(i!==G.cur){G.cur=i;ring();st.style.cursor=(i>=0&&!G.cards[i].up&&!G.lock)?"pointer":"default"}}
+function onClick(e){if(G.mode==="menu"||G.mode==="end"){start();return}if(G.mode!=="play"||G.lock)return;const i=hit(e);if(i<0)return;G.cur=i;pick()}
+function pick(){if(G.mode!=="play"||G.lock)return;const c=G.cards[G.cur];if(!c||c.up||c.done)return;AU.flip();
   if(!G.first){G.first=c;setFace(c,true);return}
   const a=G.first;G.first=null;G.lock=true;G.moves++;hud();
   setFace(c,true,()=>{
-    if(a.sym===c.sym){G.combo++;G.score+=100*G.combo;a.done=c.done=true;a.cd.classList.add("ok");c.cd.classList.add("ok");AU.good();G.left--;hud();
-      if(G.left<=0)later(clear,500);else G.lock=false}
+    if(a.sym===c.sym){G.combo++;G.score+=100*G.combo;a.done=c.done=true;AU.good();G.left--;hud();ring();
+      later(()=>{[a,c].forEach(x=>{x.cd.classList.add("vanish");x.ws.style.opacity=0;x.fs.style.opacity=0;later(()=>{x.cl.style.display="none"},380)})},320);
+      if(G.left<=0)later(clear,900);else G.lock=false}
     else{G.combo=0;AU.bad();later(()=>{setFace(a,false);setFace(c,false,()=>{G.lock=false})},700)}})}
 function clear(){G.score+=500+Math.max(0,40-G.moves)*25;hud();AU.win();G.mode="between";ring();
   const bn=$(".smbn");
@@ -90,8 +94,7 @@ function onKey(e){if(closed)return;const k=e.key;
   if(k==="Escape"){e.preventDefault();e.stopPropagation();closeGame();return}
   if(!(/^Arrow/.test(k)||k===" "||k==="Enter"))return;
   e.preventDefault();e.stopPropagation();
-  if(G.mode==="menu"||G.mode==="end"){if(/^Arrow/.test(k))start();return}
-  if(/^Arrow/.test(k))move(k);else if(!e.repeat)pick()}
+  if(G.mode==="menu"||G.mode==="end"){if(/^Arrow/.test(k))start()}}
 const CSS=`#smRoot{position:fixed;inset:0;z-index:100000;background:radial-gradient(ellipse at 50% 30%,#12263b 0,#050a14 74%);display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;color:#eaf4ff}
 #smRoot .smx{position:absolute;top:14px;right:14px;z-index:5;background:rgba(255,255,255,.08);color:#cfe9f2;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:8px 14px;font:600 14px 'Segoe UI',Arial,sans-serif;cursor:pointer}
 #smRoot .smx:hover{background:rgba(255,255,255,.16)}#smRoot .sms{right:92px}
@@ -115,7 +118,9 @@ const CSS=`#smRoot{position:fixed;inset:0;z-index:100000;background:radial-gradi
 #smRoot .smb img{width:58px;height:auto;margin-top:2px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
 #smRoot .smb:after{content:"";position:absolute;inset:4px;border:1px solid rgba(47,224,255,.4);border-radius:6px}
 #smRoot .up .smf{display:flex}#smRoot .up .smb{display:none}
-#smRoot .ok .smf{border-color:#27c46b;box-shadow:inset 0 0 14px rgba(39,196,107,.55)}
+#smRoot .vanish .smdp{animation:smgone .38s ease-in both}
+@keyframes smgone{0%{transform:scale(1);opacity:1;filter:brightness(1)}40%{transform:scale(1.18);filter:brightness(1.5)}100%{transform:scale(.4);opacity:0}}
+#smRoot .smst{cursor:default}
 #smRoot .smhud{position:absolute;left:18px;top:14px;display:flex;gap:10px;z-index:5}
 #smRoot .smhud div{background:rgba(7,16,31,.78);border-radius:10px;padding:6px 14px;font:800 24px 'Segoe UI',Arial,sans-serif;min-width:30px;text-align:center}
 #smRoot .smov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;background:rgba(6,14,28,.55);z-index:6;pointer-events:none}
@@ -139,8 +144,8 @@ function open(){
     +'<div class="smst"><img class="smbg" alt="" src="'+IMG+'"><div class="smcards"></div>'
     +'<div class="smhud"><div class="smhl">1</div><div class="smhs">0</div><div class="smhm">0</div></div>'
     +'<div class="smbn" hidden></div>'
-    +'<div class="smov smmenu"><h3>Shelf Match</h3><div class="smb2" id="smBoard"></div><p class="smhint">Press an arrow key</p></div>'
-    +'<div class="smov smend" hidden><h3>All shelves cleared</h3><div class="smbig smes"></div><div class="smb2 smeb"></div><p class="smhint">Press an arrow key</p></div></div>';
+    +'<div class="smov smmenu"><h3>Shelf Match</h3><div class="smb2" id="smBoard"></div><p class="smhint">Click to start</p></div>'
+    +'<div class="smov smend" hidden><h3>All shelves cleared</h3><div class="smbig smes"></div><div class="smb2 smeb"></div><p class="smhint">Click to start</p></div></div>';
   document.body.appendChild(root);
   st=root.querySelector(".smst");cardsEl=root.querySelector(".smcards");
   const btns=root.querySelectorAll(".smx"),snd=btns[1];
@@ -149,6 +154,7 @@ function open(){
   snd.addEventListener("click",()=>{AU.init();AU.toggle();lab()});
   G.mode="menu";G.cards=[];G.score=0;G.lv=0;G.moves=0;G.sent=0;hud();fit();
   window.addEventListener("keydown",onKey,true);window.addEventListener("resize",fit);
+  st.addEventListener("mousemove",onMove);st.addEventListener("click",onClick);
   AU.init();board($("#smBoard"))}
 function closeGame(){
   if(closed)return;
