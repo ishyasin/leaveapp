@@ -786,7 +786,7 @@ async function saveBanner(e) {
 // (the codes themselves are never in this file). If it is right, that game's file is fetched and opened.
 (() => {
   let on = false, busy = false;
-  const GAMES = { 1: { file: "portal-defence.js", global: "PortalDefence" }, 2: { file: "tile-defence.js", global: "TileDefence" }, 3: { file: "payback.js", global: "PortalPayback" }, 4: { file: "escape.js", global: "PortalEscape" }, 6: { file: "emergency-drop.js", global: "PortalDrop" }, 7: { file: "dispensary-dash.js", global: "PortalDash" } };
+  const GAMES = { 1: { file: "portal-defence.js", global: "PortalDefence" }, 2: { file: "tile-defence.js", global: "TileDefence" }, 3: { file: "payback.js", global: "PortalPayback" }, 4: { file: "escape.js", global: "PortalEscape" }, 6: { file: "emergency-drop.js", global: "PortalDrop" }, 7: { file: "dispensary-dash.js", global: "PortalDash" }, 8: { file: "jetpack.js", global: "PortalJet" } };
   async function refreshOn() {
     try {
       const { data: { session } } = await sb.auth.getSession();
@@ -800,7 +800,7 @@ async function saveBanner(e) {
     return new Promise((resolve, reject) => {
       if (window[g.global]) return resolve();
       const s = document.createElement("script");
-      s.src = g.file + "?v=202611172000";
+      s.src = g.file + "?v=202611181000";
       s.onload = () => resolve(); s.onerror = () => reject(new Error("load failed"));
       document.head.appendChild(s);
     });

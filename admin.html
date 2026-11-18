@@ -55,6 +55,7 @@
     <button id="tabBtn-egg4" onclick="showTab('egg4')" style="display:none;">Easter Egg 4</button>
     <button id="tabBtn-egg6" onclick="showTab('egg6')" style="display:none;">Easter Egg 5</button>
     <button id="tabBtn-egg7" onclick="showTab('egg7')" style="display:none;">Easter Egg 6</button>
+    <button id="tabBtn-egg8" onclick="showTab('egg8')" style="display:none;">Easter Egg 7</button>
   </nav>
 
   <!-- USERS -->
@@ -553,7 +554,7 @@
   <div id="tab-egg6" style="display:none;">
     <div class="card">
       <h2>Easter egg 5: GRAEMe&rsquo;s Emergency Drop</h2>
-      <p class="small">Developer only. A hidden top-down driving game: GRAEMe races the antidotes to Worthing, St Richard&rsquo;s, Princess Royal and Royal Sussex County hospitals against the clock, dodging traffic and roadworks and picking up antidote vials for extra time. Arrow keys only. Weekly high scores are shared between staff. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, typing its code on the home page and pressing Enter opens it.</p>
+      <p class="small">Developer only. A hidden top-down driving game: GRAEMe races the antidotes to Worthing, St Richard&rsquo;s, Princess Royal and Royal Sussex County hospitals against the clock, dodging traffic and roadworks and picking up antidote vials for extra time. Arrow keys only. Weekly high scores are shared between staff. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, clicking three times quickly on a blank part of the home page opens a small box for its code.</p>
       <div id="egg6Msg"></div>
       <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg6Status">loading…</span><br><span class="small" id="egg6Meta"></span></p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -577,7 +578,7 @@
   <div id="tab-egg7" style="display:none;">
     <div class="card">
       <h2>Easter egg 6: Dispensary Dash</h2>
-      <p class="small">Developer only. A hidden sorting game: prescription slips ride a conveyor and you send each one to the Fridge, the Shelf or the CD cupboard before the queue backs up, with look-alike drug names in the later levels. GRAEMe watches from behind the counter. Arrow keys only. Weekly high scores are shared between staff. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, typing its code on the home page and pressing Enter opens it.</p>
+      <p class="small">Developer only. A hidden sorting game: prescription slips ride a conveyor and you send each one to the Cold Store, Ambient or the CD cupboard before the queue backs up, with look-alike drug names in the later levels. GRAEMe watches from behind the counter. Arrow keys only. Weekly high scores are shared between staff. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, clicking three times quickly on a blank part of the home page opens a small box for its code.</p>
       <div id="egg7Msg"></div>
       <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg7Status">loading…</span><br><span class="small" id="egg7Meta"></span></p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -594,6 +595,30 @@
         <input type="checkbox" id="egg7Show" style="display:none;">
         <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for the other easter eggs (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
         <div style="margin-top:14px;"><button type="submit" class="primary" id="egg7SaveBtn">Save new code</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="tab-egg8" style="display:none;">
+    <div class="card">
+      <h2>Easter egg 7: Seafront Jet</h2>
+      <p class="small">Developer only. A hidden side-scrolling jetpack game on the Worthing seafront: GRAEMe hovers while the beach scrolls past, dodging mines, electric zappers, rockets and storm clouds, and fires flares (F) or chaff (C) at heat-seeking and radar-seeking missiles. Arrow keys fly. Weekly high scores are shared between staff. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, clicking three times quickly on a blank part of the home page opens a small box for its code.</p>
+      <div id="egg8Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg8Status">loading…</span><br><span class="small" id="egg8Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg8OnBtn" onclick="eggSwitch(8, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg8OffBtn" onclick="eggSwitch(8, false)" style="display:none;">Switch off</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Secret code</h2>
+      <form id="egg8Form" autocomplete="off">
+        <label for="egg8Code">New code</label>
+        <input type="text" id="egg8Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg8Code2">
+        <input type="checkbox" id="egg8Show" style="display:none;">
+        <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for the other easter eggs (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg8SaveBtn">Save new code</button></div>
       </form>
     </div>
   </div>
@@ -919,6 +944,7 @@ let PROFILES = [];
     document.getElementById("tabBtn-egg4").style.display = "";
     document.getElementById("tabBtn-egg6").style.display = "";
     document.getElementById("tabBtn-egg7").style.display = "";
+    document.getElementById("tabBtn-egg8").style.display = "";
     setupEggTab();
     document.getElementById("tabBtn-privacy").style.display = "";
     setupPrivacyTab();
@@ -958,7 +984,7 @@ function syncNavHeads() {
 }
 function showTab(name) {
   syncNavHeads();
-  ["users","holidays","restricted","capacity","oncall","backup","leave","import","reset","appearance","egg","egg2","egg3","egg4","egg6","egg7","privacy"].forEach(t => {
+  ["users","holidays","restricted","capacity","oncall","backup","leave","import","reset","appearance","egg","egg2","egg3","egg4","egg6","egg7","egg8","privacy"].forEach(t => {
     document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
     document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);
   });
@@ -2364,12 +2390,12 @@ async function removeCapacityOverride(site, date) {
 /* ---------------- easter eggs (Developer) ---------------- */
 // Four eggs share one set of functions: n = 1 (Portal Defence), 2 (Tile Defence), 3 (Portal Defence: Payback) or 4 (GRAEMe Escape).
 // Element ids are "egg..." for egg 1, "egg2..." for egg 2, "egg3..." for egg 3 and "egg4..." for egg 4.
-const EGG_STATE = { 1: { on: false, set: false }, 2: { on: false, set: false }, 3: { on: false, set: false }, 4: { on: false, set: false }, 5: { on: false, set: false }, 6: { on: false, set: false }, 7: { on: false, set: false } };
-const eggLabel = n => (n === 7 ? 6 : n === 6 ? 5 : n);   // egg 6 in the database is shown as "Easter egg 5" (egg 5 is the Escape cheat code)
+const EGG_STATE = { 1: { on: false, set: false }, 2: { on: false, set: false }, 3: { on: false, set: false }, 4: { on: false, set: false }, 5: { on: false, set: false }, 6: { on: false, set: false }, 7: { on: false, set: false }, 8: { on: false, set: false } };
+const eggLabel = n => (n === 8 ? 7 : n === 7 ? 6 : n === 6 ? 5 : n);   // egg 6 in the database is shown as "Easter egg 5" (egg 5 is the Escape cheat code)
 const eggId = (n, name) => (n === 1 ? "egg" : "egg" + n) + name;
 const eggEl = (n, name) => document.getElementById(eggId(n, name));
 function setupEggTab() {
-  [1, 2, 3, 4, 5, 6, 7].forEach(n => {
+  [1, 2, 3, 4, 5, 6, 7, 8].forEach(n => {
     eggEl(n, "Show").addEventListener("change", e => {
       eggEl(n, "Code").type = e.target.checked ? "text" : "password";
       eggEl(n, "Code2").type = e.target.checked ? "text" : "password";
@@ -2417,7 +2443,7 @@ async function eggCall(n, enabled, code, okText) {
 }
 function eggSwitch(n, on) {
   if (on && !EGG_STATE[n].set) return showMsg(eggEl(n, "Msg"), "Set a code first, then switch the easter egg on.", "error");
-  eggCall(n, on, null, n === 5 ? (on ? "The cheat code is ON." : "The cheat code is OFF.") : on ? "Easter egg " + eggLabel(n) + " is ON. People can open it by typing its code on the home page." : "Easter egg " + eggLabel(n) + " is OFF.");
+  eggCall(n, on, null, n === 5 ? (on ? "The cheat code is ON." : "The cheat code is OFF.") : on ? "Easter egg " + eggLabel(n) + " is ON. People can open it by clicking three times quickly on a blank part of the home page and entering its code." : "Easter egg " + eggLabel(n) + " is OFF.");
 }
 
 /* ---------------- automatic backup on/off + manual download ---------------- */
