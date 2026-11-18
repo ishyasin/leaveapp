@@ -21,7 +21,7 @@ for(let c=0;c<6;c++){const ys=c<5?YF:Y5;let top=128;
     const q=[[L(top),top],[R(top),top],[R(y),y],[L(y),y]];const cw=R(y)-L(y),ch=y-top;
     const H=solve([[0,0],[cw,0],[cw,ch],[0,ch]],q);
     const sm=ch<125?2:ch<140?1:0,w=[CW,66,58][sm],h=[CH,88,76][sm],tau=[TAU,.05,.03][sm];
-    const px=(cw-w)/2,py=ch-h-1-(y<VP[1]-10?14:0);
+    const px=(cw-w)/2,py=ch-h-1-(y<300?42:y<420?32:y<470?18:0);
     const mid=(q[0][0]+q[1][0]+q[2][0]+q[3][0])/4,vp=[mid+.55*(VP[0]-mid),VP[1]];
     CUB.push({c,r,q,H,px,py,cw,ch,w,h,tau,vp,ctr:proj(H,tau,px+w/2,py+h/2,vp)});top=y+8})}
 const PEEK=[5000,3600,2600,1600];
