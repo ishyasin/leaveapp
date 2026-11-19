@@ -10,7 +10,7 @@ const load=(src)=>{const i=new Image();i.src=src;return i};
 const IM={};for(const k in SPR)IM[k]=load("data:image/webp;base64,"+SPR[k].b64);
 const BGI={};for(const k in BG)BGI[k]=load("data:image/webp;base64,"+BG[k]);
 let cv=null,ctx=null;const W=1000,H=500;
-const FLOOR=398,CEIL=68,XMIN=90,XMAX=650,SCL=.14;
+const FLOOR=398,CEIL=68,XMIN=50,XMAX=950,SCL=.14;
 const STAGES=["hut","prom","dusk","night"],STAGE_LEN=70000; // px of travel per stage (= 700 m)
 const keys={};
 const S={mode:"menu",t:0,dist:0,coins:0,lives:3,y:200,vy:0,inv:0,flash:0,thrust:0,pose:"flat",collectT:0,hitT:0,dieT:0,rot:0,

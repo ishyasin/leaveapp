@@ -49,6 +49,7 @@
     <button id="tabBtn-import" onclick="showTab('import')" style="display:none;">Import Historical Leave</button>
     <button id="tabBtn-reset" onclick="showTab('reset')" style="display:none;">Reset Data</button>
     <h4 class="ad-head">Developer</h4>
+    <button id="tabBtn-feedback" onclick="showTab('feedback')" style="display:none;">Outline Feedback</button>
     <button id="tabBtn-egg" onclick="showTab('egg')" style="display:none;">Easter Egg 1</button>
     <button id="tabBtn-egg2" onclick="showTab('egg2')" style="display:none;">Easter Egg 2</button>
     <button id="tabBtn-egg3" onclick="showTab('egg3')" style="display:none;">Easter Egg 3</button>
@@ -689,6 +690,59 @@
     </div>
   </div>
 
+  <!-- OUTLINE FEEDBACK (Developer) -->
+  <div id="tab-feedback" style="display:none;">
+    <div class="card">
+      <h2>Send a feedback form to a group</h2>
+      <p class="small">Developer only. A small card appears on each person's screen the next time they open the app. They click it, review the form on its own page and submit once, and it never appears for them again. Their name is shown with their answers, to you only.</p>
+      <div id="frSendMsg"></div>
+      <label for="frTitle">Title</label>
+      <input type="text" id="frTitle" maxlength="150" value="Pharmacy Portal: your feedback">
+      <label for="frIntro" style="margin-top:10px;">Message to them</label>
+      <textarea id="frIntro" rows="3" maxlength="2000" style="width:100%;font-family:inherit;">Please tell us which functions of the Pharmacy Portal are useful to you, and what we should improve or add.</textarea>
+      <h3 style="margin:14px 0 6px;">Functions to ask about</h3>
+      <div id="frItems" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 14px;"></div>
+      <h3 style="margin:14px 0 6px;">Who is it for</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+        <button type="button" class="secondary" id="frPickPh">All pharmacists</button>
+        <button type="button" class="secondary" id="frPickLead">Pharmacists and Lead Pharmacists</button>
+        <button type="button" class="secondary" id="frPickNone">Clear</button>
+        <span class="small" id="frPickCount" style="align-self:center;"></span>
+      </div>
+      <div id="frPeople" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px 10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:2px 14px;"></div>
+      <div style="margin-top:12px;"><button type="button" class="primary" id="frSend">Send form</button></div>
+    </div>
+    <div class="card">
+      <h2>Sent forms and results</h2>
+      <div id="frListMsg"></div>
+      <div style="overflow-x:auto;"><table>
+        <thead><tr><th>Form</th><th>Sent</th><th>Answered</th><th>Status</th><th></th></tr></thead>
+        <tbody id="frRows"><tr><td colspan="5" class="small">Loading…</td></tr></tbody>
+      </table></div>
+      <div id="frResults" style="margin-top:14px;"></div>
+    </div>
+    <div class="card">
+      <h2>Outline page feedback</h2>
+      <p class="small">Developer only. Votes and comments left by the public on the Pharmacy Portal outline page. Nobody else can read them.</p>
+      <div id="fbMsgBox"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0 14px;">
+        <button type="button" class="secondary" id="fbRefresh">Refresh</button>
+        <button type="button" class="secondary" id="fbCsv">Download comments (CSV)</button>
+        <span class="small" id="fbTotals" style="margin-left:6px;"></span>
+      </div>
+      <h3 style="margin:10px 0 6px;">Votes by function</h3>
+      <div style="overflow-x:auto;"><table>
+        <thead><tr><th>Function</th><th style="width:44%;">Votes</th><th style="text-align:right;">Comments</th></tr></thead>
+        <tbody id="fbRows"><tr><td colspan="3" class="small">Loading…</td></tr></tbody>
+      </table></div>
+      <h3 style="margin:18px 0 6px;">Comments</h3>
+      <label for="fbFilter" class="small" style="margin:0 8px 0 0;">Topic</label>
+      <select id="fbFilter" style="max-width:320px;"><option value="">All topics</option></select>
+      <div id="fbList" style="margin-top:10px;"></div>
+      <div style="margin-top:10px;"><button type="button" class="secondary" id="fbMore" style="display:none;">Show more</button></div>
+    </div>
+  </div>
+
   <!-- PRIVACY NOTICE (Developer) -->
   <div id="tab-privacy" style="display:none;">
     <div class="card">
@@ -952,7 +1006,7 @@
   </div>
 </div>
 
-<script src="shared.js?v=202611132100"></script>
+<script src="shared.js?v=202611191300"></script>
 <script>
 let PROFILE = null;
 let PROFILES = [];
@@ -971,6 +1025,8 @@ let PROFILES = [];
     document.getElementById("tabBtn-egg7").style.display = "";
     document.getElementById("tabBtn-egg8").style.display = "";
     document.getElementById("tabBtn-egg9").style.display = "";
+    document.getElementById("tabBtn-feedback").style.display = "";
+    setupFeedbackTab();
     setupEggTab();
     document.getElementById("tabBtn-privacy").style.display = "";
     setupPrivacyTab();
@@ -1010,10 +1066,11 @@ function syncNavHeads() {
 }
 function showTab(name) {
   syncNavHeads();
-  ["users","holidays","restricted","capacity","oncall","backup","leave","import","reset","appearance","egg","egg2","egg3","egg4","egg6","egg7","egg8","egg9","privacy"].forEach(t => {
+  ["users","holidays","restricted","capacity","oncall","backup","leave","import","reset","appearance","egg","egg2","egg3","egg4","egg6","egg7","egg8","egg9","privacy","feedback"].forEach(t => {
     document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
     document.getElementById("tabBtn-" + t).classList.toggle("active", t === name);
   });
+  if (name === "feedback" && typeof loadFeedback === "function") loadFeedback();
 }
 
 // Mirrors the server's generation rules, using the accounts already
@@ -2575,6 +2632,346 @@ async function loadBackupPassword() {
 }
 
 /* ---------------- privacy notice (Developer) ---------------- */
+/* ---------------- Outline feedback (Developer) ---------------- */
+const FB_LABELS = {
+  "general": "General comment", "new-idea": "A new function idea",
+  "leave-requests": "Leave requests", "leave-calendar": "Two-site leave calendar", "leave-approvals": "Approvals board",
+  "oncall-rota": "On-call rota", "oncall-swaps": "On-call swaps", "oncall-autoswap": "Automatic swap mode",
+  "tasks-personal": "My Tasks", "tasks-set": "Set tasks", "huddle": "Huddle Board", "quick-links": "Quick Links",
+  "echo": "ED&G\u2122 Echo", "dashboard": "Dashboard", "notifications": "Notifications", "themes": "Themes & display"
+};
+const fbLabel = k => FB_LABELS[k] || k;
+let FB_LIST = [], FB_FILTER = "", FB_DONE = false;
+const FB_PAGE = 50;
+function fbWhen(iso) { return new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
+/* ---- Feedback forms sent to a chosen group ---- */
+const FR_ITEMS = [
+ [
+  "leave-requests",
+  "Leave requests",
+  "Full/part day, clock dial, date ranges",
+  "Leave Manager",
+  [
+   "Annual Leave, TOIL and Study Leave, as a full day or part day (sickness is not recorded here)",
+   "Part days picked on a clock dial (07:00 to 19:00, 5-minute steps); several time ranges in one request",
+   "Single day or date range; weekends skipped automatically",
+   "Ctrl+click days on the calendar to pre-fill a request",
+   "One live request per person per day; cancel your own pending requests, singly or in bulk"
+  ]
+ ],
+ [
+  "leave-calendar",
+  "Two-site leave calendar",
+  "Both sites side by side, Off today",
+  "Leave Manager",
+  [
+   "Paper-rota style month tabs; Worthing and St Richard's stacked on one page, with a site toggle",
+   "Lanes for Annual Leave, TOIL and Study Leave; one line per person",
+   "Numbered tiles where several people are off the same day",
+   "An Off today strip per site; hover to see who requested, allocated and approved, and when"
+  ]
+ ],
+ [
+  "leave-approvals",
+  "Approvals board",
+  "Bulk approve, capacity checks, split AL + TOIL",
+  "Leave Manager",
+  [
+   "Board of Pending, Approved and Declined requests, oldest first",
+   "Flags for same-day clashes, restricted days, capacity and leave after a last working day",
+   "Capacity check before approving (\"N pharmacists off this day\"); bulk approve or reject",
+   "Split a request into AL + TOIL, change type or times, add private approver notes",
+   "Approvers can allocate leave for the people they may approve"
+  ]
+ ],
+ [
+  "oncall-rota",
+  "On-call rota",
+  "Overnight & onsite, week sheets, Week view",
+  "On-Call Rota & Swaps",
+  [
+   "Overnight cover every day; Onsite cover on weekends and bank holidays; run separately for each site",
+   "Sunday-to-Saturday week sheets shown by initials with a personal colour and key",
+   "Show filter: Everyone, My shifts, or one pharmacist, with a shift count",
+   "Week view with four-week strips that follow today, and A3 print",
+   "Build tools sit behind a password lock; Quick build pastes dates to fill a pharmacist's shifts"
+  ]
+ ],
+ [
+  "oncall-swaps",
+  "On-call swaps",
+  "Request, accept, swap inbox",
+  "On-Call Rota & Swaps",
+  [
+   "Ctrl+click your own upcoming shifts, then a colleague's, and request the swap",
+   "1-for-1, an uneven trade, or a pure give-away; the shift shows a dashed swap badge",
+   "Your colleague accepts or declines from their Incoming inbox and is notified by the bell",
+   "Swap inbox with Incoming, Outgoing and Completed tabs; every swap is recorded in the on-call audit"
+  ]
+ ],
+ [
+  "oncall-autoswap",
+  "Automatic swap mode",
+  "Agreed swaps apply instantly",
+  "On-Call Rota & Swaps",
+  [
+   "Automatic: the swap applies the moment both pharmacists agree, with no manager step",
+   "Requires approval: the agreed swap waits on Swap Approvals for a Lead Pharmacist or above",
+   "Set per site by the Developer in Admin; a date can only be in one swap at a time"
+  ]
+ ],
+ [
+  "tasks-personal",
+  "My Tasks",
+  "Long-term and daily task lists",
+  "My Tasks",
+  [
+   "Private to each person; nobody else, including Developers, can see them",
+   "Long-term tasks with a deadline, on a board of Overdue, This week, Later and Done",
+   "Progress bar from green to amber to red, with \"N days left\"",
+   "Daily list with a progress strip; ticked tasks clear at midnight, unfinished ones can carry over"
+  ]
+ ],
+ [
+  "tasks-set",
+  "Set tasks",
+  "Supervisor-set tasks with progress",
+  "My Tasks",
+  [
+   "Supervisors set tasks for one or many people; never for peers of the same grade",
+   "Grouped view shows \"x of N done\", an overdue count and per-person status",
+   "The recipient is notified and sees the task under \"Set for me\""
+  ]
+ ],
+ [
+  "huddle",
+  "Huddle Board",
+  "Site notices, PDFs, reactions, comments",
+  "Huddle Board, Links & Banners",
+  [
+   "Post to Worthing, St Richard's or both; pin, edit and delete (moderation by Clinical Team Leads)",
+   "Up to 10 PDF attachments per post; rich text with bold, italic, colour and links",
+   "Reactions and comments for everyone; search and full history"
+  ]
+ ],
+ [
+  "quick-links",
+  "Quick Links",
+  "Shared tiles to key systems",
+  "Huddle Board, Links & Banners",
+  [
+   "Tiles with a name, link, logo and optional text for the systems the team uses",
+   "Click once to expand the text, twice to open",
+   "Edit mode with drag-and-drop reordering; logos stored internally"
+  ]
+ ],
+ [
+  "echo",
+  "ED&G™ Echo",
+  "Instant messaging and groups",
+  "ED&G™ Echo",
+  [
+   "One-to-one chats and groups with owners; live delivery",
+   "Replies, reactions and read receipts (\"Read by n of m\"); edit within 20 seconds",
+   "Unread badges on the tile, side nav and browser tab; desktop pop-up chat on every page",
+   "Only chat members can read a conversation; admins cannot"
+  ]
+ ],
+ [
+  "dashboard",
+  "Dashboard",
+  "Customisable personal dashboard",
+  "Home, Dashboard & Alerts",
+  [
+   "Opens at sign-in (optional) or from the top bar",
+   "Tiles: Leave to approve, My leave, My tasks, Next on-call, Off today, Huddle and Quick links",
+   "Customise by hiding, reordering and resizing tiles; saved to your account"
+  ]
+ ],
+ [
+  "notifications",
+  "Notifications",
+  "Bell alerts for leave, tasks, swaps",
+  "Home, Dashboard & Alerts",
+  [
+   "Bell with an unread count, split into Today and Earlier",
+   "Alerts for leave approved, task set, swap requested and swap approved",
+   "Mark all read or clear all"
+  ]
+ ],
+ [
+  "themes",
+  "Themes & display",
+  "Themes, monthly schedule, dark mode",
+  "Appearance",
+  [
+   "63 themes: seasonal, national-day, clinical-specialty and fun palettes, with optional animated banners",
+   "Each person picks from the allowed themes; a theme-by-month schedule can repeat yearly",
+   "Light, Dark or Inverted per person; animations on or off"
+  ]
+ ]
+];
+let FR_PICK = new Set(), FR_RESULT = null;
+function frRenderItems() {
+  const box = document.getElementById("frItems");
+  if (box.dataset.done) return; box.dataset.done = "1";
+  box.innerHTML = FR_ITEMS.map((f, i) => `<label style="display:flex;gap:8px;align-items:center;margin:0;font-weight:400;"><input type="checkbox" class="frItem" data-i="${i}" checked><span>${escapeHtml(f[1])}</span></label>`).join("");
+}
+function frRenderPeople() {
+  const box = document.getElementById("frPeople");
+  const people = (PROFILES || []).filter(p => p.active !== false);
+  box.innerHTML = people.length ? people.map(p => `<label style="display:flex;gap:8px;align-items:center;margin:0;font-weight:400;"><input type="checkbox" class="frPerson" value="${escapeHtml(p.id)}" ${FR_PICK.has(p.id) ? "checked" : ""}><span>${escapeHtml(p.full_name)} <small class="small">(${escapeHtml(ROLE_LABEL[p.role] || p.role)})</small></span></label>`).join("") : '<span class="small">No users loaded yet.</span>';
+  frCount();
+}
+function frCount() {
+  const n = document.querySelectorAll(".frPerson:checked").length;
+  document.getElementById("frPickCount").textContent = n + " selected";
+}
+function frPickRoles(roles) {
+  document.querySelectorAll(".frPerson").forEach(cb => {
+    const p = PROFILES.find(x => x.id === cb.value);
+    cb.checked = !!p && roles.includes(p.role);
+    cb.checked ? FR_PICK.add(cb.value) : FR_PICK.delete(cb.value);
+  });
+  frCount();
+}
+async function frLoadList() {
+  const { data, error } = await sb.rpc("developer_list_feedback_requests");
+  const tb = document.getElementById("frRows");
+  if (error) { showMsg(document.getElementById("frListMsg"), error.message + " (has the latest schema.sql been run?)", "error"); tb.innerHTML = ""; return; }
+  tb.innerHTML = (data || []).length ? data.map(r => `<tr>
+    <td>${escapeHtml(r.title)}</td><td>${escapeHtml(fbWhen(r.created_at))}</td>
+    <td>${Number(r.responded)} of ${Number(r.targeted)}</td><td>${r.is_open ? "Open" : "Closed"}</td>
+    <td style="white-space:nowrap;"><button type="button" class="secondary frView" data-id="${r.id}">Results</button>
+    <button type="button" class="secondary frToggle" data-id="${r.id}" data-open="${r.is_open ? 1 : 0}">${r.is_open ? "Close" : "Reopen"}</button></td></tr>`).join("")
+    : '<tr><td colspan="5" class="small">Nothing sent yet.</td></tr>';
+}
+async function frShowResults(id) {
+  const box = document.getElementById("frResults");
+  const { data, error } = await sb.rpc("developer_feedback_request_results", { p_id: id });
+  if (error) { showMsg(document.getElementById("frListMsg"), error.message, "error"); return; }
+  FR_RESULT = data;
+  const done = data.people.filter(p => p.responded_at), pending = data.people.filter(p => !p.responded_at);
+  const rows = data.items.map(it => {
+    const yes = done.filter(p => p.answers && p.answers[it.key] && p.answers[it.key].v).length;
+    const notes = done.filter(p => p.answers && p.answers[it.key] && p.answers[it.key].n).map(p => `<div class="small"><b>${escapeHtml(p.name)}:</b> ${escapeHtml(p.answers[it.key].n)}</div>`).join("");
+    const pct = done.length ? Math.round(yes / done.length * 100) : 0;
+    return `<tr><td style="width:28%;">${escapeHtml(it.label)}</td>
+      <td style="width:34%;"><div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;height:10px;background:var(--surface-alt);border-radius:6px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--teal);"></div></div><b>${yes}/${done.length}</b></div></td><td>${notes}</td></tr>`;
+  }).join("");
+  const general = done.filter(p => p.general).map(p => `<div style="border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:6px;"><div class="small"><b>${escapeHtml(p.name)}</b> &middot; ${escapeHtml(ROLE_LABEL[p.role] || p.role)} &middot; ${escapeHtml(fbWhen(p.responded_at))}</div><div style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(p.general)}</div></div>`).join("");
+  box.innerHTML = `<h3 style="margin:0 0 6px;">${escapeHtml(data.title)}</h3>
+    <p class="small">${done.length} of ${data.people.length} answered. Useful votes per function:</p>
+    <div style="overflow-x:auto;"><table><thead><tr><th>Function</th><th>Useful</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <h3 style="margin:14px 0 6px;">Other comments</h3>${general || '<p class="small">None yet.</p>'}
+    <h3 style="margin:14px 0 6px;">Not answered yet</h3><p class="small">${pending.length ? pending.map(p => escapeHtml(p.name)).join(", ") : "Everyone has answered."}</p>
+    <button type="button" class="secondary" id="frCsv">Download results (CSV)</button>`;
+  document.getElementById("frCsv").addEventListener("click", frCsv);
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+function frCsv() {
+  const d = FR_RESULT; if (!d) return;
+  const q = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  const lines = [["Name", "Role", "Answered", "Function", "Useful", "Note", "Other comment"].map(q).join(",")];
+  d.people.forEach(p => {
+    if (!p.responded_at) { lines.push([p.name, ROLE_LABEL[p.role] || p.role, "No", "", "", "", ""].map(q).join(",")); return; }
+    d.items.forEach(it => { const a = p.answers && p.answers[it.key]; if (a) lines.push([p.name, ROLE_LABEL[p.role] || p.role, p.responded_at, it.label, a.v ? "Yes" : "No", a.n, ""].map(q).join(",")); });
+    if (p.general) lines.push([p.name, ROLE_LABEL[p.role] || p.role, p.responded_at, "", "", "", p.general].map(q).join(","));
+  });
+  const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "feedback-form-" + new Date().toISOString().slice(0, 10) + ".csv";
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function setupFeedbackForms() {
+  document.getElementById("frPickPh").addEventListener("click", () => frPickRoles(["pharmacist"]));
+  document.getElementById("frPickLead").addEventListener("click", () => frPickRoles(["pharmacist", "lead_pharmacist"]));
+  document.getElementById("frPickNone").addEventListener("click", () => frPickRoles([]));
+  document.getElementById("frPeople").addEventListener("change", e => { const t = e.target; if (t.classList.contains("frPerson")) { t.checked ? FR_PICK.add(t.value) : FR_PICK.delete(t.value); frCount(); } });
+  document.getElementById("frRows").addEventListener("click", async e => {
+    const v = e.target.closest(".frView"), t = e.target.closest(".frToggle");
+    if (v) frShowResults(Number(v.dataset.id));
+    if (t) {
+      const open = t.dataset.open === "1";
+      if (open && !await uiConfirm("Close this form? People who have not answered yet will stop seeing it.", "Close form")) return;
+      const { error } = await sb.rpc("developer_set_feedback_request_open", { p_id: Number(t.dataset.id), p_open: !open });
+      if (error) showMsg(document.getElementById("frListMsg"), error.message, "error"); else frLoadList();
+    }
+  });
+  document.getElementById("frSend").addEventListener("click", async () => {
+    const msg = document.getElementById("frSendMsg");
+    const items = [...document.querySelectorAll(".frItem:checked")].map(cb => { const f = FR_ITEMS[Number(cb.dataset.i)]; return { key: f[0], label: f[1], desc: f[2], group: f[3], details: f[4] }; });
+    const ids = [...document.querySelectorAll(".frPerson:checked")].map(cb => cb.value);
+    if (!items.length) return showMsg(msg, "Choose at least one function to ask about.", "error");
+    if (!ids.length) return showMsg(msg, "Choose who it is for.", "error");
+    if (!await uiConfirm(`Send this form to ${ids.length} ${ids.length === 1 ? "person" : "people"}? It will pop up for each of them the next time they open the app, until they submit.`, "Send form")) return;
+    const btn = document.getElementById("frSend"); btn.disabled = true;
+    try {
+      const { error } = await sb.rpc("developer_create_feedback_request", { p_title: document.getElementById("frTitle").value, p_intro: document.getElementById("frIntro").value, p_items: items, p_targets: ids });
+      if (error) throw error;
+      showMsg(msg, "Sent to " + ids.length + (ids.length === 1 ? " person." : " people.") + " Results appear below as they answer.", "ok");
+      frLoadList();
+    } catch (err) { showMsg(msg, err.message, "error"); } finally { btn.disabled = false; }
+  });
+}
+function setupFeedbackTab() {
+  setupFeedbackForms();
+  document.getElementById("fbRefresh").addEventListener("click", loadFeedback);
+  document.getElementById("fbFilter").addEventListener("change", e => { FB_FILTER = e.target.value; loadFeedbackComments(true); });
+  document.getElementById("fbMore").addEventListener("click", () => loadFeedbackComments(false));
+  document.getElementById("fbCsv").addEventListener("click", downloadFeedbackCsv);
+}
+async function loadFeedback() {
+  frRenderItems(); frRenderPeople(); frLoadList();
+  const box = document.getElementById("fbMsgBox");
+  box.innerHTML = "";
+  const { data, error } = await sb.rpc("developer_feedback_summary");
+  if (error) { showMsg(box, error.message + " (has the latest schema.sql been run?)", "error"); return; }
+  const rows = data || [];
+  const max = Math.max(1, ...rows.map(r => Number(r.votes)));
+  const tv = rows.reduce((s, r) => s + Number(r.votes), 0), tc = rows.reduce((s, r) => s + Number(r.comments), 0);
+  document.getElementById("fbTotals").textContent = tv + " vote" + (tv === 1 ? "" : "s") + ", " + tc + " comment" + (tc === 1 ? "" : "s");
+  document.getElementById("fbRows").innerHTML = rows.length ? rows.map(r => {
+    const v = Number(r.votes);
+    return `<tr><td>${escapeHtml(fbLabel(r.feature_key))}</td>
+      <td><div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;height:10px;background:var(--surface-alt);border-radius:6px;overflow:hidden;"><div style="height:100%;width:${Math.round(v / max * 100)}%;background:var(--teal);"></div></div><b style="min-width:28px;text-align:right;">${v}</b></div></td>
+      <td style="text-align:right;">${Number(r.comments)}</td></tr>`;
+  }).join("") : '<tr><td colspan="3" class="small">Nothing yet.</td></tr>';
+  const sel = document.getElementById("fbFilter"), keep = sel.value;
+  sel.innerHTML = '<option value="">All topics</option>' + rows.filter(r => Number(r.comments) > 0)
+    .map(r => `<option value="${escapeHtml(r.feature_key)}">${escapeHtml(fbLabel(r.feature_key))} (${Number(r.comments)})</option>`).join("");
+  sel.value = [...sel.options].some(o => o.value === keep) ? keep : "";
+  FB_FILTER = sel.value;
+  await loadFeedbackComments(true);
+}
+async function loadFeedbackComments(reset) {
+  const box = document.getElementById("fbMsgBox");
+  if (reset) { FB_LIST = []; FB_DONE = false; }
+  const { data, error } = await sb.rpc("developer_feedback_comments", { p_feature: FB_FILTER || null, p_limit: FB_PAGE, p_offset: FB_LIST.length });
+  if (error) { showMsg(box, error.message, "error"); return; }
+  const got = data || [];
+  FB_LIST = FB_LIST.concat(got);
+  if (got.length < FB_PAGE) FB_DONE = true;
+  document.getElementById("fbList").innerHTML = FB_LIST.length ? FB_LIST.map(c => `
+    <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--surface);">
+      <div class="small" style="margin-bottom:4px;"><b>${escapeHtml(fbLabel(c.feature_key))}</b> &middot; ${escapeHtml(fbWhen(c.created_at))}${c.name ? " &middot; " + escapeHtml(c.name) : ""}${c.role ? " &middot; " + escapeHtml(c.role) : ""}${c.site ? " &middot; " + escapeHtml(c.site) : ""}</div>
+      <div style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(c.comment)}</div>
+    </div>`).join("") : '<p class="small">No comments yet.</p>';
+  document.getElementById("fbMore").style.display = FB_DONE ? "none" : "";
+}
+async function downloadFeedbackCsv() {
+  const box = document.getElementById("fbMsgBox");
+  const { data, error } = await sb.rpc("developer_feedback_comments", { p_feature: FB_FILTER || null, p_limit: 5000, p_offset: 0 });
+  if (error) { showMsg(box, error.message, "error"); return; }
+  const q = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  const lines = [["Date", "Topic", "Comment", "Name", "Role", "Site"].map(q).join(",")]
+    .concat((data || []).map(c => [c.created_at, fbLabel(c.feature_key), c.comment, c.name, c.role, c.site].map(q).join(",")));
+  const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "outline-feedback-" + new Date().toISOString().slice(0, 10) + ".csv";
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
 function setupPrivacyTab() {
   document.getElementById("pnSaveBtn").addEventListener("click", async () => {
     const msg = document.getElementById("pnMsg");

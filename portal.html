@@ -336,7 +336,7 @@
   <div class="bot-fig"><div class="g-rig" id="graemeRig"></div></div>
 </div>
 
-<script src="shared.js?v=202611132100"></script>
+<script src="shared.js?v=202611191300"></script>
 <script>
 // GRAEMe sticker-sheet poses. Each pose is an opaque body picture (eyes painted out), two separate glowing eyes,
 // optional extras (lightbulb, question mark, cheer sparks) and an antenna light, so they can be animated.
@@ -800,7 +800,7 @@ async function saveBanner(e) {
     return new Promise((resolve, reject) => {
       if (window[g.global]) return resolve();
       const s = document.createElement("script");
-      s.src = g.file + "?v=202611181300";
+      s.src = g.file + "?v=202611181400";
       s.onload = () => resolve(); s.onerror = () => reject(new Error("load failed"));
       document.head.appendChild(s);
     });

@@ -2632,6 +2632,7 @@ async function requireAuth(allowedRoles) {
   renderTopbar(profile);
   if (isPharmacyAdmin(profile)) applyPharmacyAdminMode();
   checkPrivacyNotice();
+  checkFeedbackRequest();
   checkBackupOffBanner(profile);
   return profile;
 }
@@ -2648,7 +2649,7 @@ function isReadOnlyRole(profile) { return profile.role === "technician" || profi
 // request, amend, approve or delete anything. Enforced in the database; the UI also hides write controls.
 function isPharmacyAdmin(profile) { return !!profile && profile.role === "pharmacy_admin"; }
 function canPostHuddle(profile) { return ["lead_pharmacist", "superuser", "developer", "senior_technician"].includes(profile.role); }
-const VIEWER_PAGES = ["portal.html", "huddle.html", "links.html", "tasks.html", "chat.html", "reset-password.html", "login.html", "index.html", ""];
+const VIEWER_PAGES = ["portal.html", "huddle.html", "links.html", "tasks.html", "chat.html", "reset-password.html", "login.html", "index.html", "feedback.html", ""];
 // In the on-call pool for at least one site — governs whether "My
 // On-Call Dates" and "Swaps" are shown on oncall.html.
 function isOncallPoolMember(profile) { return !!(profile.oncall_worthing || profile.oncall_st_richards); }
@@ -2755,6 +2756,27 @@ async function checkPrivacyNotice() {
     if (error || !data || !data.has_notice || !data.needs_ack) return;
     await showPrivacyNoticeModal(data, { required: true });
   } catch (e) { /* ignore */ } finally { window.__pnChecking = false; }
+}
+/* ---------------- Feedback request (sent by the Developer to a chosen group) ----------------
+   A small card, not a blocking dialog: it shows on every page until the person has submitted the form
+   (feedback.html). "Not now" hides it for the rest of the browser session. */
+async function checkFeedbackRequest() {
+  try {
+    if (window.__frChecking || document.getElementById("frCard")) return; window.__frChecking = true;
+    if (/feedback\.html$/.test(window.location.pathname)) return;
+    try { if (sessionStorage.getItem("frHide")) return; } catch (e) {}
+    const { data, error } = await sb.rpc("my_pending_feedback_request");
+    if (error || !data || !data.id) return;
+    const card = document.createElement("div");
+    card.id = "frCard"; card.setAttribute("role", "region"); card.setAttribute("aria-label", "Feedback requested");
+    card.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:9000;width:min(340px,calc(100vw - 36px));background:var(--surface,#fff);color:inherit;border:1px solid var(--border,#ccc);border-top:5px solid var(--honey,#f5b400);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:14px 16px;";
+    card.innerHTML = `<div style="font-weight:800;margin-bottom:4px;">${escapeHtml(data.title || "Your feedback is requested")}</div>
+      <div class="small" style="margin-bottom:10px;">${escapeHtml((data.intro || "Please review the functions and tell us what is useful.").slice(0, 140))}</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" class="secondary" id="frLater" style="width:auto;margin:0;">Not now</button><button type="button" class="primary" id="frOpen" style="width:auto;margin:0;">Review and submit</button></div>`;
+    document.body.appendChild(card);
+    document.getElementById("frOpen").onclick = () => { window.location.href = "feedback.html"; };
+    document.getElementById("frLater").onclick = () => { try { sessionStorage.setItem("frHide", "1"); } catch (e) {} card.remove(); };
+  } catch (e) { /* ignore: never traps anyone if the schema is not yet updated */ } finally { window.__frChecking = false; }
 }
 async function viewPrivacyNotice() {
   try {
