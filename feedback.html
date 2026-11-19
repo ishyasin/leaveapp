@@ -16,32 +16,79 @@
 <link rel="stylesheet" href="shared.css?v=202611132100">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <style>
+  /* ED&G brand constants: fixed, they do not change with the user's accent theme */
+  .fb-page{--edg-navy:#1a2744;--edg-navy2:#25365c;--edg-teal:#12a0ad;--edg-green:#4caf50;}
   .fb-wrap{max-width:1000px;margin:0 auto;}
-  .fb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin:14px 0;}
-  .fb-item{background:var(--surface);border:1px solid var(--border);border-left:5px solid var(--border);border-radius:10px;padding:10px 12px;transition:border-color .15s;}
-  .fb-item.on{border-left-color:var(--teal);}
-  .fb-item label.fb-use{display:flex;gap:10px;align-items:flex-start;margin:0;cursor:pointer;font-weight:800;font-size:15px;}
-  .fb-item input[type=checkbox]{margin-top:4px;width:18px;height:18px;flex:none;}
-  .fb-item small{display:block;font-weight:400;opacity:.75;font-size:12.5px;margin-top:2px;}
-  .fb-item input[type=text]{margin-top:8px;width:100%;box-sizing:border-box;}
-  .fb-item details{margin-top:6px;font-size:13px;}
-  .fb-item summary{cursor:pointer;color:var(--teal);font-weight:700;}
+  .fb-hero{position:relative;overflow:hidden;border-radius:16px;padding:26px 28px 30px;margin:4px 0 18px;color:#fff;
+    background:linear-gradient(135deg,var(--edg-navy) 0%,var(--edg-navy2) 100%);box-shadow:0 14px 34px -16px rgba(26,39,68,.7);}
+  .fb-hero::before,.fb-hero::after{content:"";position:absolute;pointer-events:none;}
+  .fb-hero::before{right:-40px;top:-60px;width:260px;height:260px;background:rgba(18,160,173,.22);clip-path:polygon(50% 0,100% 100%,0 100%);transform:rotate(18deg);}
+  .fb-hero::after{right:90px;bottom:-70px;width:170px;height:170px;background:rgba(76,175,80,.20);clip-path:polygon(50% 0,100% 100%,0 100%);transform:rotate(-12deg);}
+  .fb-hero > *{position:relative;z-index:1;}
+  .fb-mark{font-size:26px;font-weight:800;line-height:1;letter-spacing:.2px;}
+  .fb-mark .amp{color:var(--edg-teal);}
+  .fb-mark .tm{font-size:11px;font-weight:700;vertical-align:super;margin-left:1px;}
+  .fb-by{margin-top:4px;font-size:12.5px;opacity:.8;}
+  .fb-rule{display:flex;height:3px;border-radius:2px;overflow:hidden;width:120px;margin:10px 0 18px;}
+  .fb-rule span{flex:1;}.fb-rule span:nth-child(1){background:#fff;}.fb-rule span:nth-child(2){background:var(--edg-teal);}.fb-rule span:nth-child(3){background:var(--edg-green);}
+  .fb-hero h1{margin:0 0 6px;font-size:clamp(24px,4vw,32px);color:#fff;letter-spacing:-.4px;}
+  .fb-hero p{margin:0;max-width:62ch;opacity:.92;line-height:1.5;}
+  .fb-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
+  .fb-chip{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:4px 12px;font-size:12.5px;}
+  .fb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin:12px 0 18px;}
+  .fb-item{background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--border);border-radius:14px;padding:14px 16px;transition:border-color .15s,box-shadow .15s,transform .15s;box-shadow:0 1px 2px rgba(26,39,68,.06);}
+  .fb-item:hover{box-shadow:0 10px 24px -14px rgba(26,39,68,.45);}
+  .fb-item.on{border-top-color:var(--edg-green);box-shadow:0 10px 24px -14px rgba(76,175,80,.6);}
+  .fb-item.off{border-top-color:#c0392b;}
+  .fb-use{font-weight:800;font-size:15px;}
+  .fb-choice{display:flex;gap:8px;margin-top:12px;}
+  .fb-w{flex:1;margin:0 !important;width:auto !important;padding:8px 10px !important;border-radius:10px !important;font-weight:700;font-size:13px;cursor:pointer;background:var(--surface) !important;color:var(--text) !important;border:1.5px solid var(--border) !important;}
+  .fb-w:hover{border-color:var(--edg-teal) !important;}
+  .fb-w.fb-want[aria-pressed="true"]{background:var(--edg-green) !important;border-color:var(--edg-green) !important;color:#fff !important;}
+  .fb-w.fb-no[aria-pressed="true"]{background:#c0392b !important;border-color:#c0392b !important;color:#fff !important;}
+  .fb-item label.fb-use{display:flex;gap:12px;align-items:flex-start;margin:0;cursor:pointer;font-weight:800;font-size:15px;}
+  .fb-item input[type=checkbox]{margin-top:3px;width:20px;height:20px;flex:none;accent-color:var(--edg-teal);}
+  .fb-item small{display:block;font-weight:400;opacity:.75;font-size:12.5px;margin-top:2px;line-height:1.4;}
+  .fb-item input[type=text]{margin-top:10px;width:100%;box-sizing:border-box;}
+  .fb-item details{margin-top:8px;font-size:13px;}
+  .fb-item summary{cursor:pointer;color:var(--edg-teal);font-weight:700;}
   .fb-item ul{margin:6px 0 0;padding-left:18px;}.fb-item li{margin:3px 0;}
-  .fb-group{margin:18px 0 0;font-size:17px;color:var(--teal);}
-  .fb-mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin:8px 0 4px;}
-  .fb-mod{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;}
+  .fb-group{display:flex;align-items:center;gap:10px;margin:22px 0 0;font-size:18px;color:var(--heading-color);}
+  .fb-group::before{content:"";width:6px;height:22px;border-radius:3px;background:linear-gradient(var(--edg-teal),var(--edg-green));}
+  .fb-mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin:10px 0 4px;}
+  .fb-mod{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--edg-teal);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.45;}
+  .fb-mod:nth-child(3n+2){border-left-color:var(--edg-navy2);}.fb-mod:nth-child(3n){border-left-color:var(--edg-green);}
   .fb-mod b{display:block;font-size:14px;margin-bottom:2px;}
-  .fb-about{margin:12px 0;border:1px solid var(--border);border-radius:10px;padding:10px 14px;background:var(--surface-alt,transparent);}
+  .fb-about{margin:12px 0;border:1px solid var(--border);border-radius:14px;padding:12px 16px;background:var(--surface);}
   .fb-about summary{cursor:pointer;font-weight:800;}
-  .fb-bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:8px 0;}
+  .fb-bar{position:sticky;bottom:0;z-index:20;display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:12px 16px;margin-top:18px;
+    background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 -8px 24px -14px rgba(26,39,68,.5);}
+  .fb-prog{flex:1;min-width:140px;}
+  .fb-track{height:8px;border-radius:6px;background:var(--surface-alt,#eee);overflow:hidden;}
+  .fb-fill{height:100%;width:0;background:linear-gradient(90deg,var(--edg-teal),var(--edg-green));transition:width .25s;}
+  #fbSubmit{background:var(--edg-navy);border-color:var(--edg-navy);color:#fff;}
+  #fbSubmit:disabled{opacity:.45;}
+  .fb-foot{margin:26px 0 8px;padding-top:14px;display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--text-muted);}
+  .fb-foot .mark{font-size:20px;font-weight:800;color:var(--heading-color);line-height:1;}
+  .fb-foot .mark .amp{color:var(--edg-teal);}.fb-foot .mark .tm{font-size:9px;vertical-align:super;}
+  .fb-foot .rule{display:flex;height:3px;border-radius:2px;overflow:hidden;margin-top:6px;}
+  .fb-foot .rule span{flex:1;}.fb-foot .rule span:nth-child(1){background:var(--edg-navy);}.fb-foot .rule span:nth-child(2){background:var(--edg-teal);}.fb-foot .rule span:nth-child(3){background:var(--edg-green);}
+  .fb-done{text-align:center;padding:34px 16px;}
+  .fb-done .tick{width:64px;height:64px;border-radius:50%;margin:0 auto 12px;display:grid;place-items:center;font-size:32px;color:#fff;background:linear-gradient(135deg,var(--edg-teal),var(--edg-green));}
 </style>
 </head>
 <body>
 <div class="topbar" id="topbar"></div>
-<div class="wrap">
+<div class="wrap fb-page">
   <div class="fb-wrap">
-    <h1 id="fbTitle" style="margin:0 0 4px;">Your feedback</h1>
-    <p id="fbIntro" style="margin:0 0 6px;white-space:pre-wrap;"></p>
+    <div class="fb-hero">
+      <div class="fb-mark">ED<span class="amp">&amp;</span>G<span class="tm">&trade;</span></div>
+      <div class="fb-by">Pharmacy Portal&trade; &nbsp;by ED&amp;G&trade;</div>
+      <div class="fb-rule"><span></span><span></span><span></span></div>
+      <h1 id="fbTitle">Your feedback</h1>
+      <p id="fbIntro" style="white-space:pre-wrap;"></p>
+      <div class="fb-chips"><span class="fb-chip">About 3 minutes</span><span class="fb-chip">Answer at least one question</span><span class="fb-chip">Your name is shown with your answers</span></div>
+    </div>
     <div id="msg"></div>
     <div id="fbForm" style="display:none;">
       <details class="fb-about" open><summary>The Pharmacy Portal modules at a glance</summary>
@@ -57,33 +104,40 @@
           <div class="fb-mod"><b>Admin &amp; Governance</b>Users, rules, audit trail, encrypted daily backup and a versioned privacy notice.</div>
           <div class="fb-mod"><b>Appearance</b>63 themes, a monthly theme schedule and light, dark or inverted display.</div>
         </div></details>
-      <p class="small" style="margin:0;">Tick <strong>Useful</strong> for the functions that would help you and add a note where you have one. Answer at least one, then submit. Your name is shown with your answers to the developer. You will only be asked once.</p>
+      <p class="small" style="margin:0;">For each function, choose <strong>I want this</strong> or <strong>I don't want this</strong> and add a note where you have one. Answer at least one, then submit. Your name is shown with your answers to the developer. You will only be asked once.</p>
       <div id="fbGrid"></div>
       <label for="fbGen" style="font-weight:800;">Anything else, or a function you would like to see?</label>
       <textarea id="fbGen" rows="4" maxlength="2000" style="width:100%;box-sizing:border-box;font-family:inherit;"></textarea>
-      <div class="fb-bar"><button type="button" class="primary" id="fbSubmit" disabled style="width:auto;margin:0;">Submit feedback</button><span class="small" id="fbHint">Answer at least one question to submit.</span></div>
+      <div class="fb-bar"><div class="fb-prog"><div class="small" id="fbCount" style="margin-bottom:4px;">0 answered</div><div class="fb-track"><div class="fb-fill" id="fbFill"></div></div></div><span class="small" id="fbHint">Answer at least one question to submit.</span><button type="button" class="primary" id="fbSubmit" disabled style="width:auto;margin:0;">Submit feedback</button></div>
     </div>
-    <div id="fbDone" style="display:none;"><p style="font-size:17px;">Thank you, your feedback has been received.</p><a class="primary" href="portal.html" style="display:inline-block;padding:8px 18px;border-radius:8px;text-decoration:none;">Back to the portal</a></div>
+    <div id="fbDone" class="fb-done" style="display:none;"><div class="tick">&#10003;</div><p style="font-size:18px;font-weight:800;margin:0 0 4px;">Thank you, your feedback has been received.</p><p class="small" style="margin:0 0 16px;">It goes straight to the ED&amp;G&trade; team and will shape what we build next.</p><a class="primary" href="portal.html" style="display:inline-block;padding:8px 18px;border-radius:8px;text-decoration:none;">Back to the portal</a></div>
     <div id="fbNone" style="display:none;"><p>There is no feedback request waiting for you.</p><a class="ml-link" href="portal.html" style="font-weight:700;">Back to the portal</a></div>
+    <div class="fb-foot"><div><div class="mark">ED<span class="amp">&amp;</span>G<span class="tm">&trade;</span></div><div>Evolve Digital &amp; Governance</div><div class="rule"><span></span><span></span><span></span></div></div><div>Questions? <a href="mailto:support@edandg.com" style="color:inherit;">support@edandg.com</a></div></div>
   </div>
 </div>
 
 <script src="shared.js?v=202611191300"></script>
 <script>
 let PROFILE = null, REQ = null;
+const CHOICE = {};   // item index -> "want" | "no"
 const $ = id => document.getElementById(id);
 function collect() {
   const answers = {};
   (REQ.items || []).forEach((it, i) => {
-    const v = document.querySelector('.fbV[data-i="' + i + '"]').checked, n = document.querySelector('.fbN[data-i="' + i + '"]').value.trim();
-    if (v || n) answers[it.key] = { v, n };
+    const w = CHOICE[i] || "", n = document.querySelector('.fbN[data-i="' + i + '"]').value.trim();
+    if (w || n) answers[it.key] = { w, v: w === "want", n };
   });
   return { answers, general: $("fbGen").value.trim() };
 }
 function refresh() {
-  document.querySelectorAll(".fb-item").forEach((el, i) => el.classList.toggle("on", el.querySelector(".fbV").checked));
+  document.querySelectorAll(".fb-item").forEach((el, i) => {
+    el.classList.toggle("on", CHOICE[i] === "want"); el.classList.toggle("off", CHOICE[i] === "no");
+    el.querySelectorAll(".fb-w").forEach(b => b.setAttribute("aria-pressed", String((b.classList.contains("fb-want") ? "want" : "no") === CHOICE[i])));
+  });
   const c = collect(), ok = Object.keys(c.answers).length > 0 || !!c.general;
   $("fbSubmit").disabled = !ok; $("fbHint").style.visibility = ok ? "hidden" : "visible";
+  const n = Object.values(c.answers).filter(a => a.w).length, tot = (REQ && REQ.items ? REQ.items.length : 0) || 1;
+  $("fbCount").textContent = n + " of " + tot + " answered"; $("fbFill").style.width = Math.round(n / tot * 100) + "%";
 }
 (async () => {
   PROFILE = await requireAuth();
@@ -104,13 +158,20 @@ function refresh() {
     }
     const det = Array.isArray(it.details) && it.details.length ? `<details open><summary>What it does</summary><ul>${it.details.map(d => `<li>${escapeHtml(d)}</li>`).join("")}</ul></details>` : "";
     html += `<div class="fb-item">
-      <label class="fb-use"><input type="checkbox" class="fbV" data-i="${i}"><span>${escapeHtml(it.label)}<small>${escapeHtml(it.desc || "")}</small></span></label>${det}
+      <div class="fb-use"><span>${escapeHtml(it.label)}<small>${escapeHtml(it.desc || "")}</small></span></div>${det}
+      <div class="fb-choice" role="group" aria-label="${escapeHtml(it.label)}"><button type="button" class="fb-w fb-want" data-i="${i}" aria-pressed="false">I want this</button><button type="button" class="fb-w fb-no" data-i="${i}" aria-pressed="false">I don't want this</button></div>
       <input type="text" class="fbN" data-i="${i}" maxlength="500" placeholder="Note (optional)"></div>`;
   });
   if (lastGroup !== null) html += "</div>";
   $("fbGrid").innerHTML = html;
   $("fbForm").style.display = "";
-  $("fbForm").addEventListener("input", refresh); $("fbForm").addEventListener("change", refresh);
+  $("fbForm").addEventListener("input", refresh);
+  $("fbForm").addEventListener("click", e => {
+    const b = e.target.closest(".fb-w"); if (!b) return;
+    const i = Number(b.dataset.i), w = b.classList.contains("fb-want") ? "want" : "no";
+    if (CHOICE[i] === w) delete CHOICE[i]; else CHOICE[i] = w;   // click again to undo
+    refresh();
+  });
   refresh();
   $("fbSubmit").addEventListener("click", async () => {
     const c = collect(), btn = $("fbSubmit"); btn.disabled = true; btn.textContent = "Sending…";

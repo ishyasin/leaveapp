@@ -2843,7 +2843,8 @@ async function frLoadList() {
     <td>${escapeHtml(r.title)}</td><td>${escapeHtml(fbWhen(r.created_at))}</td>
     <td>${Number(r.responded)} of ${Number(r.targeted)}</td><td>${r.is_open ? "Open" : "Closed"}</td>
     <td style="white-space:nowrap;"><button type="button" class="secondary frView" data-id="${r.id}">Results</button>
-    <button type="button" class="secondary frToggle" data-id="${r.id}" data-open="${r.is_open ? 1 : 0}">${r.is_open ? "Close" : "Reopen"}</button></td></tr>`).join("")
+    <button type="button" class="secondary frToggle" data-id="${r.id}" data-open="${r.is_open ? 1 : 0}">${r.is_open ? "Close" : "Reopen"}</button>
+    <button type="button" class="secondary frClearRow" data-id="${r.id}">Clear responses</button></td></tr>`).join("")
     : '<tr><td colspan="5" class="small">Nothing sent yet.</td></tr>';
 }
 async function frShowResults(id) {
@@ -2853,29 +2854,39 @@ async function frShowResults(id) {
   FR_RESULT = data;
   const done = data.people.filter(p => p.responded_at), pending = data.people.filter(p => !p.responded_at);
   const rows = data.items.map(it => {
-    const yes = done.filter(p => p.answers && p.answers[it.key] && p.answers[it.key].v).length;
+    const ans = p => p.answers && p.answers[it.key];
+    const yes = done.filter(p => ans(p) && (ans(p).w === "want" || (!ans(p).w && ans(p).v))).length;
+    const no = done.filter(p => ans(p) && ans(p).w === "no").length;
     const notes = done.filter(p => p.answers && p.answers[it.key] && p.answers[it.key].n).map(p => `<div class="small"><b>${escapeHtml(p.name)}:</b> ${escapeHtml(p.answers[it.key].n)}</div>`).join("");
     const pct = done.length ? Math.round(yes / done.length * 100) : 0;
     return `<tr><td style="width:28%;">${escapeHtml(it.label)}</td>
-      <td style="width:34%;"><div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;height:10px;background:var(--surface-alt);border-radius:6px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--teal);"></div></div><b>${yes}/${done.length}</b></div></td><td>${notes}</td></tr>`;
+      <td style="width:34%;"><div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;height:10px;background:var(--surface-alt);border-radius:6px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:#4caf50;"></div></div><b style="white-space:nowrap;">${yes} want &middot; ${no} don't</b></div></td><td>${notes}</td></tr>`;
   }).join("");
   const general = done.filter(p => p.general).map(p => `<div style="border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:6px;"><div class="small"><b>${escapeHtml(p.name)}</b> &middot; ${escapeHtml(ROLE_LABEL[p.role] || p.role)} &middot; ${escapeHtml(fbWhen(p.responded_at))}</div><div style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(p.general)}</div></div>`).join("");
   box.innerHTML = `<h3 style="margin:0 0 6px;">${escapeHtml(data.title)}</h3>
-    <p class="small">${done.length} of ${data.people.length} answered. Useful votes per function:</p>
-    <div style="overflow-x:auto;"><table><thead><tr><th>Function</th><th>Useful</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="small">${done.length} of ${data.people.length} answered. Votes per function:</p>
+    <div style="overflow-x:auto;"><table><thead><tr><th>Function</th><th>I want / I don't want</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table></div>
     <h3 style="margin:14px 0 6px;">Other comments</h3>${general || '<p class="small">None yet.</p>'}
     <h3 style="margin:14px 0 6px;">Not answered yet</h3><p class="small">${pending.length ? pending.map(p => escapeHtml(p.name)).join(", ") : "Everyone has answered."}</p>
-    <button type="button" class="secondary" id="frCsv">Download results (CSV)</button>`;
+    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="secondary" id="frCsv">Download results (CSV)</button>
+    <button type="button" class="secondary" id="frClear"${done.length ? "" : " disabled"}>Clear responses</button></div>`;
   document.getElementById("frCsv").addEventListener("click", frCsv);
+  document.getElementById("frClear").addEventListener("click", async () => {
+    if (!await uiConfirm(`Clear all ${done.length} response${done.length === 1 ? "" : "s"} to this form? The answers are deleted for good. If the form is still open, those people will see it again and can answer again. Download the CSV first if you want a copy.`, "Clear responses")) return;
+    const { error: e2 } = await sb.rpc("developer_clear_feedback_responses", { p_id: id });
+    if (e2) { showMsg(document.getElementById("frListMsg"), e2.message, "error"); return; }
+    showMsg(document.getElementById("frListMsg"), "Responses cleared.", "ok");
+    frLoadList(); frShowResults(id);
+  });
   box.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 function frCsv() {
   const d = FR_RESULT; if (!d) return;
   const q = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
-  const lines = [["Name", "Role", "Answered", "Function", "Useful", "Note", "Other comment"].map(q).join(",")];
+  const lines = [["Name", "Role", "Answered", "Function", "Answer", "Note", "Other comment"].map(q).join(",")];
   d.people.forEach(p => {
     if (!p.responded_at) { lines.push([p.name, ROLE_LABEL[p.role] || p.role, "No", "", "", "", ""].map(q).join(",")); return; }
-    d.items.forEach(it => { const a = p.answers && p.answers[it.key]; if (a) lines.push([p.name, ROLE_LABEL[p.role] || p.role, p.responded_at, it.label, a.v ? "Yes" : "No", a.n, ""].map(q).join(",")); });
+    d.items.forEach(it => { const a = p.answers && p.answers[it.key]; if (a) lines.push([p.name, ROLE_LABEL[p.role] || p.role, p.responded_at, it.label, a.w === "want" || (!a.w && a.v) ? "I want this" : a.w === "no" ? "I don't want this" : "", a.n, ""].map(q).join(",")); });
     if (p.general) lines.push([p.name, ROLE_LABEL[p.role] || p.role, p.responded_at, "", "", "", p.general].map(q).join(","));
   });
   const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
@@ -2889,8 +2900,14 @@ function setupFeedbackForms() {
   document.getElementById("frPickNone").addEventListener("click", () => frPickRoles([]));
   document.getElementById("frPeople").addEventListener("change", e => { const t = e.target; if (t.classList.contains("frPerson")) { t.checked ? FR_PICK.add(t.value) : FR_PICK.delete(t.value); frCount(); } });
   document.getElementById("frRows").addEventListener("click", async e => {
-    const v = e.target.closest(".frView"), t = e.target.closest(".frToggle");
+    const v = e.target.closest(".frView"), t = e.target.closest(".frToggle"), c = e.target.closest(".frClearRow");
     if (v) frShowResults(Number(v.dataset.id));
+    if (c) {
+      if (!await uiConfirm("Clear all responses to this form? The answers are deleted for good. If the form is still open, people who answered will see it again. Download the CSV first if you want a copy.", "Clear responses")) return;
+      const { error } = await sb.rpc("developer_clear_feedback_responses", { p_id: Number(c.dataset.id) });
+      if (error) showMsg(document.getElementById("frListMsg"), error.message, "error");
+      else { showMsg(document.getElementById("frListMsg"), "Responses cleared.", "ok"); document.getElementById("frResults").innerHTML = ""; frLoadList(); }
+    }
     if (t) {
       const open = t.dataset.open === "1";
       if (open && !await uiConfirm("Close this form? People who have not answered yet will stop seeing it.", "Close form")) return;

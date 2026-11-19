@@ -14,7 +14,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Pharmacy Admin is a read-only role. The database refuses every write for it; this guard
 // additionally stops the browser even trying (friendlier message) except for harmless reads and
 // the person's own colour/theme preference.
-const RO_ADMIN_RPC_OK = new Set(["get_profile_directory", "get_oncall_people", "get_oncall_pending_swaps", "get_oncall_audit", "get_name_directory", "get_backup_schedule", "get_backup_auto_status", "search_huddle_posts", "set_own_theme", "set_own_color_mode", "set_own_show_dashboard", "set_own_dashboard_layout", "add_personal_task", "update_personal_task", "toggle_personal_task", "delete_personal_task", "carry_over_personal_tasks", "toggle_assigned_task", "get_assigned_tasks", "chat_directory", "chat_start_direct", "chat_create_group", "chat_add_members", "chat_remove_member", "chat_make_owner", "chat_leave", "chat_rename_group", "chat_send", "chat_edit_message", "chat_delete_message", "chat_mark_read", "chat_list", "chat_unread_total", "mark_notifications_read", "clear_notifications"]);
+const RO_ADMIN_RPC_OK = new Set(["get_profile_directory", "get_oncall_people", "get_oncall_pending_swaps", "get_oncall_audit", "get_name_directory", "get_backup_schedule", "get_backup_auto_status", "search_huddle_posts", "set_own_theme", "set_own_color_mode", "set_own_show_dashboard", "set_own_dashboard_layout", "add_personal_task", "update_personal_task", "toggle_personal_task", "delete_personal_task", "carry_over_personal_tasks", "toggle_assigned_task", "get_assigned_tasks", "chat_directory", "chat_start_direct", "chat_create_group", "chat_add_members", "chat_remove_member", "chat_make_owner", "chat_leave", "chat_rename_group", "chat_send", "chat_edit_message", "chat_delete_message", "chat_mark_read", "chat_list", "chat_unread_total", "mark_notifications_read", "clear_notifications", "dismiss_notification"]);
 const RO_ADMIN_MSG = "Pharmacy Admin accounts are read-only: you can view everything but cannot make changes.";
 (function () {
   const rpc0 = sb.rpc.bind(sb);
@@ -2759,23 +2759,22 @@ async function checkPrivacyNotice() {
 }
 /* ---------------- Feedback request (sent by the Developer to a chosen group) ----------------
    A small card, not a blocking dialog: it shows on every page until the person has submitted the form
-   (feedback.html). "Not now" hides it for the rest of the browser session. */
+   (feedback.html). There is no dismiss button: it stays until they submit. */
 async function checkFeedbackRequest() {
   try {
     if (window.__frChecking || document.getElementById("frCard")) return; window.__frChecking = true;
     if (/feedback\.html$/.test(window.location.pathname)) return;
-    try { if (sessionStorage.getItem("frHide")) return; } catch (e) {}
     const { data, error } = await sb.rpc("my_pending_feedback_request");
     if (error || !data || !data.id) return;
     const card = document.createElement("div");
     card.id = "frCard"; card.setAttribute("role", "region"); card.setAttribute("aria-label", "Feedback requested");
-    card.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:9000;width:min(340px,calc(100vw - 36px));background:var(--surface,#fff);color:inherit;border:1px solid var(--border,#ccc);border-top:5px solid var(--honey,#f5b400);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:14px 16px;";
-    card.innerHTML = `<div style="font-weight:800;margin-bottom:4px;">${escapeHtml(data.title || "Your feedback is requested")}</div>
-      <div class="small" style="margin-bottom:10px;">${escapeHtml((data.intro || "Please review the functions and tell us what is useful.").slice(0, 140))}</div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" class="secondary" id="frLater" style="width:auto;margin:0;">Not now</button><button type="button" class="primary" id="frOpen" style="width:auto;margin:0;">Review and submit</button></div>`;
+    card.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:9000;width:min(340px,calc(100vw - 36px));background:var(--surface,#fff);color:inherit;border:1px solid var(--border,#ccc);border-radius:14px;box-shadow:0 14px 34px -10px rgba(26,39,68,.55);overflow:hidden;";
+    card.innerHTML = `<div style="background:linear-gradient(135deg,#1a2744,#25365c);color:#fff;padding:10px 16px 9px;"><div style="font-size:17px;font-weight:800;line-height:1;">ED<span style="color:#12a0ad;">&amp;</span>G<sup style="font-size:9px;">&trade;</sup></div><div style="display:flex;height:3px;border-radius:2px;overflow:hidden;width:70px;margin-top:7px;"><span style="flex:1;background:#fff;"></span><span style="flex:1;background:#12a0ad;"></span><span style="flex:1;background:#4caf50;"></span></div></div>
+      <div style="padding:12px 16px 14px;"><div style="font-weight:800;margin-bottom:4px;">${escapeHtml(data.title || "Your feedback is requested")}</div>
+      <div class="small" style="margin-bottom:12px;">${escapeHtml((data.intro || "Please review the functions and tell us what is useful.").slice(0, 140))}</div>
+      <div style="display:flex;justify-content:flex-end;"><button type="button" class="primary" id="frOpen" style="width:auto;margin:0;">Review and submit</button></div></div>`;
     document.body.appendChild(card);
     document.getElementById("frOpen").onclick = () => { window.location.href = "feedback.html"; };
-    document.getElementById("frLater").onclick = () => { try { sessionStorage.setItem("frHide", "1"); } catch (e) {} card.remove(); };
   } catch (e) { /* ignore: never traps anyone if the schema is not yet updated */ } finally { window.__frChecking = false; }
 }
 async function viewPrivacyNotice() {
@@ -3452,8 +3451,11 @@ function initNotifications() {
     }
     const it = e.target.closest(".notif-item");
     if (!it) return;
-    const n = NOTIFS.find(x => x.id === it.dataset.id);
-    if (n && !n.read_at) { n.read_at = new Date().toISOString(); sb.rpc("mark_notifications_read", { p_ids: [n.id] }); paintNotifications(); }
+    /* Clicking a notification clears it (no need to "Clear all"). It is removed from the list straight away. */
+    const id = it.dataset.id;
+    NOTIFS = NOTIFS.filter(x => x.id !== id);
+    sb.rpc("dismiss_notification", { p_id: id }).then(() => {}, () => {});
+    paintNotifications();
     const link = it.dataset.link; closeNotifPanel();
     if (!link) return;
     const [pg, hash] = link.split("#");
