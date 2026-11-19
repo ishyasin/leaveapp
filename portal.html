@@ -833,6 +833,38 @@ async function saveBanner(e) {
       if (code.replace(/\s/g, "").length >= 4) (on ? Promise.resolve() : refreshOn()).then(() => { if (on) tryCode(code); });
     });
   }
+  /* Screenshot deterrent, games only (any game sets window.__pdOpen while it is open).
+     A web page cannot truly stop screenshots; this blocks the obvious routes: Print Screen (clipboard is
+     overwritten and the screen is blanked for a moment), Ctrl/Cmd+P, Ctrl/Cmd+S, right-click, text selection,
+     dragging and printing, and the game is covered whenever the window loses focus (snipping tools, other apps). */
+  (() => {
+    const st = document.createElement("style");
+    st.textContent = "@media print{html.pd-guard body *{visibility:hidden !important}}html.pd-guard-on #pdCover{display:flex}#pdCover{display:none;position:fixed;inset:0;z-index:2147483000;background:#1a2744;color:#fff;align-items:center;justify-content:center;font:700 18px system-ui,sans-serif;text-align:center;padding:24px}";
+    document.head.appendChild(st);
+    const cover = document.createElement("div"); cover.id = "pdCover"; cover.textContent = "Game hidden while you are away. Click here to return.";
+    document.body.appendChild(cover);
+    const root = document.documentElement;
+    const open = () => !!window.__pdOpen;
+    const hide = () => { if (open()) root.classList.add("pd-guard-on"); };
+    const show = () => root.classList.remove("pd-guard-on");
+    cover.addEventListener("click", show);
+    window.addEventListener("blur", hide);
+    window.addEventListener("focus", show);
+    document.addEventListener("visibilitychange", () => { document.hidden ? hide() : show(); });
+    const flash = () => { hide(); setTimeout(show, 1500); try { navigator.clipboard && navigator.clipboard.writeText(" "); } catch (e) {} };
+    const key = e => {
+      if (!open()) return;
+      const k = (e.key || "").toLowerCase();
+      if (e.key === "PrintScreen" || e.code === "PrintScreen") { e.preventDefault(); flash(); return; }
+      if ((e.ctrlKey || e.metaKey) && (k === "p" || k === "s")) { e.preventDefault(); e.stopPropagation(); flash(); return; }
+      if (e.metaKey && e.shiftKey && (k === "3" || k === "4" || k === "5" || k === "s")) { e.preventDefault(); flash(); return; }   // Mac / Windows screenshot shortcuts, where the browser sees them
+      if (e.shiftKey && (e.metaKey || e.getModifierState && e.getModifierState("OS")) && k === "s") { e.preventDefault(); flash(); }
+    };
+    window.addEventListener("keydown", key, true); window.addEventListener("keyup", key, true);
+    ["contextmenu", "selectstart", "dragstart", "copy", "cut"].forEach(t => document.addEventListener(t, e => { if (open()) e.preventDefault(); }, true));
+    window.addEventListener("beforeprint", () => { if (open()) root.classList.add("pd-guard"); });
+    window.addEventListener("afterprint", () => root.classList.remove("pd-guard"));
+  })();
   // Three quick clicks anywhere that isn't a control (own counter, so small mouse movement doesn't break it).
   let clicks = 0, clickTimer = null;
   document.addEventListener("click", e => {

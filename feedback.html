@@ -19,23 +19,23 @@
   /* ED&G brand constants: fixed, they do not change with the user's accent theme */
   .fb-page{--edg-navy:#1a2744;--edg-navy2:#25365c;--edg-teal:#12a0ad;--edg-green:#4caf50;}
   .fb-wrap{max-width:1800px;margin:0 auto;}
-  .fb-hero{position:relative;overflow:hidden;border-radius:16px;padding:26px 28px 30px;margin:4px 0 18px;color:#fff;
-    background:linear-gradient(135deg,var(--edg-navy) 0%,var(--edg-navy2) 100%);box-shadow:0 14px 34px -16px rgba(26,39,68,.7);}
+  .fb-hero{position:relative;overflow:hidden;border-radius:16px;padding:26px 28px 30px;margin:4px 0 18px;color:var(--hero-fg,#fff);
+    background:var(--hero-bg,linear-gradient(135deg,var(--edg-navy) 0%,var(--edg-navy2) 100%));box-shadow:0 14px 34px -16px rgba(26,39,68,.7);}
   .fb-hero::before,.fb-hero::after{content:"";position:absolute;pointer-events:none;}
-  .fb-hero::before{right:-40px;top:-60px;width:260px;height:260px;background:rgba(18,160,173,.22);clip-path:polygon(50% 0,100% 100%,0 100%);transform:rotate(18deg);}
-  .fb-hero::after{right:90px;bottom:-70px;width:170px;height:170px;background:rgba(76,175,80,.20);clip-path:polygon(50% 0,100% 100%,0 100%);transform:rotate(-12deg);}
+  .fb-hero::before{right:-40px;top:-60px;width:260px;height:260px;background:var(--tri1,rgba(18,160,173,.22));clip-path:polygon(50% 0,100% 100%,0 100%);transform:rotate(18deg);}
+  .fb-hero::after{right:90px;bottom:-70px;width:170px;height:170px;background:var(--tri2,rgba(76,175,80,.20));clip-path:polygon(50% 0,100% 100%,0 100%);transform:rotate(-12deg);}
   .fb-hero > *{position:relative;z-index:1;}
   .fb-mark{font-size:26px;font-weight:800;line-height:1;letter-spacing:.2px;}
   .fb-mark .amp{color:var(--edg-teal);}
   .fb-mark .tm{font-size:11px;font-weight:700;vertical-align:super;margin-left:1px;}
   .fb-by{margin-top:4px;font-size:12.5px;opacity:.8;}
   .fb-rule{display:flex;height:3px;border-radius:2px;overflow:hidden;width:120px;margin:10px 0 18px;}
-  .fb-rule span{flex:1;}.fb-rule span:nth-child(1){background:#fff;}.fb-rule span:nth-child(2){background:var(--edg-teal);}.fb-rule span:nth-child(3){background:var(--edg-green);}
+  .fb-rule span{flex:1;}.fb-rule span:nth-child(1){background:var(--rule1,#fff);}.fb-rule span:nth-child(2){background:var(--edg-teal);}.fb-rule span:nth-child(3){background:var(--edg-green);}
   .fb-hero p{max-width:90ch;}
-  .fb-hero h1{margin:0 0 6px;font-size:clamp(24px,4vw,32px);color:#fff;letter-spacing:-.4px;}
+  .fb-hero h1{margin:0 0 6px;font-size:clamp(24px,4vw,32px);color:var(--hero-fg,#fff);letter-spacing:-.4px;}
   .fb-hero p{margin:0;max-width:62ch;opacity:.92;line-height:1.5;}
   .fb-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
-  .fb-chip{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:4px 12px;font-size:12.5px;}
+  .fb-chip{background:var(--chip-bg,rgba(255,255,255,.12));border:1px solid var(--chip-bd,rgba(255,255,255,.22));border-radius:999px;padding:4px 12px;font-size:12.5px;}
   .fb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin:12px 0 18px;}
   .fb-item{background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--border);border-radius:14px;padding:14px 16px;transition:border-color .15s,box-shadow .15s,transform .15s;box-shadow:0 1px 2px rgba(26,39,68,.06);}
   .fb-item:hover{box-shadow:0 10px 24px -14px rgba(26,39,68,.45);}
@@ -57,12 +57,6 @@
   .fb-item ul{margin:6px 0 0;padding-left:18px;}.fb-item li{margin:3px 0;}
   .fb-group{display:flex;align-items:center;gap:10px;margin:22px 0 0;font-size:18px;color:var(--heading-color);}
   .fb-group::before{content:"";width:6px;height:22px;border-radius:3px;background:linear-gradient(var(--edg-teal),var(--edg-green));}
-  .fb-mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin:10px 0 4px;}
-  .fb-mod{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--edg-teal);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.45;}
-  .fb-mod:nth-child(3n+2){border-left-color:var(--edg-navy2);}.fb-mod:nth-child(3n){border-left-color:var(--edg-green);}
-  .fb-mod b{display:block;font-size:14px;margin-bottom:2px;}
-  .fb-about{margin:12px 0;border:1px solid var(--border);border-radius:14px;padding:12px 16px;background:var(--surface);}
-  .fb-about summary{cursor:pointer;font-weight:800;}
   .fb-bar{position:sticky;bottom:0;z-index:20;display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:12px 16px;margin-top:18px;
     background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 -8px 24px -14px rgba(26,39,68,.5);}
   .fb-prog{flex:1;min-width:140px;}
@@ -77,6 +71,13 @@
   .fb-foot .rule span{flex:1;}.fb-foot .rule span:nth-child(1){background:var(--edg-navy);}.fb-foot .rule span:nth-child(2){background:var(--edg-teal);}.fb-foot .rule span:nth-child(3){background:var(--edg-green);}
   .fb-done{text-align:center;padding:34px 16px;}
   .fb-done .tick{width:64px;height:64px;border-radius:50%;margin:0 auto 12px;display:grid;place-items:center;font-size:32px;color:#fff;background:linear-gradient(135deg,var(--edg-teal),var(--edg-green));}
+
+  /* Slow drifting triangles in the banner (stops for people who prefer reduced motion) */
+  @keyframes fbTri1{0%{transform:translate(0,0) rotate(18deg)}50%{transform:translate(-26px,18px) rotate(30deg)}100%{transform:translate(0,0) rotate(18deg)}}
+  @keyframes fbTri2{0%{transform:translate(0,0) rotate(-12deg)}50%{transform:translate(30px,-16px) rotate(-26deg)}100%{transform:translate(0,0) rotate(-12deg)}}
+  .fb-hero::before{animation:fbTri1 14s ease-in-out infinite;}
+  .fb-hero::after{animation:fbTri2 11s ease-in-out infinite;}
+  @media (prefers-reduced-motion:reduce){.fb-hero::before,.fb-hero::after{animation:none;}}
 </style>
 </head>
 <body>
@@ -93,19 +94,6 @@
     </div>
     <div id="msg"></div>
     <div id="fbForm" style="display:none;">
-      <details class="fb-about" open><summary>The Pharmacy Portal modules at a glance</summary>
-        <p class="small" style="margin:6px 0 0;">After sign-in everyone lands on the Home page and only sees the modules their role allows. Access is enforced in the database, and every change is audited.</p>
-        <div class="fb-mods">
-          <div class="fb-mod"><b>Leave Manager</b>Calendar for both sites, leave requests (Annual Leave, TOIL, Study), approvals and My Leave.</div>
-          <div class="fb-mod"><b>On-Call Rota &amp; Swaps</b>Overnight and onsite cover per site, shift swaps in automatic or approval mode, audit trail.</div>
-          <div class="fb-mod"><b>My Tasks</b>Private long-term and daily task lists, plus tasks set by supervisors.</div>
-          <div class="fb-mod"><b>Huddle Board</b>Site notices, pins, PDFs, reactions and comments.</div>
-          <div class="fb-mod"><b>Quick Links</b>Shared tiles to the systems the team uses.</div>
-          <div class="fb-mod"><b>ED&amp;G&trade; Echo</b>Instant messaging: one-to-one and groups.</div>
-          <div class="fb-mod"><b>Dashboard &amp; Alerts</b>Personal dashboard, notification bell and home-screen banners.</div>
-          <div class="fb-mod"><b>Admin &amp; Governance</b>Users, rules, audit trail, encrypted daily backup and a versioned privacy notice.</div>
-          <div class="fb-mod"><b>Appearance</b>63 themes, a monthly theme schedule and light, dark or inverted display.</div>
-        </div></details>
       <p class="small" style="margin:0;">For each function, choose <strong>I want this</strong> or <strong>I don't want this</strong> and add a note where you have one. Answer at least one, then submit. Your name is shown with your answers to the developer. You will only be asked once.</p>
       <div id="fbGrid"></div>
       <label for="fbGen" style="font-weight:800;">Anything else, or a function you would like to see?</label>
