@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data: https://*.supabase.co; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data: https://*.supabase.co; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
 <title>Sign in — Pharmacy Portal</title>
 <script>
 // Applies the last-known colour theme/mode (cached by applyTheme()/
@@ -16,7 +16,7 @@
 (function(){try{var m=localStorage.getItem('lm_color_mode');if(m)document.documentElement.setAttribute('data-color-mode',m);}catch(e){}})();
 </script>
 <link rel="stylesheet" href="shared.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="vendor/supabase-js-2.45.4.min.js"></script>
 <style>
   *{box-sizing:border-box;}
   html,body{height:100%;}

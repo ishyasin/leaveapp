@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';">
+<title>Easter Eggs — Pharmacy Portal</title>
+<script>
+// Applies the last-known colour theme/mode (cached by applyTheme()/
+// applyColorMode() in shared.js) before first paint, so a user who
+// picked Dark or Inverted doesn't see a flash of the light page while
+// their profile loads. The profile itself (fetched in requireAuth())
+// remains the source of truth and corrects this on every page load.
+(function(){try{var m=localStorage.getItem('lm_color_mode'),t=localStorage.getItem('lm_theme');if(m)document.documentElement.setAttribute('data-color-mode',m);if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<link rel="stylesheet" href="shared.css?v=202611132100">
+<script src="vendor/supabase-js-2.45.4.min.js"></script>
+<style>
+  .eg-pills{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px;}
+  .eg-pills button{width:auto;margin:0;padding:6px 14px;font-size:13px;border-radius:999px;background:var(--surface);border:1px solid var(--border);color:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:8px;}
+  .eg-pills button.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:800;}
+  .eg-pills .dot{width:9px;height:9px;border-radius:50%;background:#9aa3b5;display:inline-block;flex:none;}
+  .eg-pills .dot.live{background:#2e9d50;box-shadow:0 0 0 2px rgba(46,157,80,.25);}
+  .eg-pills button.on .dot{box-shadow:0 0 0 2px rgba(255,255,255,.55);}
+  .eg-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;}
+</style>
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="wrap">
+  <div class="card">
+    <div class="eg-top"><h1 style="margin:0;">Easter Eggs</h1><a href="admin.html" class="small">Back to Admin</a></div>
+    <p class="small">Developer only. Each hidden game has its own secret code and on/off switch. A green dot means the egg is switched on. While an egg is off, nothing happens however its code is typed.</p>
+    <div class="eg-pills" id="egPills" role="tablist" aria-label="Easter eggs">
+      <button type="button" id="tabBtn-egg" onclick="showEgg('egg')"><i class="dot" id="dot-egg"></i>1: Portal Defence</button>
+      <button type="button" id="tabBtn-egg2" onclick="showEgg('egg2')"><i class="dot" id="dot-egg2"></i>2: Tile Defence</button>
+      <button type="button" id="tabBtn-egg3" onclick="showEgg('egg3')"><i class="dot" id="dot-egg3"></i>3: Portal Defence: Payback</button>
+      <button type="button" id="tabBtn-egg4" onclick="showEgg('egg4')"><i class="dot" id="dot-egg4"></i>4: GRAEMe Escape</button>
+      <button type="button" id="tabBtn-egg6" onclick="showEgg('egg6')"><i class="dot" id="dot-egg6"></i>5: GRAEMe&rsquo;s Emergency Drop</button>
+      <button type="button" id="tabBtn-egg7" onclick="showEgg('egg7')"><i class="dot" id="dot-egg7"></i>6: Dispensary Dash</button>
+      <button type="button" id="tabBtn-egg8" onclick="showEgg('egg8')"><i class="dot" id="dot-egg8"></i>7: Seafront Jet</button>
+      <button type="button" id="tabBtn-egg9" onclick="showEgg('egg9')"><i class="dot" id="dot-egg9"></i>8: Shelf Match</button>
+      <button type="button" id="tabBtn-egg10" onclick="showEgg('egg10')"><i class="dot" id="dot-egg10"></i>9: Coastal Flight</button>
+    </div>
+  </div>
+  <div id="tab-egg" class="egg-sec" style="display:none;">
+    <div class="card">
+      <h2>Easter egg 1: Portal Defence</h2>
+      <p class="small">Developer only. A hidden full-screen game, opened from the portal home page. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, anyone signed in who types the secret code on the home page and presses Enter opens it. Only you can switch it on or off or change the code. The current code is shown below (visible to the Developer only), so it can always be looked up. Changing the code stops the old one working straight away. Every change is written to the audit log (never the code itself).</p>
+      <div id="eggMsg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="eggStatus">loading…</span><br><span class="small" id="eggMeta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="eggOnBtn" onclick="eggSwitch(1, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="eggOffBtn" onclick="eggSwitch(1, false)" style="display:none;">Switch off</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Secret code</h2>
+      <form id="eggForm" autocomplete="off">
+        <label for="eggCode">New code</label>
+        <input type="text" id="eggCode" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="eggCode2">
+        <input type="checkbox" id="eggShow" style="display:none;">
+        <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess. Saving a code does not change whether the egg is on or off.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="eggSaveBtn">Save new code</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="tab-egg2" class="egg-sec" style="display:none;">
+    <div class="card">
+      <h2>Easter egg 2: Tile Defence</h2>
+      <p class="small">Developer only. A second hidden game that plays on top of the portal home page: virus bots try to eat the tiles and reach the portal while GRAEMe defends it. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, anyone signed in who types the secret code on the home page and presses Enter opens it. Only you can switch it on or off or change the code. The current code is shown below (visible to the Developer only), so it can always be looked up. Changing the code stops the old one working straight away. Every change is written to the audit log (never the code itself).</p>
+      <div id="egg2Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg2Status">loading…</span><br><span class="small" id="egg2Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg2OnBtn" onclick="eggSwitch(2, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg2OffBtn" onclick="eggSwitch(2, false)" style="display:none;">Switch off</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Secret code</h2>
+      <form id="egg2Form" autocomplete="off">
+        <label for="egg2Code">New code</label>
+        <input type="text" id="egg2Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg2Code2">
+        <input type="checkbox" id="egg2Show" style="display:none;">
+        <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the code for Easter Egg 1 (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg2SaveBtn">Save new code</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="tab-egg3" class="egg-sec" style="display:none;">
+    <div class="card">
+      <h2>Easter egg 3: Portal Defence: Payback</h2>
+      <p class="small">Developer only. A third hidden game, a first-person rail shooter: GRAEMe drives down a road through the internet firing a mounted machine gun at the evil bot farm, with a boss at the end of each level. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, anyone signed in who types the secret code on the home page and presses Enter opens it. Only you can switch it on or off or change the code. The current code is shown below (visible to the Developer only), so it can always be looked up. Changing the code stops the old one working straight away. Every change is written to the audit log (never the code itself).</p>
+      <div id="egg3Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg3Status">loading…</span><br><span class="small" id="egg3Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg3OnBtn" onclick="eggSwitch(3, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg3OffBtn" onclick="eggSwitch(3, false)" style="display:none;">Switch off</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Secret code</h2>
+      <form id="egg3Form" autocomplete="off">
+        <label for="egg3Code">New code</label>
+        <input type="text" id="egg3Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg3Code2">
+        <input type="checkbox" id="egg3Show" style="display:none;">
+        <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for Easter Eggs 1 and 2 (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg3SaveBtn">Save new code</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="tab-egg4" class="egg-sec" style="display:none;">
+    <div class="card">
+      <h2>Easter egg 4: GRAEMe Escape</h2>
+      <p class="small">Developer only. A fourth hidden game, a side-scrolling platformer: GRAEMe is out of ammo and must run, jump and stomp his way through the internet to the Pharmacy Portal to rearm, picking up ammo crates to shoot the bot farm. Ten levels, with coins, spare magazines, pipes with pop-up ads, charging ram bots, a Trojan horse, shield bots, bomber bots, dive and dropper drones, spambot swarms, packet snakes, firewall gates, crushers, falling data and System Admin bosses on levels 5 and 10. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, anyone signed in who types the secret code on the home page and presses Enter opens it. Only you can switch it on or off or change the code. The current code is shown below (visible to the Developer only), so it can always be looked up. Changing the code stops the old one working straight away. Every change is written to the audit log (never the code itself).</p>
+      <div id="egg4Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg4Status">loading…</span><br><span class="small" id="egg4Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg4OnBtn" onclick="eggSwitch(4, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg4OffBtn" onclick="eggSwitch(4, false)" style="display:none;">Switch off</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Secret code</h2>
+      <form id="egg4Form" autocomplete="off">
+        <label for="egg4Code">New code</label>
+        <input type="text" id="egg4Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg4Code2">
+        <input type="checkbox" id="egg4Show" style="display:none;">
+        <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for Easter Eggs 1, 2 and 3 (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg4SaveBtn">Save new code</button></div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>GRAEMe Escape: developer cheat code</h2>
+      <p class="small">Developer only. Type this code inside the game (press the <strong>`</strong> key, enter the code, press Enter) and enemies, spikes and other hazards can no longer hurt you. A fall into a waterfall still ends the run. It stays on until you close the game. It only works on a Developer account, even if someone else learns the code, and it must differ from the codes for Easter Eggs 1 to 4.</p>
+      <div id="egg5Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg5Status">loading…</span><br><span class="small" id="egg5Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg5OnBtn" onclick="eggSwitch(5, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg5OffBtn" onclick="eggSwitch(5, false)" style="display:none;">Switch off</button>
+      </div>
+      <form id="egg5Form" autocomplete="off" style="margin-top:14px;">
+        <label for="egg5Code">New cheat code</label>
+        <input type="text" id="egg5Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg5Code2">
+        <input type="checkbox" id="egg5Show" style="display:none;">
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg5SaveBtn">Save new code</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="tab-egg6" class="egg-sec" style="display:none;">
+    <div class="card">
+      <h2>Easter egg 5: GRAEMe&rsquo;s Emergency Drop</h2>
+      <p class="small">Developer only. A hidden top-down driving game: GRAEMe races the antidotes to Worthing, St Richard&rsquo;s, Princess Royal and Royal Sussex County hospitals against the clock, dodging traffic and roadworks and picking up antidote vials for extra time. Arrow keys only. Weekly high scores are shared between staff. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, clicking three times quickly on a blank part of the home page opens a small box for its code.</p>
+      <div id="egg6Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg6Status">loading…</span><br><span class="small" id="egg6Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg6OnBtn" onclick="eggSwitch(6, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg6OffBtn" onclick="eggSwitch(6, false)" style="display:none;">Switch off</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Secret code</h2>
+      <form id="egg6Form" autocomplete="off">
+        <label for="egg6Code">New code</label>
+        <input type="text" id="egg6Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg6Code2">
+        <input type="checkbox" id="egg6Show" style="display:none;">
+        <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for the other easter eggs (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg6SaveBtn">Save new code</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="tab-egg7" class="egg-sec" style="display:none;">
+    <div class="card">
+      <h2>Easter egg 6: Dispensary Dash</h2>
+      <p class="small">Developer only. A hidden sorting game: prescription slips ride a conveyor and you send each one to the Cold Store, Ambient or the CD cupboard before the queue backs up, with look-alike drug names in the later levels. GRAEMe watches from behind the counter. Arrow keys only. Weekly high scores are shared between staff. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, clicking three times quickly on a blank part of the home page opens a small box for its code.</p>
+      <div id="egg7Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg7Status">loading…</span><br><span class="small" id="egg7Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg7OnBtn" onclick="eggSwitch(7, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg7OffBtn" onclick="eggSwitch(7, false)" style="display:none;">Switch off</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Secret code</h2>
+      <form id="egg7Form" autocomplete="off">
+        <label for="egg7Code">New code</label>
+        <input type="text" id="egg7Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg7Code2">
+        <input type="checkbox" id="egg7Show" style="display:none;">
+        <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for the other easter eggs (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg7SaveBtn">Save new code</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="tab-egg8" class="egg-sec" style="display:none;">
+    <div class="card">
+      <h2>Easter egg 7: Seafront Jet</h2>
+      <p class="small">Developer only. A hidden side-scrolling jetpack game on the Worthing seafront: GRAEMe hovers while the beach scrolls past, dodging mines, electric zappers, rockets and storm clouds, and fires flares (F) or chaff (C) at heat-seeking and radar-seeking missiles. Arrow keys fly. Weekly high scores are shared between staff. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, clicking three times quickly on a blank part of the home page opens a small box for its code.</p>
+      <div id="egg8Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg8Status">loading…</span><br><span class="small" id="egg8Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg8OnBtn" onclick="eggSwitch(8, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg8OffBtn" onclick="eggSwitch(8, false)" style="display:none;">Switch off</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Secret code</h2>
+      <form id="egg8Form" autocomplete="off">
+        <label for="egg8Code">New code</label>
+        <input type="text" id="egg8Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg8Code2">
+        <input type="checkbox" id="egg8Show" style="display:none;">
+        <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for the other easter eggs (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg8SaveBtn">Save new code</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="tab-egg9" class="egg-sec" style="display:none;">
+    <div class="card">
+      <h2>Easter egg 8: Shelf Match</h2>
+      <p class="small">Developer only. A hidden memory game played on a photographed shelving unit: pharmacy cards drop onto all 34 shelves, show their faces briefly, then flip face down. Click a card to turn it over; matched pairs disappear. Four rounds, each with a shorter peek. Weekly high scores are shared between staff. While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, clicking three times quickly on a blank part of the home page opens a small box for its code.</p>
+      <div id="egg9Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg9Status">loading…</span><br><span class="small" id="egg9Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg9OnBtn" onclick="eggSwitch(9, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg9OffBtn" onclick="eggSwitch(9, false)" style="display:none;">Switch off</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Secret code</h2>
+      <form id="egg9Form" autocomplete="off">
+        <label for="egg9Code">New code</label>
+        <input type="text" id="egg9Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg9Code2">
+        <input type="checkbox" id="egg9Show" style="display:none;">
+        <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for the other easter eggs (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg9SaveBtn">Save new code</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="tab-egg10" class="egg-sec" style="display:none;">
+    <div class="card">
+      <h2>Easter egg 9: Coastal Flight</h2>
+      <p class="small">Developer only. A hidden 3D flying game: GRAEMe flies west to east along the Sussex coast past Worthing Pier, the West Pier ruins, the i360, Brighton Palace Pier and the Royal Pavilion, dodging wind turbines, seagulls and piers. Weekly high scores are shared between staff (first name and surname initial only). While it is <strong>off</strong>, nothing happens however the code is typed. While it is <strong>on</strong>, clicking three times quickly on a blank part of the home page opens a small box for its code.</p>
+      <div id="egg10Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg10Status">loading…</span><br><span class="small" id="egg10Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg10OnBtn" onclick="eggSwitch(10, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg10OffBtn" onclick="eggSwitch(10, false)" style="display:none;">Switch off</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Secret code</h2>
+      <form id="egg10Form" autocomplete="off">
+        <label for="egg10Code">New code</label>
+        <input type="text" id="egg10Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg10Code2">
+        <input type="checkbox" id="egg10Show" style="display:none;">
+        <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for the other easter eggs (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg10SaveBtn">Save new code</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+<script src="shared.js?v=202611191300"></script>
+<script>
+let PROFILE = null;
+const EGG_NAMES = ["egg", "egg2", "egg3", "egg4", "egg6", "egg7", "egg8", "egg9", "egg10"];
+function showEgg(name) {
+  EGG_NAMES.forEach(t => {
+    document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
+    document.getElementById("tabBtn-" + t).classList.toggle("on", t === name);
+  });
+  try { localStorage.setItem("eg_last", name); } catch (e) {}
+}
+/* ---------------- easter eggs (Developer) ---------------- */
+// Four eggs share one set of functions: n = 1 (Portal Defence), 2 (Tile Defence), 3 (Portal Defence: Payback) or 4 (GRAEMe Escape).
+// Element ids are "egg..." for egg 1, "egg2..." for egg 2, "egg3..." for egg 3 and "egg4..." for egg 4.
+const EGG_STATE = { 1: { on: false, set: false }, 2: { on: false, set: false }, 3: { on: false, set: false }, 4: { on: false, set: false }, 5: { on: false, set: false }, 6: { on: false, set: false }, 7: { on: false, set: false }, 8: { on: false, set: false }, 9: { on: false, set: false }, 10: { on: false, set: false } };
+const eggLabel = n => (n === 10 ? 9 : n === 9 ? 8 : n === 8 ? 7 : n === 7 ? 6 : n === 6 ? 5 : n);   // egg 6 in the database is shown as "Easter egg 5" (egg 5 is the Escape cheat code)
+const eggId = (n, name) => (n === 1 ? "egg" : "egg" + n) + name;
+const eggEl = (n, name) => document.getElementById(eggId(n, name));
+function setupEggTab() {
+  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].forEach(n => {
+    eggEl(n, "Show").addEventListener("change", e => {
+      eggEl(n, "Code").type = e.target.checked ? "text" : "password";
+      eggEl(n, "Code2").type = e.target.checked ? "text" : "password";
+    });
+    eggEl(n, "Form").addEventListener("submit", async e => {
+      e.preventDefault();
+      const msg = eggEl(n, "Msg"), c1 = eggEl(n, "Code").value;
+      if (c1.replace(/\s+/g, "").length < 4) return showMsg(msg, "The code needs at least 4 characters (spaces do not count).", "error");
+      const ok = await eggCall(n, EGG_STATE[n].on, c1, "New code saved. The old one no longer works.");
+      if (ok) { eggEl(n, "Code").value = ""; }
+    });
+    loadEgg(n);
+  });
+}
+function renderEgg(n, st) {
+  const S = EGG_STATE[n];
+  S.on = !!st.enabled; S.set = !!st.code_set;
+  eggEl(n, "Status").innerHTML = S.on ? '<strong style="color:#2e7d32;">ON</strong>' : '<strong>OFF</strong>';
+  const when = st.code_set_at ? new Date(st.code_set_at).toLocaleString("en-GB") : null;
+  const metaTxt = S.set
+    ? "A code is set" + (when ? " (last changed " + when + (st.code_set_by ? " by " + st.code_set_by : "") + ")." : ".")
+    : "No code is set yet. Set one below, then switch the egg on.";
+  eggEl(n, "Meta").innerHTML = escapeHtml(metaTxt) + (st.code
+    ? '<br>Current code: <strong style="font-size:1.15em;letter-spacing:.04em;user-select:all;">' + escapeHtml(st.code) + "</strong>"
+    : (S.set ? '<br>This code was set before codes could be shown. Type it again below to make it visible.' : ""));
+  eggEl(n, "OnBtn").style.display = S.on ? "none" : "";
+  eggEl(n, "OffBtn").style.display = S.on ? "" : "none";
+}
+async function loadEgg(n) {
+  const msg = eggEl(n, "Msg");
+  try {
+    const { data, error } = await sb.rpc("developer_get_easter_egg", { p_egg: n });
+    if (error) throw error;
+    renderEgg(n, data);
+  } catch (err) { showMsg(msg, "Could not load the easter egg settings (has schema.sql been re-run?): " + err.message, "error"); eggEl(n, "Status").textContent = "unknown"; }
+}
+async function eggCall(n, enabled, code, okText) {
+  const msg = eggEl(n, "Msg");
+  try {
+    const { data, error } = await sb.rpc("developer_set_easter_egg", { p_enabled: enabled, p_code: code || null, p_egg: n });
+    if (error) throw error;
+    renderEgg(n, data); showMsg(msg, okText, "ok");
+    return true;
+  } catch (err) { showMsg(msg, err.message, "error"); return false; }
+}
+function eggSwitch(n, on) {
+  if (on && !EGG_STATE[n].set) return showMsg(eggEl(n, "Msg"), "Set a code first, then switch the easter egg on.", "error");
+  eggCall(n, on, null, n === 5 ? (on ? "The cheat code is ON." : "The cheat code is OFF.") : on ? "Easter egg " + eggLabel(n) + " is ON. People can open it by clicking three times quickly on a blank part of the home page and entering its code." : "Easter egg " + eggLabel(n) + " is OFF.");
+}
+
+
+const _renderEgg = renderEgg;
+renderEgg = function (n, st) {
+  _renderEgg(n, st);
+  const d = document.getElementById("dot-" + (n === 1 ? "egg" : n === 5 ? "egg4" : "egg" + n));
+  if (d && n !== 5) d.classList.toggle("live", !!st.enabled);
+};
+(async () => {
+  PROFILE = await requireAuth(["developer"]);
+  if (!PROFILE) return;
+  let last = "egg"; try { last = localStorage.getItem("eg_last") || "egg"; } catch (e) {}
+  showEgg(EGG_NAMES.includes(last) ? last : "egg");
+  setupEggTab();
+})();
+</script>
+</body>
+</html>
