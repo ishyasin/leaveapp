@@ -82,7 +82,7 @@ function build() {
   };
   const S = (geo, mat, x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = true; return m; };
   const sph = new THREE.SphereGeometry(1, 36, 24);
-  const robot = new THREE.Group(), bodyG = new THREE.Group(); robot.add(bodyG); robot.scale.setScalar(.95);
+  const robot = new THREE.Group(), bodyG = new THREE.Group(); robot.add(bodyG); robot.scale.setScalar(.72);
   const head = new THREE.Group(); head.position.set(0, 1.55, 0); bodyG.add(head);
   head.add(S(sph, M.white, 0, 0, 0, 1.22, 1.02, 1.08));
   head.add(S(sph, M.visor, 0, -.02, .5, .98, .8, .62));
@@ -262,7 +262,7 @@ function build() {
       boxes.push({ x0: -2.6, x1: -1.0, y0: 4.8, y1: 8.8, z0: -1.4, z1: 1.4 }, { x0: 5.0, x1: 6.6, y0: 4.8, y1: 8.8, z0: -1.4, z1: 1.4 });
       boxes.push({ x0: 12, x1: 16, y0: 4.6, y1: 9.8, z0: -2.2, z1: 2.2 }); g.userData.circs = [{ x: 2, y: 11.2, r: 4.7, zh: 1.1 }]; g.userData.dyn = (o2, t) => { wr.rotation.z = -t * .28; gond.forEach(gp => gp.rotation.z = t * .28); };
     }
-    g.userData.kind = "lm"; g.userData.D = Math.max(Dd, 8); g.userData.boxes = boxes; return g;
+    g.userData.kind = "lm"; g.userData.D = Math.max(Dd, 8); g.userData.boxes = boxes; g.userData.under = { x0: xs, x1: xe, z0: -Dd / 2, z1: Dd / 2, pts: o.name === "w" ? 60 : 90 }; return g;
   }
   function westPier() {
     const g = new THREE.Group(); const boxes = [];
@@ -426,6 +426,7 @@ function build() {
       else if (u.kind === "lm") {
         const lz = -o.position.z;
         for (const b of u.boxes) { if (lz > b.z0 - .8 && lz < b.z1 + .8 && px > b.x0 - .8 && px < b.x1 + .8 && py > b.y0 - .7 && py < b.y1 + .7) { hurt(); break; } }
+        if (u.under && !u.underDone && lz > u.under.z0 && lz < u.under.z1 && px > u.under.x0 && px < u.under.x1 && py < 3.0) { u.underDone = true; bonus += u.under.pts; showBanner("Under the pier +" + u.under.pts); }
         if (u.circs) for (const c of u.circs) { if (Math.abs(lz) < c.zh + .8 && Math.hypot(px - c.x, py - c.y) < c.r + .5) { hurt(); break; } }
       }
     }
@@ -436,8 +437,8 @@ function build() {
     // camera
     const fov = 65 + (bo ? 12 : 0) + (surge > 0 ? 8 : 0) + Math.max(0, mv - 30) * .2; cam.fov += (fov - cam.fov) * Math.min(1, dt * 4); cam.updateProjectionMatrix();
     shake = Math.max(0, shake - dt);
-    cam.position.set(px * .55 + (shake ? (Math.random() - .5) * shake : 0), py * .55 + 4.3 + (shake ? (Math.random() - .5) * shake : 0), 8);
-    cam.lookAt(px * .5, py * .6 - .2, -14);
+    cam.position.set(px * .55 + (shake ? (Math.random() - .5) * shake : 0), py * .55 + 5.2 + (shake ? (Math.random() - .5) * shake : 0), 12);
+    cam.lookAt(px * .5, py * .6 + .2, -14);
     sky.position.x = cam.position.x;
     renderer.render(scene, cam);
   }
