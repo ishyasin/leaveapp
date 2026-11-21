@@ -357,7 +357,7 @@ function build() {
   on(window, "resize", resize); resize();
   // ---------- Sound (Web Audio, no files). M or the Sound button mutes; the choice is remembered. ----------
   const AU = (() => {
-    let ac = null, master = null, on = true, nzb = null, wg = null, wf = null, eg = null, e1 = null, e2 = null, ef = null, sg = null, so = null, kg = null, kf = null, hg = null, ho = null;
+    let ac = null, master = null, on = true, nzb = null, wg = null, wf = null, eg = null, e1 = null, e2 = null, ef = null, sg = null, so = null, kg = null, kf = null, hg = null, ho = null, rg = null, rf = null, ag = null, af = null, abOn = false;
     try { on = localStorage.getItem("pdSound") !== "off"; } catch (e) {}
     const btn = root.querySelector(".snd"), label = () => { if (btn) btn.textContent = on ? "Sound on" : "Sound off"; };
     const noise = (dur, type, f, v, t0, q) => { if (!ac) return; const s = ac.createBufferSource(); s.buffer = nzb; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; if (q) fl.Q.value = q; const g = ac.createGain(); const t = t0 || ac.currentTime; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur); s.connect(fl); fl.connect(g); g.connect(master); s.start(t, Math.random()); s.stop(t + dur + .05); };
@@ -366,7 +366,10 @@ function build() {
     const osc = (type, f) => { const o = ac.createOscillator(); o.type = type; o.frequency.value = f; o.start(); return o; };
     const set = (p, v, k) => { if (ac) p.setTargetAtTime(v, ac.currentTime, k || .08); };
     const T = () => ac.currentTime;
-        const setup = () => { ho = osc("sawtooth", 70); const f = ac.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 420; hg = ac.createGain(); hg.gain.value = 0; ho.connect(f); f.connect(hg); hg.connect(master); };
+        const setup = () => {
+      ho = osc("sawtooth", 1100); const ho2 = osc("sine", 1650); const f = ac.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1400; f.Q.value = 4; hg = ac.createGain(); hg.gain.value = 0; ho.connect(f); ho2.connect(f); f.connect(hg); hg.connect(master); ho.w2 = ho2;
+      [rg, rf] = loopNoise("lowpass", 240, .5); [ag, af] = loopNoise("lowpass", 520, .8);
+      const lf = osc("sine", 31), lg = ac.createGain(); lg.gain.value = .5; lf.connect(lg); lg.connect(ag.gain); };
     const api = {
       init() { if (ac) { try { ac.resume(); } catch (e) {} return; }
         try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = on ? .55 : 0; master.connect(ac.destination);
@@ -378,14 +381,18 @@ function build() {
       nodes: () => ({ ac, master, wg, wf }), osc, loopNoise
     };
         Object.assign(api, {
-      fly(sp, bo, run) { if (!ac) return; set(wg.gain, run ? .06 + sp * .004 + (bo ? .09 : 0) : 0, .15); set(wf.frequency, 450 + sp * 20 + (bo ? 500 : 0), .2); set(ho.frequency, 62 + sp * 1.3 + (bo ? 30 : 0), .2); set(hg.gain, run ? .035 + (bo ? .04 : 0) : 0, .15); },
+      fly(sp, bo, run) { if (!ac) return; const k = run ? 1 : 0;
+        set(wg.gain, k * (.07 + sp * .003 + (bo ? .06 : 0)), .2); set(wf.frequency, 900 + sp * 25 + (bo ? 500 : 0), .25);
+        set(rg.gain, k * (.2 + sp * .008 + (bo ? .12 : 0)), .2); set(rf.frequency, 220 + sp * 6 + (bo ? 120 : 0), .25);
+        set(ho.frequency, 1000 + sp * 22 + (bo ? 450 : 0), .3); ho.w2.frequency.setTargetAtTime(1500 + sp * 33 + (bo ? 650 : 0), ac.currentTime, .3); set(hg.gain, k * (.012 + (bo ? .01 : 0)), .2);
+        set(ag.gain, k && bo ? .34 : 0, bo ? .08 : .25); set(af.frequency, bo ? 700 : 400, .15); },
       ring(c) { if (!ac) return; const t = T(), f = 523 * Math.pow(2, Math.min(c, 12) / 12 * .9); tone(f, t, .18, "triangle", .16); tone(f * 1.5, t + .07, .22, "triangle", .14); noise(.12, "highpass", 5000, .04, t); },
       miss() { if (ac) tone(260, T(), .2, "triangle", .07, 150); },
       gold() { if (!ac) return; const t = T(); [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, t + i * .07, .2, "square", .08)); noise(.5, "highpass", 3000, .05, t); },
       cap() { if (!ac) return; const t = T(); tone(880, t, .08, "square", .08); tone(1320, t + .06, .12, "square", .08); },
       heart() { if (ac) [659, 880, 1175].forEach((f, i) => tone(f, T() + i * .09, .18, "sine", .16)); },
       bonus() { if (!ac) return; tone(988, T(), .1, "square", .08); tone(1480, T() + .08, .18, "square", .08); },
-      boost() { if (ac) noise(.5, "bandpass", 900, .14, T(), 1.2); },
+      boost() { if (!ac) return; const t = T(); const o = ac.createBufferSource(); o.buffer = nzb; const fl = ac.createBiquadFilter(); fl.type = "lowpass"; fl.Q.value = 1; fl.frequency.setValueAtTime(200, t); fl.frequency.exponentialRampToValueAtTime(1800, t + .22); fl.frequency.exponentialRampToValueAtTime(500, t + .9); const g = ac.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.5, t + .1); g.gain.exponentialRampToValueAtTime(.0001, t + .9); o.connect(fl); fl.connect(g); g.connect(master); o.start(t, Math.random()); o.stop(t + 1); tone(60, t, .35, "sine", .3, 38); },
       hit() { if (!ac) return; const t = T(); noise(.35, "lowpass", 900, .35, t); tone(110, t, .4, "sawtooth", .25, 45); },
       over() { if (ac) [392, 330, 262, 196].forEach((f, i) => tone(f, T() + i * .18, .3, "triangle", .14)); }
     });

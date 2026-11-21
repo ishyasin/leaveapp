@@ -190,7 +190,7 @@ function build() {
   vb.add(bodyV, cab, wind, stripeT, stripeN, stripeG, crossH, crossV, beaconA, beaconB, tailL, tailR);
   { vb.add(B(.04, 1.5, .02, mBlk, 0, 1.3, 2.09), B(.75, .5, .03, mGlass, -.46, 1.65, 2.09), B(.75, .5, .03, mGlass, .46, 1.65, 2.09), B(2.0, .2, .18, mBlk, 0, .55, 2.12)); const pm = plateMesh(false, .5, .11); pm.position.set(0, .8, 2.12); vb.add(pm);
     [-1, 1].forEach(sd => { vb.add(B(.1, .22, .2, white, sd * 1.1, 1.3, -2.3), B(.06, .06, .3, mBlk, sd * 1.04, 1.3, -2.3)); }); }
-  van.add(vb); scene.add(van);
+  van.add(vb); van.scale.setScalar(.84); scene.add(van);
   const blueL = new THREE.PointLight(0x35b6ff, 1.5, 10), redL = new THREE.PointLight(0xff3b30, 1.5, 10); scene.add(blueL, redL);
   const head = new THREE.SpotLight(0xfff2cf, 1.4, 40, .5, .5); head.position.set(0, 1.2, -2.5); head.target.position.set(0, 0, -20); van.add(head, head.target);
 
@@ -325,6 +325,7 @@ function build() {
 
   // ---------- Scenery (instanced) ----------
   const Yax = new THREE.Vector3(0, 1, 0), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _m = new THREE.Matrix4();
+  const lamps = [], _v = new THREE.Vector3();
   const mx4 = (x, y, z, th, sx, sy, sz) => _m.compose(_p.set(x, y, z), _q.setFromAxisAngle(Yax, th), _s.set(sx, sy, sz)).clone();
   function inst(geo, material, list) { if (!list.length) return; const im = new THREE.InstancedMesh(geo, material, list.length); list.forEach((m, i) => im.setMatrixAt(i, m)); im.instanceMatrix.needsUpdate = true; im.frustumCulled = false; scene.add(im); return im; }
   const place = (g, s, x, y) => { fr(s); g.position.set(F.x + F.nx * x, y, F.z + F.nz * x); g.rotation.y = Math.atan2(-F.tx, -F.tz); scene.add(g); return g; };
@@ -345,9 +346,7 @@ function build() {
       fr(s); const ci = Math.floor(Math.random() * 6), fi = Math.floor(Math.random() * 3), h = [3, 4, 5][fi] * 3.2, w = rnd(13.5, 17), th = Math.atan2(-F.tz, F.tx), lat = -(14.5 + rnd(0, 2));
       bm[ci * 3 + fi].push(mx4(F.x + F.nx * lat, h / 2, F.z + F.nz * lat, th, w, h, 12)); roof.push(mx4(F.x + F.nx * lat, h + .3, F.z + F.nz * lat, th, w + .4, .6, 12.4)); }
     const bg = new THREE.BoxGeometry(1, 1, 1); terr.flat().forEach((m, i) => inst(bg, m, bm[i])); inst(bg, mSlate, roof);
-    const poles = [], bulbs = [];
-    for (let s = 14, k = 0; s < LEN - 10; s += 26, k++) { fr(s); const side = k % 2 ? 1 : -1, lat = side > 0 ? 8.3 : -8.7; poles.push(mx4(F.x + F.nx * lat, 2.6, F.z + F.nz * lat, 0, 1, 1, 1)); bulbs.push(mx4(F.x + F.nx * (lat - side * .8), 5.3, F.z + F.nz * (lat - side * .8), 0, 1, 1, 1)); }
-    inst(new THREE.CylinderGeometry(.08, .11, 5.2, 6), mPole, poles); inst(new THREE.SphereGeometry(.24, 8, 6), mLamp, bulbs);
+    for (let s = 14, k = 0; s < LEN - 10; s += 26, k++) { fr(s); const side = k % 2 ? 1 : -1, lat = side > 0 ? 8.3 : -8.7, g = new THREE.Group(), pm = new THREE.Mesh(new THREE.CylinderGeometry(.08, .11, 5.2, 6), mPole), bm2 = new THREE.Mesh(new THREE.SphereGeometry(.24, 8, 6), mLamp); pm.position.y = 2.6; bm2.position.set(-F.nx * side * .8, 5.3, -F.nz * side * .8); g.add(pm, bm2); g.position.set(F.x + F.nx * lat, 0, F.z + F.nz * lat); scene.add(g); lamps.push({ g, x: g.position.x, z: g.position.z, s, down: false, a: 0, w: 0, dx: 0, dz: 1 }); }
     const huts = hutCols.map(() => []), gro = [];
     for (let s = 30; s < LEN - 100; s += rnd(10, 16)) { if (near(s, 8)) continue; fr(s); const lat = 16 + rnd(0, 4); huts[Math.floor(Math.random() * huts.length)].push(mx4(F.x + F.nx * lat, 1.15, F.z + F.nz * lat, Math.atan2(F.nx, F.nz), 2.4, 2.6, 2.2)); }
     for (let s = 60; s < LEN - 100; s += 90) { if (near(s, 6)) continue; fr(s); gro.push(mx4(F.x + F.nx * 29, -.2, F.z + F.nz * 29, Math.atan2(F.nx, F.nz), .7, .8, 31)); }
@@ -382,7 +381,7 @@ function build() {
   // ---------- Traffic ----------
   const LANES = [{ lat: -5.4, dir: 1, v: 8.5 }, { lat: -1.8, dir: 1, v: 12 }, { lat: 1.8, dir: -1, v: 14 }, { lat: 5.4, dir: -1, v: 11 }];
   const ai = [];
-  for (let i = 0; i < 22; i++) { const k = Math.random(), g = k < .17 ? busCar() : k < .33 ? car("truck") : car("car"); scene.add(g); ai.push({ g, lane: LANES[0], s: -999, stun: 0, u: g.userData, x: 0, z: 0, gx: 1, gz: 0, vx: 0, vz: 0 }); }
+  for (let i = 0; i < 15; i++) { const k = Math.random(), g = k < .17 ? busCar() : k < .33 ? car("truck") : car("car"); scene.add(g); ai.push({ g, lane: LANES[0], s: -999, stun: 0, u: g.userData, x: 0, z: 0, gx: 1, gz: 0, vx: 0, vz: 0 }); }
   function placeAI(a, s0, s1) { for (let k = 0; k < 8; k++) { const ln = LANES[Math.floor(Math.random() * 4)], s = rnd(s0, s1); if (ai.every(o => o === a || o.lane !== ln || Math.abs(o.s - s) > 34)) { a.lane = ln; a.s = s; a.stun = 0; return; } } a.s = -999; }
 
   // ---------- Game state ----------
@@ -398,7 +397,7 @@ function build() {
   function reset() {
     fr(18); vanX = F.x - F.nx * 1.8; vanZ = F.z - F.nz * 1.8; yaw = Math.atan2(F.tz, F.tx); vx = vz = 0; steer = 0; hp = 100; timeLeft = T0; nVials = 0; boost = .5; nChk = 0; chkPts = 0; prog = 0; shake = 0; extra = 0; ringHint = false; spinV = 0;
     hint = 9; alive = true; camF.x = Math.cos(yaw); camF.z = Math.sin(yaw); Object.keys(K).forEach(k => K[k] = false);
-    ai.forEach(a => { a.s = -999; }); ai.forEach(a => placeAI(a, 45, 330)); vials3.forEach(v => { v.got = false; v.g.visible = true; });
+    lamps.forEach(l => { l.down = false; l.a = 0; l.w = 0; l.g.quaternion.identity(); }); ai.forEach(a => { a.s = -999; }); ai.forEach(a => placeAI(a, 45, 330)); vials3.forEach(v => { v.got = false; v.g.visible = true; });
     smoke.forEach(s => { s.life = 0; s.m.visible = false; }); bnEl.classList.remove("on"); viEl.textContent = 0;
   }
   // ---------- Controls ----------
@@ -479,8 +478,8 @@ function build() {
     return true; }
   function hurt(vn) { AU.hit(vn); shake = Math.max(shake, Math.min(.7, vn * .035)); if (vn > 3) { hp -= (vn - 3) * 2.2; if (hp <= 0) { hp = 0; over("wreck"); } } }
   function hitBox(bx, bz, gx, gz, hw2, hl2, bvx, bvz, e) {
-    const fx = Math.cos(yaw), fz = Math.sin(yaw), cx = vanX + fx * .55, cz = vanZ + fz * .55;
-    if (!sat(cx, cz, fx, fz, 1.05, 2.6, bx, bz, gx, gz, hw2, hl2)) return false;
+    const fx = Math.cos(yaw), fz = Math.sin(yaw), cx = vanX + fx * .46, cz = vanZ + fz * .46;
+    if (!sat(cx, cz, fx, fz, .9, 2.2, bx, bz, gx, gz, hw2, hl2)) return false;
     vanX -= SN.x * SN.d; vanZ -= SN.z * SN.d;
     const vn = (vx - bvx) * SN.x + (vz - bvz) * SN.z;
     if (vn > 0) { vx -= (1 + e) * vn * SN.x; vz -= (1 + e) * vn * SN.z; hurt(vn); const lat = SN.x * -fz + SN.z * fx, fw = SN.x * fx + SN.z * fz; spinV += -lat * (fw >= 0 ? 1 : -1) * Math.min(1.2, vn * .06); }
@@ -491,6 +490,7 @@ function build() {
     if (mxL > WR) { const p = mxL - WR; vanX -= nx * p; vanZ -= nz * p; const vn = vx * nx + vz * nz; if (vn > 0) { vx -= 1.25 * vn * nx; vz -= 1.25 * vn * nz; hurt(vn); } vx *= 1 - dt * .8; vz *= 1 - dt * .8; }
     if (mnL < WL) { const p = WL - mnL; vanX += nx * p; vanZ += nz * p; const vn = -(vx * nx + vz * nz); if (vn > 0) { vx += 1.25 * vn * nx; vz += 1.25 * vn * nz; hurt(vn); } vx *= 1 - dt * .8; vz *= 1 - dt * .8; }
     for (const o of statics) if (Math.abs(o.s - ps) < 26) hitBox(o.x, o.z, o.gx, o.gz, o.hw, o.hl, 0, 0, .2);
+    for (const l of lamps) if (!l.down && Math.abs(l.s - ps) < 20 && hitBox(l.x, l.z, 1, 0, .3, .3, 0, 0, .1)) { const dx = l.x - vanX, dz = l.z - vanZ, d = Math.hypot(dx, dz) || 1; l.down = true; l.dx = dx / d; l.dz = dz / d; l.w = 1.2; AU.hit(8); shake = Math.max(shake, .35); showBanner("Lamp post down!"); }
     for (const a of ai) if (a.s > 0 && Math.abs(a.s - ps) < 16 && hitBox(a.x, a.z, a.gx, a.gz, a.u.w, a.u.l, a.vx, a.vz, .3)) a.stun = 1.6;
   }
   function over(kind) {
@@ -550,7 +550,7 @@ function build() {
     if (run) {
       for (const v of vials3) { if (v.got || Math.abs(v.s - PS) > 20) continue; if ((v.x - vanX) * (v.x - vanX) + (v.z - vanZ) * (v.z - vanZ) < 7) { v.got = true; v.g.visible = false; nVials++; viEl.textContent = nVials; boost = Math.min(1, boost + .25); timeLeft += 2; AU.vial(); } }
       for (const p of potholes) { if (Math.abs(p.s - PS) > 14) { p.hit = false; continue; } if (p.hit) continue;
-        for (const [a, b2] of [[1.5, -1.02], [1.5, 1.02], [-1.4, -1.02], [-1.4, 1.02]]) { const wx = vanX + fx * a + rx * b2, wz = vanZ + fz * a + rz * b2; if ((wx - p.x) * (wx - p.x) + (wz - p.z) * (wz - p.z) < (p.r + .3) * (p.r + .3)) { p.hit = true; vx *= .55; vz *= .55; jolt = 1; shake = Math.max(shake, .3); spinV += (Math.random() - .5) * .25; AU.pothole(); showBanner("Pothole! Slowed down"); break; } } }
+        for (const [a, b2] of [[1.26, -.86], [1.26, .86], [-1.18, -.86], [-1.18, .86]]) { const wx = vanX + fx * a + rx * b2, wz = vanZ + fz * a + rz * b2; if ((wx - p.x) * (wx - p.x) + (wz - p.z) * (wz - p.z) < (p.r + .3) * (p.r + .3)) { p.hit = true; vx *= .55; vz *= .55; jolt = 1; shake = Math.max(shake, .3); spinV += (Math.random() - .5) * .25; AU.pothole(); showBanner("Pothole! Slowed down"); break; } } }
       while (nChk < LMD.length && PS >= LMD[nChk].s) { timeLeft += 12; chkPts += 150; showBanner(LMD[nChk].name + "  +12 s"); AU.chk(); nChk++; }
       const dd = Math.hypot(vanX - RX, vanZ - RZ);
       if (dd < RING.r + 5 && !ringHint && PS > LEN - 140) { ringHint = true; showBanner("Park in the green ring to hand over the antidote"); }
@@ -559,6 +559,7 @@ function build() {
     // visibility of far landmarks, animation
     lms.forEach(o => { const vis = Math.abs(o.s - PS) < 300; o.g.visible = vis; if (vis) o.dyn.forEach(f => f(t)); });
     vials3.forEach(v => { if (v.got) return; const nr = Math.abs(v.s - PS) < 190; v.g.visible = nr; if (nr) { v.g.rotation.y += dt * 2.4; v.g.position.y = Math.sin(t * 3 + v.s) * .12; } });
+    for (const l of lamps) if (l.down && l.a < 1.57) { l.w += dt * 7; l.a = Math.min(1.57, l.a + l.w * dt); l.g.quaternion.setFromAxisAngle(_v.set(l.dz, 0, -l.dx), l.a); if (l.a >= 1.57) AU.pothole(); }
     rotors.forEach((r, i) => r.rotation.z += dt * (.5 + i % 3 * .1)); ring.children[0].material.opacity = .22 + .08 * Math.sin(t * 4);
     // van model
     van.position.set(vanX, 0, vanZ); van.rotation.y = Math.atan2(-fx, -fz);
