@@ -1,7 +1,7 @@
 /* Antidote Rush (easter egg 10, ED&G Pharmacy Portal). Self-contained 3D driving game: the pharmacy response van drives west to east along the
    Sussex coast road past Worthing Pier, the West Pier ruins, the i360, Brighton Palace Pier and the Royal Pavilion, delivering antidote vials to
    the Royal Sussex County Hospital. Free driving with real vehicle controls (W/Up gas, S/Down brake and reverse, A/D steer, Shift boost,
-   Space handbrake), collisions with traffic, roadworks and walls, a minimap and a timed route. Esc or Exit leaves.
+   Space handbrake), collisions with traffic and walls, potholes that slow you down, a minimap and a timed route. Esc or Exit leaves.
    three.js r128 is hosted in vendor/three-r128.min.js. Only the weekly best scores are shared (submit_drive_score / get_drive_weekly). */
 (function () {
 "use strict";
@@ -51,7 +51,7 @@ const CSS = `#arRoot body{padding-left:max(16px,env(safe-area-inset-left,0px));p
 #arRoot .tc .tr{position:absolute;right:8px;bottom:8px;display:flex;gap:6px}
 #arRoot .tc button{min-width:50px;height:50px;padding:0 8px;border-radius:14px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);color:#fff;font-size:16px;touch-action:none}
 `;
-const HTML = `<button class="arx" type="button">Exit</button><button class="ars snd" type="button">Sound on</button><div class="arg" id="arstage"><div class="hud"><div><span id="artm">2:30</span><small>time left &middot; score <b id="arsc">0</b></small></div><div style="text-align:center"><span id="arvi">0</span> vials<div class="meter hp"><i id="arhp"></i></div><small>van health</small></div><div style="text-align:right"><span id="arsp">0</span> mph<div class="meter"><i id="arbo"></i></div><small id="arbest">Best 0</small></div></div><div class="loc" id="arloc"></div><div class="gps" id="argps"></div><div class="banner" id="arbn"></div><canvas class="map" id="armap" width="320" height="110"></canvas><div class="tc" id="artc"><div class="tl"><button type="button" data-k="left">Left</button><button type="button" data-k="right">Right</button></div><div class="tr"><button type="button" data-k="boost">Boost</button><button type="button" data-k="down">Brake</button><button type="button" data-k="up">Gas</button></div></div><div class="ov" id="arov"><div class="brand">ED&amp;G&trade;</div><div class="rule"><span></span><span></span><span></span></div><h2>Antidote Rush</h2><div class="sub">Drive the pharmacy response van along the Sussex coast from Worthing to the Royal Sussex County Hospital in Brighton. Follow the map, watch the traffic and roadworks, grab vials, and park in the green ring before time runs out.</div><div class="arb" id="arboard"></div><button id="argo" type="button">Start the run</button><div class="keys">W / Up gas &middot; S / Down brake and reverse &middot; A / D or Left / Right steer &middot; Shift boost &middot; Space handbrake &middot; Esc to exit</div></div></div>`;
+const HTML = `<button class="arx" type="button">Exit</button><button class="ars snd" type="button">Sound on</button><div class="arg" id="arstage"><div class="hud"><div><span id="artm">2:30</span><small>time left &middot; score <b id="arsc">0</b></small></div><div style="text-align:center"><span id="arvi">0</span> vials<div class="meter hp"><i id="arhp"></i></div><small>van health</small></div><div style="text-align:right"><span id="arsp">0</span> mph<div class="meter"><i id="arbo"></i></div><small id="arbest">Best 0</small></div></div><div class="loc" id="arloc"></div><div class="gps" id="argps"></div><div class="banner" id="arbn"></div><canvas class="map" id="armap" width="320" height="110"></canvas><div class="tc" id="artc"><div class="tl"><button type="button" data-k="left">Left</button><button type="button" data-k="right">Right</button></div><div class="tr"><button type="button" data-k="boost">Boost</button><button type="button" data-k="down">Brake</button><button type="button" data-k="up">Gas</button></div></div><div class="ov" id="arov"><div class="brand">ED&amp;G&trade;</div><div class="rule"><span></span><span></span><span></span></div><h2>Antidote Rush</h2><div class="sub">Drive the pharmacy response van along the Sussex coast from Worthing to the Royal Sussex County Hospital in Brighton. Follow the map, watch the traffic and potholes, grab vials, and park in the green ring before time runs out.</div><div class="arb" id="arboard"></div><button id="argo" type="button">Start the run</button><div class="keys">W / Up gas &middot; S / Down brake and reverse &middot; A / D or Left / Right steer &middot; Shift boost &middot; Space handbrake &middot; Esc to exit</div></div></div>`;
 function build() {
   const $ = id => root.querySelector("#ar" + id);
   const stage = root.querySelector(".arg"), ov = $("ov");
@@ -108,6 +108,67 @@ function build() {
   const terr = pastel.map(c => [3, 4, 5].map(f => new THREE.MeshStandardMaterial({ map: facade(c, f), roughness: .85 })));
 
 
+
+  // ---------- Vehicle parts (shared by the van and the traffic) ----------
+  const mGlass = new THREE.MeshStandardMaterial({ color: 0x101c2c, roughness: .08, metalness: .7 }), mTyre = col(0x141418, .95), mChrome = col(0xcfd4dc, .25, .8), mBlk = col(0x15171c, .6), mArch = new THREE.MeshBasicMaterial({ color: 0x0b0c10 });
+  const mHead = new THREE.MeshStandardMaterial({ color: 0xf8fbff, emissive: 0xdfeeff, emissiveIntensity: .6, roughness: .15 }), mAmber = new THREE.MeshBasicMaterial({ color: 0xffa31a });
+  const rimTex = (() => { const c = document.createElement("canvas"); c.width = c.height = 64; const g = c.getContext("2d"); g.fillStyle = "#1a1c22"; g.fillRect(0, 0, 64, 64); g.fillStyle = "#c9ced8"; g.beginPath(); g.arc(32, 32, 30, 0, 6.3); g.fill(); g.fillStyle = "#2a2d35";
+    for (let i = 0; i < 5; i++) { g.save(); g.translate(32, 32); g.rotate(i * Math.PI * 2 / 5 + .3); g.beginPath(); g.moveTo(8, -4); g.lineTo(27, -6); g.lineTo(27, 6); g.lineTo(8, 4); g.closePath(); g.fill(); g.restore(); }
+    g.fillStyle = "#8b919c"; g.beginPath(); g.arc(32, 32, 7, 0, 6.3); g.fill(); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t; })();
+  const mRim = new THREE.MeshStandardMaterial({ map: rimTex, roughness: .35, metalness: .5 });
+  function wheel(r, wd, side) { const g = new THREE.Group(), t = new THREE.Mesh(new THREE.CylinderGeometry(r, r, wd, 20), mTyre); t.rotation.z = Math.PI / 2; t.castShadow = true; g.add(t);
+    const rim = new THREE.Mesh(new THREE.CircleGeometry(r * .66, 20), mRim); rim.rotation.y = side * Math.PI / 2; rim.position.x = side * (wd / 2 + .003); g.add(rim); return g; }
+  function plateMesh(front, w, h) { const c = document.createElement("canvas"); c.width = 128; c.height = 32; const g = c.getContext("2d"); g.fillStyle = front ? "#f4f4f4" : "#f2c200"; g.fillRect(0, 0, 128, 32); g.strokeStyle = "#222"; g.lineWidth = 2; g.strokeRect(1, 1, 126, 30);
+    g.fillStyle = "#111"; g.font = "700 22px monospace"; g.textAlign = "center"; g.textBaseline = "middle"; const Lt = () => String.fromCharCode(65 + Math.floor(Math.random() * 26)); g.fillText(Lt() + Lt() + (10 + Math.floor(Math.random() * 15)) + " " + Lt() + Lt() + Lt(), 64, 17);
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t })); }
+  function shapeGeo(pts, depth) { const sh = new THREE.Shape(); pts.forEach((p, i) => i ? sh.lineTo(p[0], p[1]) : sh.moveTo(p[0], p[1])); const g = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelThickness: .04, bevelSize: .04, bevelSegments: 2 }); g.rotateY(-Math.PI / 2); g.translate(depth / 2, 0, 0); return g; }
+  function arches(g, w, r, zs, wd) { zs.forEach(zz => [-1, 1].forEach(sx => { const wh = wheel(r, wd, sx); wh.position.set(sx * (w / 2 - .05), r, zz); g.add(wh); wheels2.push(wh); const ar = new THREE.Mesh(new THREE.CircleGeometry(r + .07, 20), mArch); ar.rotation.y = sx * Math.PI / 2; ar.position.set(sx * (w / 2 + .056), r, zz); g.add(ar); })); }
+  const wheels2 = [];
+  const PROF = {
+    sedan: { L: 4.5, w: 1.82, r: .33, belt: .97, low: [[.05, .32], [0, .55], [.1, .78], [.9, .9], [1.3, .97], [3.5, .97], [4.2, .95], [4.5, .8], [4.48, .45], [4.4, .32]], gl: [[1.35, .97], [2.05, 1.42], [3.15, 1.42], [3.75, .97]], roof: [2.05, 3.15, 1.42] },
+    hatch: { L: 3.9, w: 1.74, r: .31, belt: .95, low: [[.05, .3], [0, .52], [.1, .75], [.8, .88], [1.15, .95], [3.5, .95], [3.9, .85], [3.88, .45], [3.8, .3]], gl: [[1.2, .95], [1.8, 1.42], [3.0, 1.45], [3.75, .97]], roof: [1.8, 3.0, 1.45] },
+    suv: { L: 4.6, w: 1.95, r: .38, belt: 1.12, low: [[.05, .38], [0, .7], [.12, .98], [.9, 1.08], [1.25, 1.12], [4.3, 1.12], [4.6, 1.0], [4.58, .55], [4.5, .38]], gl: [[1.3, 1.12], [1.9, 1.72], [4.1, 1.72], [4.45, 1.12]], roof: [1.9, 4.1, 1.72] }
+  };
+  const geoC = {}, paints = [0xf2f2f2, 0xc9ccd1, 0x1c1f26, 0x5b6068, 0x1f3a73, 0xa72b2b, 0x2f5d3a, 0xe9e3d3, 0x8a1f3d];
+  function frontKit(g, w, z0, yB, yG, yH) { // grille, headlights, bumper, plate, indicators on a front face at z0
+    g.add(B(w * .46, .15, .05, mBlk, 0, yG, z0 - .05)); g.add(B(w * .46, .025, .055, mChrome, 0, yG + .03, z0 - .052)); g.add(B(w * .56, .1, .05, mBlk, 0, yB - .12, z0 - .04));
+    [-1, 1].forEach(s => { const h = B(.42, .13, .06, mHead, s * (w / 2 - .33), yH, z0 - .04); h.rotation.y = s * .18; g.add(h); g.add(B(.14, .05, .06, mAmber, s * (w / 2 - .1), yH - .08, z0 - .03)); });
+    const pm = plateMesh(true, .5, .11); pm.position.set(0, yB, z0 - .075); pm.rotation.y = Math.PI; g.add(pm); }
+  function car(kind) {
+    if (kind === "truck") return lorry();
+    const ty = ["sedan", "hatch", "suv"][Math.floor(Math.random() * 3)], P = PROF[ty], g = new THREE.Group(), w = P.w, L = P.L, z0 = -L / 2, belt = P.belt, paint = new THREE.MeshStandardMaterial({ color: paints[Math.floor(Math.random() * paints.length)], roughness: .35, metalness: .3 });
+    if (!geoC[ty]) geoC[ty] = { low: shapeGeo(P.low, w - .1), gl: shapeGeo(P.gl, w - .24) };
+    const lo = new THREE.Mesh(geoC[ty].low, paint); lo.position.z = z0; lo.castShadow = true; g.add(lo); const gl = new THREE.Mesh(geoC[ty].gl, mGlass); gl.position.z = z0; g.add(gl);
+    g.add(B(w - .2, .05, P.roof[1] - P.roof[0], paint, 0, P.roof[2] + .02, z0 + (P.roof[0] + P.roof[1]) / 2)); g.add(B(w - .1, P.roof[2] - belt, .07, paint, 0, (belt + P.roof[2]) / 2, z0 + (P.roof[0] + P.roof[1]) / 2 + .1));
+    frontKit(g, w, z0, belt - .47, belt - .3, belt - .25);
+    [-1, 1].forEach(s => { g.add(B(.1, .09, .17, paint, s * (w / 2 + .06), belt + .06, z0 + 1.45)); g.add(B(.05, .05, .14, mBlk, s * (w / 2 - .02), belt + .03, z0 + 1.4)); g.add(B(.4, .14, .05, tl, s * (w / 2 - .33), belt - .22, -z0 + .04)); });
+    g.add(B(w - .2, .14, .08, mBlk, 0, .42, -z0 + .03)); const rp = plateMesh(false, .5, .11); rp.position.set(0, belt - .42, -z0 + .075); g.add(rp);
+    arches(g, w, P.r, [z0 + .85, -z0 - .85], .24);
+    g.userData = { kind: "car", w: w / 2, l: L / 2, v: 12 }; return g; }
+  function lorry() {
+    const g = new THREE.Group(), w = 2.3, L = 7.4, z0 = -L / 2, cabP = new THREE.MeshStandardMaterial({ color: paints[Math.floor(Math.random() * paints.length)], roughness: .4, metalness: .2 }), boxM = col([0xf2f2f2, 0xe9edf2, 0xdfe6ee][Math.floor(Math.random() * 3)], .6), strip = col([0x1d3f8f, 0xd9253a, 0x12a0ad][Math.floor(Math.random() * 3)], .5);
+    const cab = new THREE.Mesh(shapeGeo([[0, .55], [0, 2.35], [.22, 2.55], [2.0, 2.55], [2.0, .55]], w - .1), cabP); cab.position.z = z0; cab.castShadow = true; g.add(cab);
+    g.add(B(w - .35, .85, .04, mGlass, 0, 1.98, z0 - .05)); [-1, 1].forEach(s => { g.add(B(.03, .75, 1.1, mGlass, s * (w / 2 + .01), 1.95, z0 + 1.0)); g.add(B(.12, .5, .2, mBlk, s * (w / 2 + .2), 2.0, z0 + .25)); g.add(B(.3, .22, .07, mHead, s * 1.02, .85, z0 - .05)); g.add(B(.12, .05, .06, mAmber, s * 1.02, .64, z0 - .05)); g.add(B(.2, .35, .05, tl, s * (w / 2 - .2), 1.0, L / 2 + .03)); });
+    g.add(B(1.5, .7, .06, mBlk, 0, 1.0, z0 - .05)); [.8, 1.0, 1.2].forEach(y => g.add(B(1.5, .03, .07, mChrome, 0, y, z0 - .056))); [-.5, 0, .5].forEach(x => g.add(B(.2, .1, .1, mAmber, x, 2.62, z0 + .2)));
+    g.add(B(w, .3, .2, mBlk, 0, .5, z0 - .1)); const pm = plateMesh(true, .5, .11); pm.position.set(0, .5, z0 - .21); pm.rotation.y = Math.PI; g.add(pm);
+    const bl = L - 2.15, bz = z0 + 2.15 + bl / 2; g.add(B(w, 2.55, bl, boxM, 0, 2.125, bz, true)); g.add(B(w + .02, .2, bl, strip, 0, 1.6, bz)); g.add(B(w - .3, .3, L - .5, mBlk, 0, .7, .2));
+    g.add(B(.03, 2.4, .03, mBlk, 0, 2.1, L / 2 + .02)); g.add(B(w, .2, .15, mBlk, 0, .62, L / 2 + .1)); const rp = plateMesh(false, .5, .11); rp.position.set(0, .9, L / 2 + .18); g.add(rp);
+    arches(g, w + .1, .5, [z0 + 1.2, L / 2 - 1.4, L / 2 - 2.7], .32);
+    g.userData = { kind: "car", w: w / 2, l: L / 2, v: 9 }; return g; }
+  const winTex = hex => { const c = document.createElement("canvas"); c.width = 64; c.height = 32; const x = c.getContext("2d"); x.fillStyle = "#101c2c"; x.fillRect(0, 0, 64, 32); x.fillStyle = hex; x.fillRect(0, 0, 7, 32); x.fillStyle = "rgba(255,255,255,.08)"; x.fillRect(10, 3, 22, 8);
+    const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.repeat.set(6, 1); t.encoding = THREE.sRGBEncoding; return t; };
+  function busCar() {
+    const g = new THREE.Group(), hex = Math.random() < .5 ? 0xd9253a : 0x1d3f8f, css = "#" + hex.toString(16).padStart(6, "0"), w = 2.5, L = 9.8, z0 = -L / 2, m = col(hex, .45, .2), wm = new THREE.MeshStandardMaterial({ map: winTex(css), roughness: .1, metalness: .5 });
+    g.add(B(w, 4.0, L, m, 0, 2.4, 0, true)); [[1.95, 1.0], [3.45, .95]].forEach(([y, h]) => g.add(B(w + .04, h, 8.4, wm, 0, y, .3)));
+    g.add(B(2.2, 1.0, .05, mGlass, 0, 1.95, z0 - .02)); g.add(B(2.2, .95, .05, mGlass, 0, 3.45, z0 - .02)); g.add(B(w - .3, .12, L - .6, col(0x555b66, .8), 0, 4.45, 0));
+    const c = document.createElement("canvas"); c.width = 128; c.height = 26; const x = c.getContext("2d"); x.fillStyle = "#0a0a0a"; x.fillRect(0, 0, 128, 26); x.fillStyle = "#ffb020"; x.font = "800 20px monospace"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(["7 BRIGHTON", "21 HOVE", "1 WORTHING", "5 MARINA"][Math.floor(Math.random() * 4)], 64, 14);
+    const dt = new THREE.CanvasTexture(c); dt.encoding = THREE.sRGBEncoding; const db = new THREE.Mesh(new THREE.PlaneGeometry(1.7, .34), new THREE.MeshBasicMaterial({ map: dt })); db.position.set(0, 4.12, z0 - .02); db.rotation.y = Math.PI; g.add(db);
+    [-1, 1].forEach(s => { const h = new THREE.Mesh(new THREE.CylinderGeometry(.17, .17, .06, 14), mHead); h.rotation.x = Math.PI / 2; h.position.set(s * .85, .95, z0 - .04); g.add(h); g.add(B(.08, .6, .3, mBlk, s * (w / 2 + .55), 2.2, z0 + .5)); g.add(B(.06, .06, .5, mBlk, s * (w / 2 + .3), 2.3, z0 + .5)); g.add(B(.3, .16, .05, tl, s * .9, 1.0, L / 2 + .03)); });
+    g.add(B(1.4, .45, .05, mBlk, 0, .85, z0 - .03)); g.add(B(w + .04, .3, .18, mBlk, 0, .55, z0 - .08)); const pm = plateMesh(true, .5, .11); pm.position.set(0, .55, z0 - .18); pm.rotation.y = Math.PI; g.add(pm);
+    g.add(B(.04, 2.1, 1.1, mGlass, -(w / 2 + .03), 1.4, z0 + 1.5)); g.add(B(w + .04, .3, .18, mBlk, 0, .55, L / 2 + .08)); const rp = plateMesh(false, .5, .11); rp.position.set(0, .55, L / 2 + .18); g.add(rp); g.add(B(1.8, .8, .04, mGlass, 0, 3.1, L / 2 + .02));
+    arches(g, w + .1, .5, [z0 + 1.6, L / 2 - 2.2], .36);
+    g.userData = { kind: "car", w: w / 2, l: L / 2, v: 9 }; return g; }
+
   // Pharmacy response van (white, ED&G teal/navy/green stripes, blue beacon)
   const van = new THREE.Group(), vb = new THREE.Group();
   const white = new THREE.MeshStandardMaterial({ color: 0xf4f7fb, roughness: .35, metalness: .15 });
@@ -125,31 +186,15 @@ function build() {
   const tl = new THREE.MeshBasicMaterial({ color: 0xff2d2d });
   const tailL = new THREE.Mesh(new THREE.BoxGeometry(.4, .2, .06), tl); tailL.position.set(-.7, 1.0, 2.08); const tailR = tailL.clone(); tailR.position.x = .7;
   const wheels = [];
-  [[-1.02, -1.5], [1.02, -1.5], [-1.02, 1.4], [1.02, 1.4]].forEach(([x, z]) => { const w = new THREE.Mesh(new THREE.CylinderGeometry(.45, .45, .32, 14), new THREE.MeshStandardMaterial({ color: 0x15151c })); w.rotation.z = Math.PI / 2; w.position.set(x, .45, z); w.castShadow = true; vb.add(w); wheels.push(w); });
+  [[-1.02, -1.5], [1.02, -1.5], [-1.02, 1.4], [1.02, 1.4]].forEach(([x, z]) => { const sd = Math.sign(x), w = wheel(.45, .3, sd); w.position.set(x - sd * .08, .45, z); vb.add(w); wheels.push(w); const ar = new THREE.Mesh(new THREE.CircleGeometry(.52, 20), mArch); ar.rotation.y = sd * Math.PI / 2; ar.position.set(sd * 1.03, .45, z); vb.add(ar); });
   vb.add(bodyV, cab, wind, stripeT, stripeN, stripeG, crossH, crossV, beaconA, beaconB, tailL, tailR);
+  { vb.add(B(.04, 1.5, .02, mBlk, 0, 1.3, 2.09), B(.75, .5, .03, mGlass, -.46, 1.65, 2.09), B(.75, .5, .03, mGlass, .46, 1.65, 2.09), B(2.0, .2, .18, mBlk, 0, .55, 2.12)); const pm = plateMesh(false, .5, .11); pm.position.set(0, .8, 2.12); vb.add(pm);
+    [-1, 1].forEach(sd => { vb.add(B(.1, .22, .2, white, sd * 1.1, 1.3, -2.3), B(.06, .06, .3, mBlk, sd * 1.04, 1.3, -2.3)); }); }
   van.add(vb); scene.add(van);
   const blueL = new THREE.PointLight(0x35b6ff, 1.5, 10), redL = new THREE.PointLight(0xff3b30, 1.5, 10); scene.add(blueL, redL);
   const head = new THREE.SpotLight(0xfff2cf, 1.4, 40, .5, .5); head.position.set(0, 1.2, -2.5); head.target.position.set(0, 0, -20); van.add(head, head.target);
 
   const carCols = [0xc0392b, 0x2e86de, 0xf1c40f, 0x7f8c8d, 0x8e44ad, 0x27ae60, 0x2c3e50];
-  function car(kind) {
-    const g = new THREE.Group(), col = carCols[Math.floor(Math.random() * carCols.length)];
-    const truck = kind === "truck", h = truck ? 2.6 : 1.1, l = truck ? 6 : 3.8, w = truck ? 2.2 : 1.9;
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), new THREE.MeshStandardMaterial({ color: truck ? 0xe8e8ea : col, roughness: .4, metalness: .2 })); b.position.y = h / 2 + .45; b.castShadow = true; g.add(b);
-    if (!truck) { const top = new THREE.Mesh(new THREE.BoxGeometry(w - .2, .6, l * .5), new THREE.MeshStandardMaterial({ color: 0x1b2330, roughness: .2, metalness: .5 })); top.position.set(0, h + .75, .1); g.add(top); }
-    else { const cabT = new THREE.Mesh(new THREE.BoxGeometry(w, 1.8, 1.6), new THREE.MeshStandardMaterial({ color: col })); cabT.position.set(0, 1.35, -l / 2 - .8); g.add(cabT); const st = new THREE.Mesh(new THREE.BoxGeometry(w + .02, .3, l), new THREE.MeshStandardMaterial({ color: col })); st.position.y = 1.2; g.add(st); }
-    for (const x of [-.65, .65]) { const t = new THREE.Mesh(new THREE.BoxGeometry(.4, .2, .06), tl); t.position.set(x, .95, l / 2 + .02); g.add(t); }
-    for (const [x, z] of [[-w / 2, -l / 2 + .8], [w / 2, -l / 2 + .8], [-w / 2, l / 2 - .8], [w / 2, l / 2 - .8]]) { const wh = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, .3, 12), new THREE.MeshStandardMaterial({ color: 0x111116 })); wh.rotation.z = Math.PI / 2; wh.position.set(x, .42, z); g.add(wh); }
-    g.userData = { kind: "car", w: w / 2, l: (truck ? l + 1.6 : l) / 2, v: truck ? 9 : 12 + Math.random() * 6 };
-    return g;
-  }
-  function works() {
-    const g = new THREE.Group();
-    for (let i = 0; i < 3; i++) { const c = new THREE.Mesh(new THREE.ConeGeometry(.32, .9, 10), new THREE.MeshStandardMaterial({ color: 0xff6b1a })); c.position.set((i - 1) * 1, .45, 0); c.castShadow = true; g.add(c); const s = new THREE.Mesh(new THREE.CylinderGeometry(.22, .3, .12, 10), new THREE.MeshStandardMaterial({ color: 0xffffff })); s.position.set((i - 1) * 1, .55, 0); g.add(s); }
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(2.6, .4, .1), new THREE.MeshStandardMaterial({ color: 0xffffff })); bar.position.set(0, 1.2, .5); g.add(bar);
-    const bl = new THREE.Mesh(new THREE.SphereGeometry(.12, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffb020 })); bl.position.set(0, 1.55, .5); g.add(bl);
-    g.userData = { kind: "works", w: 1.4, l: .6, v: 0 }; return g;
-  }
   function vial() {
     const g = new THREE.Group();
     const glassV = new THREE.MeshStandardMaterial({ color: 0xbfffd2, transparent: true, opacity: .55, roughness: .1, emissive: 0x2fe07a, emissiveIntensity: .8 });
@@ -161,13 +206,6 @@ function build() {
   }
 
   // ---------- Bus ----------
-  function busCar() {
-    const g = new THREE.Group(), c = Math.random() < .5 ? 0xd9253a : 0x1d3f8f, m = col(c, .5, .2), gl = col(0x25303f, .3, .4);
-    g.add(B(2.5, 4.3, 9.5, m, 0, 2.6, 0, true)); g.add(B(2.52, .9, 9.4, gl, 0, 1.9, 0)); g.add(B(2.52, .9, 9.4, gl, 0, 3.7, 0));
-    for (const x of [-.9, .9]) g.add(B(.45, .22, .06, tl, x, .9, 4.78));
-    for (const [x, z] of [[-1.2, -3], [1.2, -3], [-1.2, 3], [1.2, 3]]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, .3, 12), col(0x111116)); w.rotation.z = Math.PI / 2; w.position.set(x, .5, z); g.add(w); }
-    g.userData = { kind: "car", w: 1.25, l: 4.75, v: 9 }; return g;
-  }
 
   // ---------- Landmarks (scenery along the route) ----------
   function signTex(txt, bg, fg) { const c = document.createElement("canvas"); c.width = 512; c.height = 128; const x = c.getContext("2d"); x.fillStyle = bg; x.fillRect(0, 0, 512, 128); x.strokeStyle = fg; x.lineWidth = 6; x.strokeRect(8, 8, 496, 112);
@@ -322,15 +360,16 @@ function build() {
     g.add(CY(.7, 1.3, 70, mSail, 0, 35, 0, 8)); const rot = new THREE.Group(); rot.position.set(0, 70, -1.6); for (let b = 0; b < 3; b++) { const bl = B(1.1, 32, .4, mSail, 0, 16, 0); const pv = new THREE.Group(); pv.rotation.z = b * Math.PI * 2 / 3; pv.add(bl); rot.add(pv); } g.add(rot); g.rotation.y = Math.atan2(-F.tx, -F.tz) + Math.PI / 2; scene.add(g); rotors.push(rot); }
   for (let k = 0; k < 14; k++) { fr(rnd(0, LEN)); const lat = 62 + rnd(0, 50), g = new THREE.Group(); g.add(B(1.6, .8, 5, mHull[k % 4], 0, .2, 0)); g.add(B(.1, 5, 2.4, mSail, 0, 3.2, .2)); g.position.set(F.x + F.nx * lat, -.5, F.z + F.nz * lat); g.rotation.y = rnd(0, 6.28); scene.add(g); }
 
-  // ---------- Statics: roadworks and the end barrier ----------
+  // ---------- Statics: the end barrier ----------
   const statics = [];
   const mkStatic = (x, z, tx, tz, hw, hl, s) => statics.push({ x, z, gx: tx, gz: tz, hw, hl, s });
-  { const used = [], LAT = [-5.4, -1.8, 1.8, 5.4];
-    for (let n = 0; n < 14; n++) { let s = 170 + n * 165 + rnd(-30, 30); if (s > LEN - 120) break; const lat0 = LAT[Math.floor(Math.random() * 4)];
-      const sg = sign("ROADWORKS", "#ffd23f", "#1a1a1a", 4.6, 1.15); fr(s - 42); sg.position.set(F.x + F.nx * -8.6, 2.6, F.z + F.nz * -8.6); sg.rotation.y = Math.atan2(-F.tx, -F.tz); scene.add(sg); const pl = CY(.06, .06, 2.4, mIron, F.x + F.nx * -8.6, 1.2, F.z + F.nz * -8.6, 5); scene.add(pl);
-      for (const o of [-1.4, 1.4]) { const w = works(); fr(s); w.position.set(F.x + F.nx * (lat0 + o), 0, F.z + F.nz * (lat0 + o)); w.rotation.y = Math.atan2(-F.tx, -F.tz); scene.add(w); mkStatic(w.position.x, w.position.z, F.tx, F.tz, 1.3, .6, s); }
-      for (let k = 1; k <= 3; k++) { const c = new THREE.Mesh(new THREE.ConeGeometry(.3, .85, 8), new THREE.MeshStandardMaterial({ color: 0xff6b1a })); fr(s - k * 5); c.position.set(F.x + F.nx * (lat0 - (lat0 > 0 ? 1 : -1) * k * .35), .42, F.z + F.nz * (lat0 - (lat0 > 0 ? 1 : -1) * k * .35)); scene.add(c); } } }
   { fr(LEN - 4); const bar = B(15.6, 1.2, .8, mYel, 0, .6, 0); bar.position.set(F.x, .6, F.z); bar.rotation.y = Math.atan2(-F.tx, -F.tz); scene.add(bar); mkStatic(F.x, F.z, F.tx, F.tz, 7.8, .4, LEN - 4); }
+  // ---------- Potholes: slow the van down, no damage ----------
+  const potholes = [];
+  { const mRimP = new THREE.MeshBasicMaterial({ color: 0x23252c, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), mHoleP = new THREE.MeshBasicMaterial({ color: 0x0a0b0d, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+    for (let s = 90, k = 0; s < LEN - 120; s += rnd(35, 70), k++) { const lat = rnd(-6.4, 6.4), r = rnd(.55, .95); fr(s);
+      const mkP = (rad, m, jit, y) => { const g = new THREE.CircleGeometry(rad, 14), pp = g.attributes.position; for (let i = 1; i < pp.count; i++) { const a = Math.atan2(pp.getY(i), pp.getX(i)), q = 1 + (Math.sin(a * 3 + k) * .5 + Math.sin(a * 5 + k * 2) * .5) * jit; pp.setXY(i, pp.getX(i) * q, pp.getY(i) * q); } const me = new THREE.Mesh(g, m); me.rotation.x = -Math.PI / 2; me.position.set(F.x + F.nx * lat, y, F.z + F.nz * lat); scene.add(me); };
+      mkP(r * 1.25, mRimP, .25, .02); mkP(r, mHoleP, .22, .025); potholes.push({ x: F.x + F.nx * lat, z: F.z + F.nz * lat, r: r * 1.1, s, hit: false }); } }
   // delivery ring
   const ring = new THREE.Group(); { fr(RING.s); ring.position.set(F.x + F.nx * RING.lat, 0, F.z + F.nz * RING.lat); const rm = new THREE.Mesh(new THREE.CylinderGeometry(RING.r, RING.r, 9, 28, 1, true), new THREE.MeshBasicMaterial({ color: 0x4cff8a, transparent: true, opacity: .28, side: THREE.DoubleSide, depthWrite: false })); rm.position.y = 4.5; ring.add(rm);
     const rf = new THREE.Mesh(new THREE.CircleGeometry(RING.r, 28), new THREE.MeshBasicMaterial({ color: 0x4cff8a, transparent: true, opacity: .35 })); rf.rotation.x = -Math.PI / 2; rf.position.y = .06; ring.add(rf); scene.add(ring); }
@@ -406,13 +445,14 @@ function build() {
       win() { if (ac) [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, T() + i * .11, .3, "triangle", .16)); },
       lose() { if (ac) [392, 330, 262, 196].forEach((f, i) => tone(f, T() + i * .2, .35, "sawtooth", .08)); },
       tick() { if (ac) tone(1000, T(), .06, "square", .05); },
+      pothole() { if (!ac) return; const t = T(); noise(.22, "lowpass", 350, .4, t); tone(80, t, .25, "square", .18, 40); tone(160, t + .08, .15, "triangle", .1, 90); },
       boost() { if (ac) noise(.6, "bandpass", 1200, .14, T(), 1.2); }
     });
     label(); return api;
   })();
   if (root.querySelector(".snd")) on(root.querySelector(".snd"), "click", () => AU.toggle());
   on(window, "keydown", e => { if (e.key && e.key.toLowerCase() === "m" && !e.ctrlKey && !e.metaKey && !e.altKey) AU.toggle(); });
-  let bstWas = false, lastTick = -1;
+  let bstWas = false, lastTick = -1, jolt = 0;
   const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
   function loadBoard() { const el = $("board"); if (!el || typeof sb === "undefined") return; try { Promise.resolve(sb.rpc("get_drive_weekly", { p_weeks_ago: 0 })).then(r => { const d = (r && r.data) || []; if (dead || !el.isConnected) return;
     el.innerHTML = d.length ? '<div class="arh">This week</div>' + d.slice(0, 5).map(x => '<div class="arr' + (x.is_me ? " me" : "") + '"><span>' + x.rank + ". " + esc(x.display_name) + "</span><span>" + Number(x.score).toLocaleString("en-GB") + "</span></div>").join("") : ""; }).catch(() => {}); } catch (e) {} }
@@ -509,6 +549,8 @@ function build() {
     // pickups, checkpoints, delivery
     if (run) {
       for (const v of vials3) { if (v.got || Math.abs(v.s - PS) > 20) continue; if ((v.x - vanX) * (v.x - vanX) + (v.z - vanZ) * (v.z - vanZ) < 7) { v.got = true; v.g.visible = false; nVials++; viEl.textContent = nVials; boost = Math.min(1, boost + .25); timeLeft += 2; AU.vial(); } }
+      for (const p of potholes) { if (Math.abs(p.s - PS) > 14) { p.hit = false; continue; } if (p.hit) continue;
+        for (const [a, b2] of [[1.5, -1.02], [1.5, 1.02], [-1.4, -1.02], [-1.4, 1.02]]) { const wx = vanX + fx * a + rx * b2, wz = vanZ + fz * a + rz * b2; if ((wx - p.x) * (wx - p.x) + (wz - p.z) * (wz - p.z) < (p.r + .3) * (p.r + .3)) { p.hit = true; vx *= .55; vz *= .55; jolt = 1; shake = Math.max(shake, .3); spinV += (Math.random() - .5) * .25; AU.pothole(); showBanner("Pothole! Slowed down"); break; } } }
       while (nChk < LMD.length && PS >= LMD[nChk].s) { timeLeft += 12; chkPts += 150; showBanner(LMD[nChk].name + "  +12 s"); AU.chk(); nChk++; }
       const dd = Math.hypot(vanX - RX, vanZ - RZ);
       if (dd < RING.r + 5 && !ringHint && PS > LEN - 140) { ringHint = true; showBanner("Park in the green ring to hand over the antidote"); }
@@ -520,7 +562,7 @@ function build() {
     rotors.forEach((r, i) => r.rotation.z += dt * (.5 + i % 3 * .1)); ring.children[0].material.opacity = .22 + .08 * Math.sin(t * 4);
     // van model
     van.position.set(vanX, 0, vanZ); van.rotation.y = Math.atan2(-fx, -fz);
-    vb.rotation.z = -steer * Math.min(1, Math.abs(vf) / 25) * .05 * (vf >= 0 ? 1 : -1); vb.rotation.x = -(K.up ? .015 : 0) + (K.down && vf > 1 ? .025 : 0); vb.position.y = run ? Math.sin(t * 24) * .01 * Math.min(1, Math.abs(vf) / 10) : 0;
+    vb.rotation.z = -steer * Math.min(1, Math.abs(vf) / 25) * .05 * (vf >= 0 ? 1 : -1); vb.rotation.x = -(K.up ? .015 : 0) + (K.down && vf > 1 ? .025 : 0); jolt = Math.max(0, jolt - dt * 3); vb.position.y = (run ? Math.sin(t * 24) * .01 * Math.min(1, Math.abs(vf) / 10) : 0) + jolt * Math.sin(t * 38) * .07; vb.rotation.x += jolt * Math.sin(t * 30) * .04;
     wheels.forEach(w => w.rotation.x += vf * dt * 2.2);
     const flip = Math.floor(t * 6) % 2; beaconA.visible = !!flip; beaconB.visible = !flip;
     blueL.position.set(vanX, 2.6, vanZ); redL.position.set(vanX, 2.6, vanZ); blueL.intensity = flip ? 2.2 : .2; redL.intensity = flip ? .2 : 2.2;
