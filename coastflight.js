@@ -35,6 +35,8 @@ const CSS = `#cfRoot body{padding-left:max(16px,env(safe-area-inset-left,0px));p
 #cfRoot{position:fixed;inset:0;z-index:100000;background:radial-gradient(ellipse at 50% 30%,#14235c 0,#070d26 75%);display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',Arial,sans-serif;color:#eef2ff}
 #cfRoot .cfx{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.08);color:#dfe6ff;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px 14px;font:600 14px 'Segoe UI',Arial,sans-serif;cursor:pointer;z-index:3}
 #cfRoot .cfx:hover{background:rgba(255,255,255,.18)}
+#cfRoot .cfs{position:absolute;top:14px;right:84px;background:rgba(255,255,255,.08);color:#dfe6ff;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px 14px;font:600 14px 'Segoe UI',Arial,sans-serif;cursor:pointer;z-index:3}
+#cfRoot .cfs:hover{background:rgba(255,255,255,.18)}
 #cfRoot .cfg{width:min(96vw,calc(86vh*1.6));max-height:none;aspect-ratio:16/10;border:2px solid #1d2c6b;box-shadow:0 0 0 1px #000,0 0 40px rgba(0,184,230,.18)}
 #cfRoot .ov{background:rgba(12,22,64,.78)}
 #cfRoot .ov .brand{font:800 15px 'Segoe UI',Arial,sans-serif;letter-spacing:.08em;color:#fff}
@@ -43,7 +45,7 @@ const CSS = `#cfRoot body{padding-left:max(16px,env(safe-area-inset-left,0px));p
 #cfRoot .cfr.me{color:#00cfff}
 #cfRoot .cfb{min-width:210px}
 `;
-const HTML = `<button class="cfx" type="button">Exit</button><div class="cfg" id="cfstage"><div class="hud"><div><span id="cfsc">0</span><small>score</small></div><div style="text-align:center"><span id="cfhp">&hearts;&hearts;&hearts;</span><div class="meter"><i id="cfbo"></i></div><small>boost (Space / hold)</small></div><div style="text-align:right"><span id="cfal">0</span> m<small id="cfbest">Best 0</small></div></div><div class="loc" id="cfloc"></div><div class="banner" id="cfbn"></div><div class="route" id="cfroute"><span class="dot" id="cfrdot"></span></div><div class="ov" id="cfov"><div class="brand">ED&amp;G&trade;</div><div class="rule"><span></span><span></span><span></span></div><h2>Coastal Flight</h2><div class="sub">Fly west to east along the Sussex coast: Worthing Pier, the i360, Brighton Palace Pier and the Royal Pavilion. Hoops for points, capsules for boost, a golden loop for a trick.</div><div class="cfb" id="cfboard"></div><button id="cfgo" type="button">Take off</button><div class="keys">Mouse / drag / arrows steer &middot; Space or hold to boost &middot; Esc to exit</div></div></div>`;
+const HTML = `<button class="cfx" type="button">Exit</button><button class="cfs snd" type="button">Sound on</button><div class="cfg" id="cfstage"><div class="hud"><div><span id="cfsc">0</span><small>score</small></div><div style="text-align:center"><span id="cfhp">&hearts;&hearts;&hearts;</span><div class="meter"><i id="cfbo"></i></div><small>boost (Space / hold)</small></div><div style="text-align:right"><span id="cfal">0</span> m<small id="cfbest">Best 0</small></div></div><div class="loc" id="cfloc"></div><div class="banner" id="cfbn"></div><div class="route" id="cfroute"><span class="dot" id="cfrdot"></span></div><div class="ov" id="cfov"><div class="brand">ED&amp;G&trade;</div><div class="rule"><span></span><span></span><span></span></div><h2>Coastal Flight</h2><div class="sub">Fly west to east along the Sussex coast: Worthing Pier, the i360, Brighton Palace Pier and the Royal Pavilion. Hoops for points, capsules for boost, a golden loop for a trick.</div><div class="cfb" id="cfboard"></div><button id="cfgo" type="button">Take off</button><div class="keys">Mouse / drag / arrows steer &middot; Space or hold to boost &middot; Esc to exit</div></div></div>`;
 function build() {
   const $ = id => root.querySelector("#cf" + id);
   const stage = root.querySelector(".cfg"), ov = $("ov");
@@ -353,10 +355,49 @@ function build() {
   on(window, "pointerup", () => { clearTimeout(hold); if (!keys[" "]) boosting = false; });
   function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
   on(window, "resize", resize); resize();
+  // ---------- Sound (Web Audio, no files). M or the Sound button mutes; the choice is remembered. ----------
+  const AU = (() => {
+    let ac = null, master = null, on = true, nzb = null, wg = null, wf = null, eg = null, e1 = null, e2 = null, ef = null, sg = null, so = null, kg = null, kf = null, hg = null, ho = null;
+    try { on = localStorage.getItem("pdSound") !== "off"; } catch (e) {}
+    const btn = root.querySelector(".snd"), label = () => { if (btn) btn.textContent = on ? "Sound on" : "Sound off"; };
+    const noise = (dur, type, f, v, t0, q) => { if (!ac) return; const s = ac.createBufferSource(); s.buffer = nzb; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; if (q) fl.Q.value = q; const g = ac.createGain(); const t = t0 || ac.currentTime; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur); s.connect(fl); fl.connect(g); g.connect(master); s.start(t, Math.random()); s.stop(t + dur + .05); };
+    const tone = (f, t, d, type, v, to) => { if (!ac) return; const o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + d); o.connect(g); g.connect(master); o.start(t); o.stop(t + d + .03); };
+    const loopNoise = (type, f, q) => { const s = ac.createBufferSource(); s.buffer = nzb; s.loop = true; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; if (q) fl.Q.value = q; const g = ac.createGain(); g.gain.value = 0; s.connect(fl); fl.connect(g); g.connect(master); s.start(); return [g, fl]; };
+    const osc = (type, f) => { const o = ac.createOscillator(); o.type = type; o.frequency.value = f; o.start(); return o; };
+    const set = (p, v, k) => { if (ac) p.setTargetAtTime(v, ac.currentTime, k || .08); };
+    const T = () => ac.currentTime;
+        const setup = () => { ho = osc("sawtooth", 70); const f = ac.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 420; hg = ac.createGain(); hg.gain.value = 0; ho.connect(f); f.connect(hg); hg.connect(master); };
+    const api = {
+      init() { if (ac) { try { ac.resume(); } catch (e) {} return; }
+        try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = on ? .55 : 0; master.connect(ac.destination);
+          nzb = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate); const d = nzb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+          [wg, wf] = loopNoise("bandpass", 600, .7); setup(); label(); } catch (e) { ac = null; } },
+      toggle() { on = !on; try { localStorage.setItem("pdSound", on ? "on" : "off"); } catch (e) {} if (master) set(master.gain, on ? .55 : 0, .02); label(); },
+      close() { try { if (ac) ac.close(); } catch (e) {} ac = null; },
+      get ok() { return !!ac; }, tone, noise, set, T, label,
+      nodes: () => ({ ac, master, wg, wf }), osc, loopNoise
+    };
+        Object.assign(api, {
+      fly(sp, bo, run) { if (!ac) return; set(wg.gain, run ? .06 + sp * .004 + (bo ? .09 : 0) : 0, .15); set(wf.frequency, 450 + sp * 20 + (bo ? 500 : 0), .2); set(ho.frequency, 62 + sp * 1.3 + (bo ? 30 : 0), .2); set(hg.gain, run ? .035 + (bo ? .04 : 0) : 0, .15); },
+      ring(c) { if (!ac) return; const t = T(), f = 523 * Math.pow(2, Math.min(c, 12) / 12 * .9); tone(f, t, .18, "triangle", .16); tone(f * 1.5, t + .07, .22, "triangle", .14); noise(.12, "highpass", 5000, .04, t); },
+      miss() { if (ac) tone(260, T(), .2, "triangle", .07, 150); },
+      gold() { if (!ac) return; const t = T(); [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, t + i * .07, .2, "square", .08)); noise(.5, "highpass", 3000, .05, t); },
+      cap() { if (!ac) return; const t = T(); tone(880, t, .08, "square", .08); tone(1320, t + .06, .12, "square", .08); },
+      heart() { if (ac) [659, 880, 1175].forEach((f, i) => tone(f, T() + i * .09, .18, "sine", .16)); },
+      bonus() { if (!ac) return; tone(988, T(), .1, "square", .08); tone(1480, T() + .08, .18, "square", .08); },
+      boost() { if (ac) noise(.5, "bandpass", 900, .14, T(), 1.2); },
+      hit() { if (!ac) return; const t = T(); noise(.35, "lowpass", 900, .35, t); tone(110, t, .4, "sawtooth", .25, 45); },
+      over() { if (ac) [392, 330, 262, 196].forEach((f, i) => tone(f, T() + i * .18, .3, "triangle", .14)); }
+    });
+    label(); return api;
+  })();
+  if (root.querySelector(".snd")) on(root.querySelector(".snd"), "click", () => AU.toggle());
+  on(window, "keydown", e => { if (e.key && e.key.toLowerCase() === "m" && !e.ctrlKey && !e.metaKey && !e.altKey) AU.toggle(); });
+  let boWas = false;
 
   function hurt() {
-    if (invul > 0 || trick > 0) return; hearts--; invul = 1.6; shake = .5; combo = 0; heartsTxt();
-    if (hearts <= 0) { alive = false; const total = score; if (total > best) { best = total; try { localStorage.setItem("cfbest", best); } catch (e) {} bestEl.textContent = "Best " + best; }
+    if (invul > 0 || trick > 0) return; AU.hit(); hearts--; invul = 1.6; shake = .5; combo = 0; heartsTxt();
+    if (hearts <= 0) { alive = false; AU.over(); const total = score; if (total > best) { best = total; try { localStorage.setItem("cfbest", best); } catch (e) {} bestEl.textContent = "Best " + best; }
       ov.querySelector("h2").textContent = "Score " + total.toLocaleString("en-GB"); ov.querySelector(".sub").textContent = Math.floor(dist) + " m flown along the coast. GRAEMe needs a lie down."; $("go").textContent = "Fly again"; ov.hidden = false; $("board").innerHTML = "";
       if (total > 0 && typeof sb !== "undefined") { try { Promise.resolve(sb.rpc("submit_coast_score", { p_score: total, p_metres: Math.floor(dist) })).then(() => { if (!dead) loadBoard(); }).catch(() => {}); } catch (e) {} } else loadBoard(); }
   }
@@ -366,7 +407,7 @@ function build() {
     const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
     const p = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffd34d, size: .5, transparent: true, opacity: 1, depthWrite: false })); p.frustumCulled = false; p.position.copy(player.position); scene.add(p); sparks = { p, vel, age: 0 };
   }
-  function startTrick() { trick = 1.5; surge = 3.2; boost = 1; shake = .25; bonus = (bonus || 0) + 50; flameMats.forEach(m => m.color.set(0xffc928)); burst(); }
+  function startTrick() { AU.gold(); trick = 1.5; surge = 3.2; boost = 1; shake = .25; bonus = (bonus || 0) + 50; flameMats.forEach(m => m.color.set(0xffc928)); burst(); }
   let last = performance.now(), lapD = 0, locNow = "";
   function frame(now) {
     if (dead) return; raf = requestAnimationFrame(frame);
@@ -399,7 +440,7 @@ function build() {
     robot.rotation.z = -vx * .09; player.rotation.x = vy * .05; player.rotation.z = -vx * .05;
     head.rotation.y = Math.sin(t * .9) * .12; head.rotation.x = .12 + Math.sin(t * 1.3) * .05;
     aL.up.rotation.x = aR.up.rotation.x = -1.1 + Math.sin(t * 6) * .05;
-    const bo = (surge > 0 || (boosting && boost > 0)) && run; flames.forEach((f, i) => { const k = (bo ? 1.7 : 1) * (1 + Math.sin(t * 40 + i) * .12 + Math.random() * .1); f.scale.set(1, k, 1); }); jetL.intensity = (bo ? 2.6 : 1.4) + Math.random() * .4;
+    const bo = (surge > 0 || (boosting && boost > 0)) && run; AU.fly(mv, bo, run); if (bo && !boWas) AU.boost(); boWas = bo; flames.forEach((f, i) => { const k = (bo ? 1.7 : 1) * (1 + Math.sin(t * 40 + i) * .12 + Math.random() * .1); f.scale.set(1, k, 1); }); jetL.intensity = (bo ? 2.6 : 1.4) + Math.random() * .4;
     if (trick > 0) { trick = Math.max(0, trick - dt); const k = 1 - trick / 1.5, ease = x => x < .5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
       trickG.rotation.x = -Math.PI * 2 * ease(Math.min(1, k / .55));
       trickG.rotation.y = k > .4 ? Math.PI * 2 * ease(Math.min(1, (k - .4) / .6)) : 0;
@@ -417,16 +458,16 @@ function build() {
       if (o.position.z - (u.D || 0) / 2 > 14) { scene.remove(o); things.splice(i, 1); continue; }
       if (!run) continue;
       const dx = o.position.x - px, dy = o.position.y - py, dz = Math.abs(o.position.z);
-      if (u.kind === "ring") { if (dz < 1.2 && !u.done) { u.done = true; if (Math.hypot(dx, dy) < 2.4) { combo++; bonus = (bonus || 0) + 10 + combo * 5; mRing.emissiveIntensity = 3; setTimeout(() => mRing.emissiveIntensity = 1.3, 150); } else combo = 0; } }
+      if (u.kind === "ring") { if (dz < 1.2 && !u.done) { u.done = true; if (Math.hypot(dx, dy) < 2.4) { combo++; bonus = (bonus || 0) + 10 + combo * 5; mRing.emissiveIntensity = 3; setTimeout(() => mRing.emissiveIntensity = 1.3, 150); AU.ring(combo); scene.remove(o); things.splice(i, 1); } else { combo = 0; AU.miss(); } } }
       else if (u.kind === "gold") { if (dz < 1.4 && !u.done) { u.done = true; if (Math.hypot(dx, dy) < 3.3) { startTrick(); scene.remove(o); things.splice(i, 1); } } }
-      else if (u.kind === "cap") { if (dz < 1.4 && Math.hypot(dx, dy) < 1.8) { boost = Math.min(1, boost + .4); bonus = (bonus || 0) + 15; scene.remove(o); things.splice(i, 1); } }
-      else if (u.kind === "heart") { if (dz < 1.4 && Math.hypot(dx, dy) < 1.8) { hearts = Math.min(3, hearts + 1); heartsTxt(); scene.remove(o); things.splice(i, 1); } }
+      else if (u.kind === "cap") { if (dz < 1.4 && Math.hypot(dx, dy) < 1.8) { boost = Math.min(1, boost + .4); bonus = (bonus || 0) + 15; AU.cap(); scene.remove(o); things.splice(i, 1); } }
+      else if (u.kind === "heart") { if (dz < 1.4 && Math.hypot(dx, dy) < 1.8) { hearts = Math.min(3, hearts + 1); heartsTxt(); AU.heart(); scene.remove(o); things.splice(i, 1); } }
       else if (u.kind === "turb") { if (dz < 1.7) { if (Math.abs(dx) < 1.3 && py < u.h + .4) hurt(); else if (Math.hypot(dx, dy - u.h) < 3.3) hurt(); } }
       else if (u.kind === "gull") { if (dz < 1.5 && Math.hypot(dx, dy * 1.5) < 2.0) hurt(); }
       else if (u.kind === "lm") {
         const lz = -o.position.z;
         for (const b of u.boxes) { if (lz > b.z0 - .8 && lz < b.z1 + .8 && px > b.x0 - .8 && px < b.x1 + .8 && py > b.y0 - .7 && py < b.y1 + .7) { hurt(); break; } }
-        if (u.under && !u.underDone && lz > u.under.z0 && lz < u.under.z1 && px > u.under.x0 && px < u.under.x1 && py < 3.0) { u.underDone = true; bonus += u.under.pts; showBanner("Under the pier +" + u.under.pts); }
+        if (u.under && !u.underDone && lz > u.under.z0 && lz < u.under.z1 && px > u.under.x0 && px < u.under.x1 && py < 3.0) { u.underDone = true; AU.bonus(); bonus += u.under.pts; showBanner("Under the pier +" + u.under.pts); }
         if (u.circs) for (const c of u.circs) { if (Math.abs(lz) < c.zh + .8 && Math.hypot(px - c.x, py - c.y) < c.r + .5) { hurt(); break; } }
       }
     }
@@ -442,11 +483,11 @@ function build() {
     sky.position.x = cam.position.x;
     renderer.render(scene, cam);
   }
-  $("go").onclick = () => { bonus = 0; reset(); running = true; ov.hidden = true; };
+  $("go").onclick = () => { AU.init(); bonus = 0; reset(); running = true; ov.hidden = true; };
   loadBoard();
   reset(); last = performance.now(); raf = requestAnimationFrame(frame);
   return function close() {
-    dead = true; cancelAnimationFrame(raf); clearTimeout(bt); clearTimeout(hold); offs.forEach(f => f());
+    dead = true; AU.close(); cancelAnimationFrame(raf); clearTimeout(bt); clearTimeout(hold); offs.forEach(f => f());
     try { scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.map) m.map.dispose(); m.dispose(); }); }); renderer.dispose(); renderer.forceContextLoss(); } catch (e) {}
   };
 }

@@ -31,6 +31,8 @@ const CSS = `#arRoot body{padding-left:max(16px,env(safe-area-inset-left,0px));p
 #arRoot{position:fixed;inset:0;z-index:100000;background:radial-gradient(ellipse at 50% 30%,#14235c 0,#070d26 75%);display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',Arial,sans-serif;color:#eef2ff}
 #arRoot .arx{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.08);color:#dfe6ff;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px 14px;font:600 14px 'Segoe UI',Arial,sans-serif;cursor:pointer;z-index:3}
 #arRoot .arx:hover{background:rgba(255,255,255,.18)}
+#arRoot .ars{position:absolute;top:14px;right:84px;background:rgba(255,255,255,.08);color:#dfe6ff;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px 14px;font:600 14px 'Segoe UI',Arial,sans-serif;cursor:pointer;z-index:3}
+#arRoot .ars:hover{background:rgba(255,255,255,.18)}
 #arRoot .arg{width:min(96vw,calc(86vh*1.6));max-height:none;aspect-ratio:16/10;border:2px solid #1d2c6b;box-shadow:0 0 0 1px #000,0 0 40px rgba(0,184,230,.18)}
 #arRoot .ov{background:rgba(12,22,64,.78)}
 #arRoot .ov .brand{font:800 15px 'Segoe UI',Arial,sans-serif;letter-spacing:.08em;color:#fff}
@@ -49,7 +51,7 @@ const CSS = `#arRoot body{padding-left:max(16px,env(safe-area-inset-left,0px));p
 #arRoot .tc .tr{position:absolute;right:8px;bottom:8px;display:flex;gap:6px}
 #arRoot .tc button{min-width:50px;height:50px;padding:0 8px;border-radius:14px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);color:#fff;font-size:16px;touch-action:none}
 `;
-const HTML = `<button class="arx" type="button">Exit</button><div class="arg" id="arstage"><div class="hud"><div><span id="artm">2:30</span><small>time left &middot; score <b id="arsc">0</b></small></div><div style="text-align:center"><span id="arvi">0</span> vials<div class="meter hp"><i id="arhp"></i></div><small>van health</small></div><div style="text-align:right"><span id="arsp">0</span> mph<div class="meter"><i id="arbo"></i></div><small id="arbest">Best 0</small></div></div><div class="loc" id="arloc"></div><div class="gps" id="argps"></div><div class="banner" id="arbn"></div><canvas class="map" id="armap" width="320" height="110"></canvas><div class="tc" id="artc"><div class="tl"><button type="button" data-k="left">Left</button><button type="button" data-k="right">Right</button></div><div class="tr"><button type="button" data-k="boost">Boost</button><button type="button" data-k="down">Brake</button><button type="button" data-k="up">Gas</button></div></div><div class="ov" id="arov"><div class="brand">ED&amp;G&trade;</div><div class="rule"><span></span><span></span><span></span></div><h2>Antidote Rush</h2><div class="sub">Drive the pharmacy response van along the Sussex coast from Worthing to the Royal Sussex County Hospital in Brighton. Follow the map, watch the traffic and roadworks, grab vials, and park in the green ring before time runs out.</div><div class="arb" id="arboard"></div><button id="argo" type="button">Start the run</button><div class="keys">W / Up gas &middot; S / Down brake and reverse &middot; A / D or Left / Right steer &middot; Shift boost &middot; Space handbrake &middot; Esc to exit</div></div></div>`;
+const HTML = `<button class="arx" type="button">Exit</button><button class="ars snd" type="button">Sound on</button><div class="arg" id="arstage"><div class="hud"><div><span id="artm">2:30</span><small>time left &middot; score <b id="arsc">0</b></small></div><div style="text-align:center"><span id="arvi">0</span> vials<div class="meter hp"><i id="arhp"></i></div><small>van health</small></div><div style="text-align:right"><span id="arsp">0</span> mph<div class="meter"><i id="arbo"></i></div><small id="arbest">Best 0</small></div></div><div class="loc" id="arloc"></div><div class="gps" id="argps"></div><div class="banner" id="arbn"></div><canvas class="map" id="armap" width="320" height="110"></canvas><div class="tc" id="artc"><div class="tl"><button type="button" data-k="left">Left</button><button type="button" data-k="right">Right</button></div><div class="tr"><button type="button" data-k="boost">Boost</button><button type="button" data-k="down">Brake</button><button type="button" data-k="up">Gas</button></div></div><div class="ov" id="arov"><div class="brand">ED&amp;G&trade;</div><div class="rule"><span></span><span></span><span></span></div><h2>Antidote Rush</h2><div class="sub">Drive the pharmacy response van along the Sussex coast from Worthing to the Royal Sussex County Hospital in Brighton. Follow the map, watch the traffic and roadworks, grab vials, and park in the green ring before time runs out.</div><div class="arb" id="arboard"></div><button id="argo" type="button">Start the run</button><div class="keys">W / Up gas &middot; S / Down brake and reverse &middot; A / D or Left / Right steer &middot; Shift boost &middot; Space handbrake &middot; Esc to exit</div></div></div>`;
 function build() {
   const $ = id => root.querySelector("#ar" + id);
   const stage = root.querySelector(".arg"), ov = $("ov");
@@ -372,6 +374,45 @@ function build() {
     ["pointerup", "pointercancel", "lostpointercapture"].forEach(ev => b.addEventListener(ev, () => { K[k] = false; })); });
   function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
   on(window, "resize", resize); resize();
+  // ---------- Sound (Web Audio, no files). M or the Sound button mutes; the choice is remembered. ----------
+  const AU = (() => {
+    let ac = null, master = null, on = true, nzb = null, wg = null, wf = null, eg = null, e1 = null, e2 = null, ef = null, sg = null, so = null, kg = null, kf = null, hg = null, ho = null;
+    try { on = localStorage.getItem("pdSound") !== "off"; } catch (e) {}
+    const btn = root.querySelector(".snd"), label = () => { if (btn) btn.textContent = on ? "Sound on" : "Sound off"; };
+    const noise = (dur, type, f, v, t0, q) => { if (!ac) return; const s = ac.createBufferSource(); s.buffer = nzb; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; if (q) fl.Q.value = q; const g = ac.createGain(); const t = t0 || ac.currentTime; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur); s.connect(fl); fl.connect(g); g.connect(master); s.start(t, Math.random()); s.stop(t + dur + .05); };
+    const tone = (f, t, d, type, v, to) => { if (!ac) return; const o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + d); o.connect(g); g.connect(master); o.start(t); o.stop(t + d + .03); };
+    const loopNoise = (type, f, q) => { const s = ac.createBufferSource(); s.buffer = nzb; s.loop = true; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; if (q) fl.Q.value = q; const g = ac.createGain(); g.gain.value = 0; s.connect(fl); fl.connect(g); g.connect(master); s.start(); return [g, fl]; };
+    const osc = (type, f) => { const o = ac.createOscillator(); o.type = type; o.frequency.value = f; o.start(); return o; };
+    const set = (p, v, k) => { if (ac) p.setTargetAtTime(v, ac.currentTime, k || .08); };
+    const T = () => ac.currentTime;
+        const setup = () => { e1 = osc("sawtooth", 50); e2 = osc("square", 25); ef = ac.createBiquadFilter(); ef.type = "lowpass"; ef.frequency.value = 520; eg = ac.createGain(); eg.gain.value = 0; e1.connect(ef); e2.connect(ef); ef.connect(eg); eg.connect(master);
+      so = osc("sine", 800); sg = ac.createGain(); sg.gain.value = 0; so.connect(sg); sg.connect(master); [kg, kf] = loopNoise("highpass", 1800, 2); };
+    const api = {
+      init() { if (ac) { try { ac.resume(); } catch (e) {} return; }
+        try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = on ? .55 : 0; master.connect(ac.destination);
+          nzb = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate); const d = nzb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+          [wg, wf] = loopNoise("bandpass", 600, .7); setup(); label(); } catch (e) { ac = null; } },
+      toggle() { on = !on; try { localStorage.setItem("pdSound", on ? "on" : "off"); } catch (e) {} if (master) set(master.gain, on ? .55 : 0, .02); label(); },
+      close() { try { if (ac) ac.close(); } catch (e) {} ac = null; },
+      get ok() { return !!ac; }, tone, noise, set, T, label,
+      nodes: () => ({ ac, master, wg, wf }), osc, loopNoise
+    };
+        Object.assign(api, {
+      drive(sp, thr, bst, skid, run, live) { if (!ac) return; set(eg.gain, !live ? 0 : run ? .05 + .05 * thr + (bst ? .03 : 0) : .02, .1); set(e1.frequency, 36 + sp * 2.2 + (thr ? 6 : 0) + (bst ? 10 : 0), .1); set(e2.frequency, 18 + sp * 1.1, .1); set(ef.frequency, 300 + sp * 20, .1); set(wg.gain, live ? Math.min(.12, sp * .0035) : 0, .15); set(wf.frequency, 400 + sp * 25, .2); set(kg.gain, live && run ? Math.min(.1, skid * .012) : 0, .05); },
+      siren(t, on2) { if (!ac) return; set(so.frequency, 760 + 190 * Math.sign(Math.sin(t * 5.2)), .03); set(sg.gain, on2 ? .012 : 0, .1); },
+      hit(vn) { if (!ac || vn < 1.5) return; const t = T(), v = Math.min(.5, .1 + vn * .02); noise(.25 + vn * .01, "lowpass", 700 + vn * 30, v, t); tone(100, t, .3, "sawtooth", v * .8, 40); if (vn > 6) noise(.25, "highpass", 3000, .1, t); },
+      vial() { if (!ac) return; const t = T(); tone(988, t, .08, "square", .07); tone(1480, t + .06, .14, "square", .07); },
+      chk() { if (ac) [523, 659, 784].forEach((f, i) => tone(f, T() + i * .09, .25, "triangle", .15)); },
+      win() { if (ac) [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, T() + i * .11, .3, "triangle", .16)); },
+      lose() { if (ac) [392, 330, 262, 196].forEach((f, i) => tone(f, T() + i * .2, .35, "sawtooth", .08)); },
+      tick() { if (ac) tone(1000, T(), .06, "square", .05); },
+      boost() { if (ac) noise(.6, "bandpass", 1200, .14, T(), 1.2); }
+    });
+    label(); return api;
+  })();
+  if (root.querySelector(".snd")) on(root.querySelector(".snd"), "click", () => AU.toggle());
+  on(window, "keydown", e => { if (e.key && e.key.toLowerCase() === "m" && !e.ctrlKey && !e.metaKey && !e.altKey) AU.toggle(); });
+  let bstWas = false, lastTick = -1;
   const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
   function loadBoard() { const el = $("board"); if (!el || typeof sb === "undefined") return; try { Promise.resolve(sb.rpc("get_drive_weekly", { p_weeks_ago: 0 })).then(r => { const d = (r && r.data) || []; if (dead || !el.isConnected) return;
     el.innerHTML = d.length ? '<div class="arh">This week</div>' + d.slice(0, 5).map(x => '<div class="arr' + (x.is_me ? " me" : "") + '"><span>' + x.rank + ". " + esc(x.display_name) + "</span><span>" + Number(x.score).toLocaleString("en-GB") + "</span></div>").join("") : ""; }).catch(() => {}); } catch (e) {} }
@@ -396,7 +437,7 @@ function build() {
       const rA = hl * Math.abs(fx * ux + fz * uz) + hw * Math.abs(-fz * ux + fx * uz), rB = hl2 * Math.abs(gx * ux + gz * uz) + hw2 * Math.abs(-gz * ux + gx * uz), d = dx * ux + dz * uz, ov = rA + rB - Math.abs(d);
       if (ov <= 0) return false; if (ov < best) { best = ov; const sg = d >= 0 ? 1 : -1; SN.x = ux * sg; SN.z = uz * sg; SN.d = ov; } }
     return true; }
-  function hurt(vn) { shake = Math.max(shake, Math.min(.7, vn * .035)); if (vn > 3) { hp -= (vn - 3) * 2.2; if (hp <= 0) { hp = 0; over("wreck"); } } }
+  function hurt(vn) { AU.hit(vn); shake = Math.max(shake, Math.min(.7, vn * .035)); if (vn > 3) { hp -= (vn - 3) * 2.2; if (hp <= 0) { hp = 0; over("wreck"); } } }
   function hitBox(bx, bz, gx, gz, hw2, hl2, bvx, bvz, e) {
     const fx = Math.cos(yaw), fz = Math.sin(yaw), cx = vanX + fx * .55, cz = vanZ + fz * .55;
     if (!sat(cx, cz, fx, fz, 1.05, 2.6, bx, bz, gx, gz, hw2, hl2)) return false;
@@ -413,7 +454,7 @@ function build() {
     for (const a of ai) if (a.s > 0 && Math.abs(a.s - ps) < 16 && hitBox(a.x, a.z, a.gx, a.gz, a.u.w, a.u.l, a.vx, a.vz, .3)) a.stun = 1.6;
   }
   function over(kind) {
-    if (!alive) return; alive = false; running = false; shake = Math.max(shake, .6); Object.keys(K).forEach(k => K[k] = false);
+    if (!alive) return; alive = false; running = false; if (kind === "win") AU.win(); else AU.lose(); shake = Math.max(shake, .6); Object.keys(K).forEach(k => K[k] = false);
     let fin = 0; if (kind === "win") { fin = 1000 + Math.floor(timeLeft * 15) + Math.floor(hp * 5) + nVials * 100; extra += fin; }
     const total = curScore(), h = ov.querySelector("h2"), sub = ov.querySelector(".sub");
     if (total > best) { best = total; try { localStorage.setItem("arbest", best); } catch (e) {} bestEl.textContent = "Best " + best; }
@@ -451,6 +492,8 @@ function build() {
     if (K.hb && run) vf -= vf * 1.4 * dt;
     if (vf > vmax) vf -= (vf - vmax) * dt * 1.5;
     vl *= Math.exp(-(K.hb && run ? 1.3 : 7) * dt);
+    AU.drive(Math.abs(vf), K.up && run ? 1 : 0, bst, Math.abs(vl) + (K.hb && run ? Math.abs(vf) * .5 : 0), run, alive); AU.siren(t, run); if (bst && !bstWas) AU.boost(); bstWas = bst;
+    if (run && timeLeft < 15 && Math.ceil(timeLeft) !== lastTick) { lastTick = Math.ceil(timeLeft); AU.tick(); }
     vx = fx * vf + rx * vl; vz = fz * vf + rz * vl; vanX += vx * dt; vanZ += vz * dt;
     // traffic
     proj(vanX, vanZ); const ps = PS;
@@ -465,8 +508,8 @@ function build() {
     proj(vanX, vanZ); if (alive && PS > prog) prog = PS;
     // pickups, checkpoints, delivery
     if (run) {
-      for (const v of vials3) { if (v.got || Math.abs(v.s - PS) > 20) continue; if ((v.x - vanX) * (v.x - vanX) + (v.z - vanZ) * (v.z - vanZ) < 7) { v.got = true; v.g.visible = false; nVials++; viEl.textContent = nVials; boost = Math.min(1, boost + .25); timeLeft += 2; } }
-      while (nChk < LMD.length && PS >= LMD[nChk].s) { timeLeft += 12; chkPts += 150; showBanner(LMD[nChk].name + "  +12 s"); nChk++; }
+      for (const v of vials3) { if (v.got || Math.abs(v.s - PS) > 20) continue; if ((v.x - vanX) * (v.x - vanX) + (v.z - vanZ) * (v.z - vanZ) < 7) { v.got = true; v.g.visible = false; nVials++; viEl.textContent = nVials; boost = Math.min(1, boost + .25); timeLeft += 2; AU.vial(); } }
+      while (nChk < LMD.length && PS >= LMD[nChk].s) { timeLeft += 12; chkPts += 150; showBanner(LMD[nChk].name + "  +12 s"); AU.chk(); nChk++; }
       const dd = Math.hypot(vanX - RX, vanZ - RZ);
       if (dd < RING.r + 5 && !ringHint && PS > LEN - 140) { ringHint = true; showBanner("Park in the green ring to hand over the antidote"); }
       if (dd < RING.r - .6 && Math.hypot(vx, vz) < 5) { over("win"); }
@@ -504,10 +547,10 @@ function build() {
     drawMap();
     renderer.render(scene, cam);
   }
-  $("go").onclick = () => { reset(); running = true; ov.hidden = true; };
+  $("go").onclick = () => { AU.init(); reset(); running = true; ov.hidden = true; };
   loadBoard(); reset(); last = performance.now(); raf = requestAnimationFrame(frame);
   return function close() {
-    dead = true; cancelAnimationFrame(raf); clearTimeout(bt); offs.forEach(f => f());
+    dead = true; AU.close(); cancelAnimationFrame(raf); clearTimeout(bt); offs.forEach(f => f());
     try { scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.map) m.map.dispose(); m.dispose(); }); }); renderer.dispose(); renderer.forceContextLoss(); } catch (e) {}
   };
 }
