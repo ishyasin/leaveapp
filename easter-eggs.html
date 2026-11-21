@@ -41,6 +41,7 @@
       <button type="button" id="tabBtn-egg8" onclick="showEgg('egg8')"><i class="dot" id="dot-egg8"></i>7: Seafront Jet</button>
       <button type="button" id="tabBtn-egg9" onclick="showEgg('egg9')"><i class="dot" id="dot-egg9"></i>8: Shelf Match</button>
       <button type="button" id="tabBtn-egg10" onclick="showEgg('egg10')"><i class="dot" id="dot-egg10"></i>9: Coastal Flight</button>
+      <button type="button" id="tabBtn-egg11" onclick="showEgg('egg11')"><i class="dot" id="dot-egg11"></i>10: Antidote Rush</button>
     </div>
   </div>
   <div id="tab-egg" class="egg-sec" style="display:none;">
@@ -275,11 +276,35 @@
       </form>
     </div>
   </div>
+
+  <div id="tab-egg11" class="egg-sec" style="display:none;">
+    <div class="card">
+      <h2>Easter egg 10: Antidote Rush</h2>
+      <p class="small">Developer only. A hidden 3D driving game: the pharmacy response van drives the Sussex coast road from Worthing to the Royal Sussex County Hospital with real steering, collisions with traffic and roadworks, a minimap and a timed route. Weekly high scores are shared. Does nothing until you set a code and switch it on.</p>
+      <div id="egg11Msg"></div>
+      <p style="margin:6px 0 12px;"><strong>Status:</strong> <span id="egg11Status">loading…</span><br><span class="small" id="egg11Meta"></span></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="primary" id="egg11OnBtn" onclick="eggSwitch(11, true)" style="display:none;">Switch on</button>
+        <button class="danger" id="egg11OffBtn" onclick="eggSwitch(11, false)" style="display:none;">Switch off</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Secret code</h2>
+      <form id="egg11Form" autocomplete="off">
+        <label for="egg11Code">New code</label>
+        <input type="text" id="egg11Code" autocomplete="off" maxlength="40" placeholder="4 to 40 characters">
+        <input type="hidden" id="egg11Code2">
+        <input type="checkbox" id="egg11Show" style="display:none;">
+        <p class="small" style="margin:6px 0 0;">Spaces and capitals are ignored when the code is checked. Pick something people will not guess, and different from the codes for the other easter eggs (the code you type decides which game opens). Saving a code does not change whether the egg is on or off.</p>
+        <div style="margin-top:14px;"><button type="submit" class="primary" id="egg11SaveBtn">Save new code</button></div>
+      </form>
+    </div>
+  </div>
 </div>
 <script src="shared.js?v=202611191300"></script>
 <script>
 let PROFILE = null;
-const EGG_NAMES = ["egg", "egg2", "egg3", "egg4", "egg6", "egg7", "egg8", "egg9", "egg10"];
+const EGG_NAMES = ["egg", "egg2", "egg3", "egg4", "egg6", "egg7", "egg8", "egg9", "egg10", "egg11"];
 function showEgg(name) {
   EGG_NAMES.forEach(t => {
     document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
@@ -290,12 +315,12 @@ function showEgg(name) {
 /* ---------------- easter eggs (Developer) ---------------- */
 // Four eggs share one set of functions: n = 1 (Portal Defence), 2 (Tile Defence), 3 (Portal Defence: Payback) or 4 (GRAEMe Escape).
 // Element ids are "egg..." for egg 1, "egg2..." for egg 2, "egg3..." for egg 3 and "egg4..." for egg 4.
-const EGG_STATE = { 1: { on: false, set: false }, 2: { on: false, set: false }, 3: { on: false, set: false }, 4: { on: false, set: false }, 5: { on: false, set: false }, 6: { on: false, set: false }, 7: { on: false, set: false }, 8: { on: false, set: false }, 9: { on: false, set: false }, 10: { on: false, set: false } };
-const eggLabel = n => (n === 10 ? 9 : n === 9 ? 8 : n === 8 ? 7 : n === 7 ? 6 : n === 6 ? 5 : n);   // egg 6 in the database is shown as "Easter egg 5" (egg 5 is the Escape cheat code)
+const EGG_STATE = { 1: { on: false, set: false }, 2: { on: false, set: false }, 3: { on: false, set: false }, 4: { on: false, set: false }, 5: { on: false, set: false }, 6: { on: false, set: false }, 7: { on: false, set: false }, 8: { on: false, set: false }, 9: { on: false, set: false }, 10: { on: false, set: false }, 11: { on: false, set: false } };
+const eggLabel = n => (n === 11 ? 10 : n === 10 ? 9 : n === 9 ? 8 : n === 8 ? 7 : n === 7 ? 6 : n === 6 ? 5 : n);   // egg 6 in the database is shown as "Easter egg 5" (egg 5 is the Escape cheat code)
 const eggId = (n, name) => (n === 1 ? "egg" : "egg" + n) + name;
 const eggEl = (n, name) => document.getElementById(eggId(n, name));
 function setupEggTab() {
-  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].forEach(n => {
+  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].forEach(n => {
     eggEl(n, "Show").addEventListener("change", e => {
       eggEl(n, "Code").type = e.target.checked ? "text" : "password";
       eggEl(n, "Code2").type = e.target.checked ? "text" : "password";
